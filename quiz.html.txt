@@ -2,23 +2,33 @@
 <html>
 <head>
   <title>Quiz</title>
-  <link rel="stylesheet" href="style.css">
 </head>
-
 <body>
 
-  <h1>Quiz</h1>
+<h1>Simple Quiz</h1>
 
-  <nav>
-    <a href="index.html">Home</a>
-    <a href="doctrine.html">Doctrine</a>
-    <a href="forums.html">Forums</a>
-    <a href="news.html">News</a>
-    <a href="quiz.html">Quiz</a>
-    <a href="profile.html">Sign In</a>
-  </nav>
+<p>Do you like X?</p>
+<button onclick="answer(1)">Yes</button>
+<button onclick="answer(-1)">No</button>
+<button onclick="answer(0)">I don't know</button>
 
-  <p>This is the quiz page.</p>
+<p id="result"></p>
+
+<script>
+let score = 0;
+
+function answer(value) {
+  score += value;
+
+  if (score >= 2) {
+    document.getElementById("result").innerText = "Result A";
+  } else if (score >= 0) {
+    document.getElementById("result").innerText = "Result B";
+  } else {
+    document.getElementById("result").innerText = "Result C";
+  }
+}
+</script>
 
 </body>
 </html>
