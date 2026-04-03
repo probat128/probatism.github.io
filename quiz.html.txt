@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Quiz</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+  <h1>Quiz</h1>
+
+  <nav>
+    <a href="index.html">Home</a>
+    <a href="doctrine.html">Doctrine</a>
+    <a href="forums.html">Forums</a>
+    <a href="news.html">News</a>
+    <a href="quiz.html">Quiz</a>
+    <a href="profile.html">Sign In</a>
+  </nav>
+
+  <p>This is the quiz page.</p>
+
+</body>
+</html>
