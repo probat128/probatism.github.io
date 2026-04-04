@@ -64,5 +64,16 @@
       document.getElementById("status").innerText = "You are logged in as " + localStorage.getItem("currentUser");
   }
 </script>
+
+
+<script>
+  const accountLink = document.getElementById("accountLink");
+  const currentUser = localStorage.getItem("currentUser");
+  if(currentUser){
+      accountLink.innerText = "Profile";
+      accountLink.href = "profile.html"; // Profile page you create
+  }
+</script>
+  
 </body>
 </html>
