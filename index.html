@@ -21,14 +21,14 @@ firebase.initializeApp(firebaseConfig);
   <h1>Welcome to My Website</h1>
 
   <nav>
-    <a href="index.html">Home</a>
-    <a href="doctrine.html">Doctrine</a>
-    <a href="forums.html">Forums</a>
-    <a href="news.html">News</a>
-    <a href="quiz.html">Quiz</a>
-    <a href="signin.html" id="accountLink">Sign In / Sign Up</a>
-    <button id="logoutBtn" style="display:none;">Logout</button>
-  </nav>
+  <a href="index.html">Home</a>
+  <a href="doctrine.html">Doctrine</a>
+  <a href="forums.html">Forums</a>
+  <a href="news.html">News</a>
+  <a href="quiz.html">Quiz</a>
+  <a href="signin.html" id="accountLink">Sign In / Sign Up</a>
+  <button id="logoutBtn" style="display:none;">Logout</button>
+</nav>
 
   <p>This is the home page.</p>
 
@@ -39,6 +39,31 @@ firebase.initializeApp(firebaseConfig);
       accountLink.innerText = "Profile";
       accountLink.href = "profile.html"; // Profile page you create
   }
+</script>
+
+<script>
+  // Get elements from the page
+  const accountLink = document.getElementById("accountLink");
+  const logoutBtn = document.getElementById("logoutBtn");
+
+  // Check if user is logged in
+  const currentUser = localStorage.getItem("currentUser");
+
+  if(currentUser){
+    // Change "Sign In" to "Profile"
+    accountLink.innerText = "Profile";
+    accountLink.href = "profile.html";
+
+    // Show logout button
+    logoutBtn.style.display = "inline";
+  }
+
+  // What happens when clicking logout
+  logoutBtn.onclick = function() {
+    localStorage.removeItem("currentUser"); // log out
+    alert("Logged out");
+    window.location.href = "index.html"; // reload page
+  };
 </script>
 
 </body>
