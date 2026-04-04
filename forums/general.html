@@ -45,6 +45,7 @@ function createPost() {
 
 // Load posts
 function loadPosts() {
+  if(!subforum) return;
   db.collection("posts")
     .where("subforum", "==", subforum)
     .orderBy("time", "desc")
@@ -52,9 +53,19 @@ function loadPosts() {
     .then(snapshot => {
       let html = "";
       snapshot.forEach(doc => {
-        html += `<p>${doc.data().content}</p><hr>`;
+        const post = doc.data();
+        // Get username
+        if(post.authorId){
+          db.collection("users").doc(post.authorId).get().then(userDoc=>{
+            let username = userDoc.exists ? userDoc.data().username : "Guest";
+            document.getElementById("posts").innerHTML += 
+              `<p><b>${username}:</b> ${post.content}</p><hr>`;
+          });
+        } else {
+          document.getElementById("posts").innerHTML += 
+            `<p><b>Guest:</b> ${post.content}</p><hr>`;
+        }
       });
-      document.getElementById("posts").innerHTML = html;
     });
 }
 
