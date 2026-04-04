@@ -18,68 +18,87 @@
 
 <h2>Create Post</h2>
 <textarea id="postText" placeholder="Write your post..."></textarea><br>
-<button onclick="createPost()">Post</button>
+<button id="postButton">Post</button>
 
 <h2>Posts</h2>
-<div id="posts"></div>
+<div id="posts">Loading posts...</div>
 
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js"></script>
 
 <script>
-const firebaseConfig = {
-  apiKey: "AIzaSyAZXfEl3Q68vfJtaLJqODtnQBSVEzWBmc0",
-  authDomain: "probatismm.firebaseapp.com",
-  projectId: "probatismm"
-};
-firebase.initializeApp(firebaseConfig);
-const auth = firebase.auth();
-const db = firebase.firestore();
+  // 🔑 Firebase config
+  const firebaseConfig = {
+    apiKey: "AIzaSyAZXfEl3Q68vfJtaLJqODtnQBSVEzWBmc0",
+    authDomain: "probatismm.firebaseapp.com",
+    projectId: "probatismm",
+    storageBucket: "probatismm.firebasestorage.app",
+    messagingSenderId: "746935651152",
+    appId: "1:746935651152:web:82491ddac346bc654a3a55"
+  };
 
-let currentUser = null;
-const subforum = "general";
+  firebase.initializeApp(firebaseConfig);
+  const auth = firebase.auth();
+  const db = firebase.firestore();
 
-// Detect user login
-auth.onAuthStateChanged(user => { currentUser = user; loadPosts(); });
+  const subforum = "general"; // hardcoded subforum name
+  let currentUser = null;
 
-// Create a post
-function createPost() {
-  if(!currentUser) { alert("Sign in first!"); return; }
-  const text = document.getElementById("postText").value;
-  if(!text) return;
-  db.collection("posts").add({
-    subforum: subforum,
-    authorId: currentUser.uid,
-    content: text,
-    time: Date.now()
-  }).then(() => {
-    document.getElementById("postText").value = "";
+  // Detect login state
+  auth.onAuthStateChanged(user => {
+    currentUser = user;
     loadPosts();
   });
-}
 
-// Load posts with usernames
-function loadPosts() {
-  const postsDiv = document.getElementById("posts");
-  postsDiv.innerHTML = "<p>Loading posts...</p>";
-  db.collection("posts")
-    .where("subforum", "==", subforum)
-    .orderBy("time","desc")
-    .get()
-    .then(snapshot => {
-      let html = "";
-      snapshot.forEach(doc => {
-        const post = doc.data();
-        const userPromise = post.authorId ? db.collection("users").doc(post.authorId).get() : Promise.resolve({exists:false});
-        userPromise.then(userDoc => {
-          const username = userDoc.exists ? userDoc.data().username : "Guest";
-          const postHtml = `<div class="post"><span class="author">${username}</span>: ${post.content}</div>`;
-          postsDiv.innerHTML += postHtml;
+  // Post button
+  document.getElementById("postButton").addEventListener("click", () => {
+    const text = document.getElementById("postText").value.trim();
+    if(!text) { alert("Enter some text"); return; }
+
+    let authorId = currentUser ? currentUser.uid : null;
+
+    db.collection("posts").add({
+      subforum: subforum,
+      authorId: authorId,
+      content: text,
+      time: Date.now()
+    }).then(() => {
+      document.getElementById("postText").value = "";
+      loadPosts();
+    }).catch(err => alert("Error posting: " + err.message));
+  });
+
+  // Load posts
+  function loadPosts() {
+    const postsDiv = document.getElementById("posts");
+    postsDiv.innerHTML = "Loading posts...";
+    db.collection("posts")
+      .where("subforum", "==", subforum)
+      .orderBy("time", "desc")
+      .get()
+      .then(snapshot => {
+        if(snapshot.empty) {
+          postsDiv.innerHTML = "<p>No posts yet.</p>";
+          return;
+        }
+        postsDiv.innerHTML = "";
+        snapshot.forEach(doc => {
+          const post = doc.data();
+          if(post.authorId){
+            db.collection("users").doc(post.authorId).get().then(userDoc => {
+              const username = userDoc.exists ? userDoc.data().username : "Guest";
+              const postHtml = `<div class="post"><span class="author">${username}:</span> ${post.content}</div>`;
+              postsDiv.innerHTML += postHtml;
+            });
+          } else {
+            const postHtml = `<div class="post"><span class="author">Guest:</span> ${post.content}</div>`;
+            postsDiv.innerHTML += postHtml;
+          }
         });
-      });
-    });
-}
+      }).catch(err => postsDiv.innerHTML = "Error loading posts: " + err.message);
+  }
+
 </script>
 </body>
 </html>
