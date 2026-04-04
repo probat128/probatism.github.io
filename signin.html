@@ -1,67 +1,103 @@
 <!DOCTYPE html>
-<!DOCTYPE html>
 <html>
 <head>
-  <title>Sign In / Sign Up</title>
+  <title>Account</title>
   <style>
     body { font-family: Arial; background:#111; color:white; padding:20px; }
     input { width:200px; padding:5px; margin:5px 0; background:#222; color:white; border:none; }
     button { padding:5px 10px; margin:5px 0; cursor:pointer; }
+    .tab { cursor:pointer; margin-right:10px; color:cyan; }
+    .active { font-weight:bold; text-decoration:underline; }
   </style>
 </head>
 <body>
-<h1>Sign In / Sign Up</h1>
+
+<h1 id="title">Sign In</h1>
+
+<div>
+  <span id="signInTab" class="tab active" onclick="setMode('signin')">Sign In</span>
+  <span id="signUpTab" class="tab" onclick="setMode('signup')">Sign Up</span>
+</div>
+
 <input id="username" placeholder="Username">
 <input id="password" type="password" placeholder="Password">
-<button onclick="signup()">Sign Up</button>
-<button onclick="login()">Login</button>
+
+<button onclick="submitForm()">Continue</button>
+
 <p id="status"></p>
 
 <script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-  import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-  const firebaseConfig = {
-    apiKey: "AIzaSyAZXfEl3Q68vfJtaLJqODtnQBSVEzWBmc0",
-    authDomain: "probatismm.firebaseapp.com",
-    projectId: "probatismm",
-    storageBucket: "probatismm.firebasestorage.app",
-    messagingSenderId: "746935651152",
-    appId: "1:746935651152:web:82491ddac346bc654a3a55"
-  };
+const firebaseConfig = {
+  apiKey: "AIzaSyAZXfEl3Q68vfJtaLJqODtnQBSVEzWBmc0",
+  authDomain: "probatismm.firebaseapp.com",
+  projectId: "probatismm",
+  storageBucket: "probatismm.firebasestorage.app",
+  messagingSenderId: "746935651152",
+  appId: "1:746935651152:web:82491ddac346bc654a3a55"
+};
 
-  const app = initializeApp(firebaseConfig);
-  const db = getFirestore(app);
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
 
-  async function signup() {
-    const username = document.getElementById("username").value.trim();
-    const password = document.getElementById("password").value.trim();
-    if(!username || !password){ alert("Enter both"); return; }
+let mode = "signin";
 
-    const userRef = doc(db, "users", username);
-    const userSnap = await getDoc(userRef);
-    if(userSnap.exists()){ alert("Username taken"); return; }
+window.setMode = function(newMode){
+  mode = newMode;
+  document.getElementById("title").innerText = newMode === "signin" ? "Sign In" : "Sign Up";
 
-    await setDoc(userRef, { username, password, joinDate: Date.now() });
+  document.getElementById("signInTab").classList.toggle("active", newMode === "signin");
+  document.getElementById("signUpTab").classList.toggle("active", newMode === "signup");
+}
+
+window.submitForm = async function(){
+  const username = document.getElementById("username").value.trim();
+  const password = document.getElementById("password").value.trim();
+
+  if(!username || !password){
+    alert("Enter username and password");
+    return;
+  }
+
+  const userRef = doc(db, "users", username);
+  const userSnap = await getDoc(userRef);
+
+  if(mode === "signup"){
+    if(userSnap.exists()){
+      alert("Username already exists");
+      return;
+    }
+
+    await setDoc(userRef, {
+      username,
+      password,
+      joinDate: Date.now()
+    });
+
     localStorage.setItem("currentUser", username);
-    alert("Signed up and logged in!");
+    alert("Account created!");
     window.location.href = "index.html";
   }
 
-  async function login() {
-    const username = document.getElementById("username").value.trim();
-    const password = document.getElementById("password").value.trim();
-    if(!username || !password){ alert("Enter both"); return; }
+  if(mode === "signin"){
+    if(!userSnap.exists()){
+      alert("User not found");
+      return;
+    }
 
-    const userRef = doc(db, "users", username);
-    const userSnap = await getDoc(userRef);
-    if(!userSnap.exists()){ alert("User not found"); return; }
-    if(userSnap.data().password !== password){ alert("Wrong password"); return; }
+    if(userSnap.data().password !== password){
+      alert("Wrong password");
+      return;
+    }
 
     localStorage.setItem("currentUser", username);
     alert("Logged in!");
     window.location.href = "index.html";
   }
+}
 </script>
+
 </body>
 </html>
