@@ -11,5 +11,14 @@ Placeholder text for topic 2.
 You will replace this later.
 </p>
 
+<script>
+  const accountLink = document.getElementById("accountLink");
+  const currentUser = localStorage.getItem("currentUser");
+  if(currentUser){
+      accountLink.innerText = "Profile";
+      accountLink.href = "profile.html"; // Profile page you create
+  }
+</script>
+  
 </body>
 </html>
