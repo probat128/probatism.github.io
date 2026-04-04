@@ -38,7 +38,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js"></script>
 
 <script>
-  // 🔑 Firebase config
+  // Firebase config
   const firebaseConfig = {
     apiKey: "AIzaSyAZXfEl3Q68vfJtaLJqODtnQBSVEzWBmc0",
     authDomain: "probatismm.firebaseapp.com",
@@ -52,30 +52,33 @@
 
   const subforum = "general";
 
-  // Update top bar account link
+  // Update top bar link based on login
   const accountLink = document.getElementById("accountLink");
   const currentUser = localStorage.getItem("currentUser");
   if(currentUser){
       accountLink.innerText = "Profile";
-      accountLink.href = "../profile.html"; // Profile page
+      accountLink.href = "../profile.html";
   }
 
   // Post a new message
-  document.getElementById("postButton").addEventListener("click", ()=>{
-    const text = document.getElementById("postText").value.trim();
-    if(!text) { alert("Enter some text"); return; }
+  const postButton = document.getElementById("postButton");
+  postButton.addEventListener("click", () => {
+    const postText = document.getElementById("postText").value.trim();
+    if(!postText) { alert("Enter some text"); return; }
 
-    const username = currentUser || "Anonymous";
+    const username = localStorage.getItem("currentUser") || "Anonymous";
 
     db.collection("posts").add({
       subforum: subforum,
       author: username,
-      content: text,
+      content: postText,
       time: Date.now()
     }).then(()=>{
       document.getElementById("postText").value = "";
       loadPosts();
-    }).catch(err => alert("Error posting: " + err.message));
+    }).catch(err=>{
+      alert("Error posting: " + err.message);
+    });
   });
 
   // Load posts
@@ -91,7 +94,8 @@
         let html = "";
         snapshot.forEach(doc=>{
           const post = doc.data();
-          html += `<div class="post"><span class="author">${post.author}:</span> ${post.content}</div>`;
+          const date = new Date(post.time).toLocaleString();
+          html += `<div class="post"><span class="author">${post.author}:</span> ${post.content}<br><small>${date}</small></div>`;
         });
         postsDiv.innerHTML = html;
       }).catch(err=>{
@@ -101,15 +105,6 @@
 
   // Load posts on page load
   loadPosts();
-</script>
-
-<script>
-  const accountLink = document.getElementById("accountLink");
-  const currentUser = localStorage.getItem("currentUser");
-  if(currentUser){
-      accountLink.innerText = "Profile";
-      accountLink.href = "profile.html"; // Profile page you create
-  }
 </script>
 
 </body>
