@@ -15,5 +15,14 @@
   <li><a href="forums/18plus.html">18+</a></li>
 </ul>
 
+<script>
+  const accountLink = document.getElementById("accountLink");
+  const currentUser = localStorage.getItem("currentUser");
+  if(currentUser){
+      accountLink.innerText = "Profile";
+      accountLink.href = "profile.html"; // Profile page you create
+  }
+</script>
+
 </body>
 </html>
