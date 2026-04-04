@@ -2,14 +2,20 @@
 <html>
 <head>
   <title>Profile</title>
+  <style>
+    body { font-family: Arial; background:#111; color:white; padding:20px; }
+    input { display:block; margin:5px 0; padding:5px; width:200px; }
+    button { padding:5px 10px; margin-top:5px; cursor:pointer; }
+    .info { margin-top:20px; background:#222; padding:10px; border-radius:5px; }
+  </style>
 </head>
 <body>
 
 <h1>Sign In / Sign Up</h1>
 
-<input id="username" placeholder="Username"><br>
-<input id="email" placeholder="Email"><br>
-<input id="password" type="password" placeholder="Password"><br>
+<input id="username" placeholder="Username">
+<input id="email" placeholder="Email">
+<input id="password" type="password" placeholder="Password">
 
 <button onclick="signup()">Sign Up</button>
 <button onclick="login()">Login</button>
@@ -17,35 +23,32 @@
 
 <p id="status"></p>
 
-<div id="profileInfo" style="margin-top:20px;"></div>
+<div class="info" id="profileInfo">Not signed in</div>
 
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js"></script>
 
 <script>
-// 🔑 Firebase config
 const firebaseConfig = {
-  apiKey: "AIzaSyAZXfEl3Q68vfJtaLJqODtnQBSVEzWBmc0",
-  authDomain: "probatismm.firebaseapp.com",
-  projectId: "probatismm"
+  apiKey: "YOUR_KEY",
+  authDomain: "YOUR_PROJECT.firebaseapp.com",
+  projectId: "YOUR_PROJECT_ID"
 };
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
-
 let currentUser = null;
 
-// Sign up
 function signup() {
   const email = document.getElementById("email").value;
   const password = document.getElementById("password").value;
   const username = document.getElementById("username").value;
+  if(!username) { alert("Enter a username"); return; }
 
   auth.createUserWithEmailAndPassword(email, password)
     .then(userCredential => {
       currentUser = userCredential.user;
-      // Save user info
       db.collection("users").doc(currentUser.uid).set({
         username: username,
         role: "user",
@@ -53,11 +56,9 @@ function signup() {
       });
       document.getElementById("status").innerText = "Signed up as " + username;
       showProfile();
-    })
-    .catch(error => { alert(error.message); });
+    }).catch(e=>alert(e.message));
 }
 
-// Login
 function login() {
   const email = document.getElementById("email").value;
   const password = document.getElementById("password").value;
@@ -67,34 +68,28 @@ function login() {
       currentUser = userCredential.user;
       document.getElementById("status").innerText = "Logged in!";
       showProfile();
-    })
-    .catch(error => { alert(error.message); });
+    }).catch(e=>alert(e.message));
 }
 
-// Anonymous guest
 function guest() {
-  auth.signInAnonymously()
-    .then(userCredential => {
-      currentUser = userCredential.user;
-      document.getElementById("status").innerText = "Guest mode!";
-      showProfile();
-    });
-}
-
-// Show profile info
-function showProfile() {
-  if(!currentUser) return;
-  db.collection("users").doc(currentUser.uid).get().then(doc=>{
-    if(doc.exists){
-      const username = doc.data().username || "Guest";
-      const joinDate = doc.data().joinDate ? new Date(doc.data().joinDate).toDateString() : "N/A";
-      document.getElementById("profileInfo").innerHTML =
-        `Username: ${username} <br> Join Date: ${joinDate}`;
-    }
+  auth.signInAnonymously().then(userCredential => {
+    currentUser = userCredential.user;
+    document.getElementById("status").innerText = "Guest mode!";
+    showProfile();
   });
 }
 
-// Detect login state
+function showProfile() {
+  if(!currentUser) return;
+  db.collection("users").doc(currentUser.uid).get().then(doc=>{
+    const username = doc.exists ? doc.data().username || "Guest" : "Guest";
+    const joinDate = doc.exists ? new Date(doc.data().joinDate).toDateString() : "N/A";
+    document.getElementById("profileInfo").innerHTML =
+      `Username: ${username}<br>Join Date: ${joinDate}`;
+  });
+}
+
+// Auto-update on login/logout
 auth.onAuthStateChanged(user => {
   currentUser = user;
   showProfile();
