@@ -31,14 +31,14 @@ const subforum = "general";
 
 // Create post
 function createPost() {
+  if(!currentUser) { alert("Sign in first!"); return; }
   let text = document.getElementById("postText").value;
-
   db.collection("posts").add({
     subforum: subforum,
+    authorId: currentUser.uid,
     content: text,
     time: Date.now()
   });
-
   document.getElementById("postText").value = "";
   loadPosts();
 }
