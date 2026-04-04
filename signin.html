@@ -2,18 +2,11 @@
 <html>
 <head>
   <title>Sign In / Sign Up</title>
-  <style>
-    body { font-family: Arial; background:#111; color:white; padding:20px; }
-    input { width: 200px; padding:5px; margin:5px 0; background:#222; color:white; border:none; }
-    button { padding:5px 10px; cursor:pointer; margin:5px 0; }
-  </style>
 </head>
 <body>
 <h1>Sign In / Sign Up</h1>
-
 <input id="username" placeholder="Username">
 <input id="password" type="password" placeholder="Password">
-
 <button onclick="signup()">Sign Up</button>
 <button onclick="login()">Login</button>
 <p id="status"></p>
@@ -22,58 +15,47 @@
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js"></script>
 
 <script>
-  const firebaseConfig = {
-      apiKey: "AIzaSyAZXfEl3Q68vfJtaLJqODtnQBSVEzWBmc0",
-      authDomain: "probatismm.firebaseapp.com",
-      projectId: "probatismm",
-      storageBucket: "probatismm.firebasestorage.app",
-      messagingSenderId: "746935651152",
-      appId: "1:746935651152:web:82491ddac346bc654a3a55"
-  };
-  firebase.initializeApp(firebaseConfig);
-  const db = firebase.firestore();
+const firebaseConfig = {
+  apiKey: "AIzaSyAZXfEl3Q68vfJtaLJqODtnQBSVEzWBmc0",
+  authDomain: "probatismm.firebaseapp.com",
+  projectId: "probatismm",
+  storageBucket: "probatismm.firebasestorage.app",
+  messagingSenderId: "746935651152",
+  appId: "1:746935651152:web:82491ddac346bc654a3a55"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
 
-  function signup() {
-    const username = document.getElementById("username").value.trim();
-    const password = document.getElementById("password").value.trim();
-    if(!username || !password){ alert("Enter both"); return; }
-    const userDoc = db.collection("users").doc(username);
-    userDoc.get().then(doc=>{
-      if(doc.exists){ alert("Username taken"); return; }
-      userDoc.set({username, password, joinDate: Date.now(), role:"user"}).then(()=>{
-        alert("Signed up! Go back to log in.");
-      });
-    });
-  }
+function signup() {
+  const username = document.getElementById("username").value.trim();
+  const password = document.getElementById("password").value.trim();
+  if(!username || !password) return alert("Enter both");
 
-  function login() {
-    const username = document.getElementById("username").value.trim();
-    const password = document.getElementById("password").value.trim();
-    if(!username || !password){ alert("Enter both"); return; }
-    const userDoc = db.collection("users").doc(username);
-    userDoc.get().then(doc=>{
-      if(!doc.exists){ alert("User not found"); return; }
-      if(doc.data().password !== password){ alert("Wrong password"); return; }
+  db.collection("users").doc(username).get().then(doc=>{
+    if(doc.exists){ alert("Username taken"); return; }
+    db.collection("users").doc(username).set({
+      username, password, joinDate: Date.now()
+    }).then(()=>{
       localStorage.setItem("currentUser", username);
-      alert("Logged in! Go back to Forums or Home.");
+      alert("Signed up and logged in!");
+      window.location.href = "index.html"; // go home
     });
-  }
+  });
+}
 
-  // Show status if already logged in
-  if(localStorage.getItem("currentUser")){
-      document.getElementById("status").innerText = "You are logged in as " + localStorage.getItem("currentUser");
-  }
+function login() {
+  const username = document.getElementById("username").value.trim();
+  const password = document.getElementById("password").value.trim();
+  if(!username || !password) return alert("Enter both");
+
+  db.collection("users").doc(username).get().then(doc=>{
+    if(!doc.exists) return alert("User not found");
+    if(doc.data().password !== password) return alert("Wrong password");
+    localStorage.setItem("currentUser", username);
+    alert("Logged in!");
+    window.location.href = "index.html";
+  });
+}
 </script>
-
-
-<script>
-  const accountLink = document.getElementById("accountLink");
-  const currentUser = localStorage.getItem("currentUser");
-  if(currentUser){
-      accountLink.innerText = "Profile";
-      accountLink.href = "profile.html"; // Profile page you create
-  }
-</script>
-  
 </body>
 </html>
