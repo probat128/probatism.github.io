@@ -4,67 +4,43 @@
   <title>My Website</title>
   <link rel="stylesheet" href="style.css">
 </head>
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js"></script>
 
-<script>
-const firebaseConfig = {
-  apiKey: "AIzaSyAZXfEl3Q68vfJtaLJqODtnQBSVEzWBmc0",
-  authDomain: "probatismm.firebaseapp.com",
-  projectId: "probatismm"
-};
-
-firebase.initializeApp(firebaseConfig);
-</script>
 <body>
 
   <h1>Welcome to My Website</h1>
 
   <nav>
-  <a href="index.html">Home</a>
-  <a href="doctrine.html">Doctrine</a>
-  <a href="forums.html">Forums</a>
-  <a href="news.html">News</a>
-  <a href="quiz.html">Quiz</a>
-  <a href="signin.html" id="accountLink">Sign In / Sign Up</a>
-  <button id="logoutBtn" style="display:none;">Logout</button>
-</nav>
+    <a href="index.html">Home</a>
+    <a href="doctrine.html">Doctrine</a>
+    <a href="forums.html">Forums</a>
+    <a href="news.html">News</a>
+    <a href="quiz.html">Quiz</a>
+    <a href="signin.html" id="accountLink">Sign In / Sign Up</a>
+    <button id="logoutBtn" style="display:none;">Logout</button>
+  </nav>
 
   <p>This is the home page.</p>
 
-<script>
-  const accountLink = document.getElementById("accountLink");
-  const currentUser = localStorage.getItem("currentUser");
-  if(currentUser){
+  <!-- SCRIPT MUST BE AT BOTTOM -->
+  <script>
+    const accountLink = document.getElementById("accountLink");
+    const logoutBtn = document.getElementById("logoutBtn");
+    const currentUser = localStorage.getItem("currentUser");
+
+    if (currentUser) {
       accountLink.innerText = "Profile";
-      accountLink.href = "profile.html"; // Profile page you create
-  }
-</script>
+      accountLink.href = "profile.html";
+      logoutBtn.style.display = "inline";
+    } else {
+      logoutBtn.style.display = "none";
+    }
 
-<script>
-  // Get elements from the page
-  const accountLink = document.getElementById("accountLink");
-  const logoutBtn = document.getElementById("logoutBtn");
-
-  // Check if user is logged in
-  const currentUser = localStorage.getItem("currentUser");
-
-  if(currentUser){
-    // Change "Sign In" to "Profile"
-    accountLink.innerText = "Profile";
-    accountLink.href = "profile.html";
-
-    // Show logout button
-    logoutBtn.style.display = "inline";
-  }
-
-  // What happens when clicking logout
-  logoutBtn.onclick = function() {
-    localStorage.removeItem("currentUser"); // log out
-    alert("Logged out");
-    window.location.href = "index.html"; // reload page
-  };
-</script>
+    logoutBtn.onclick = function () {
+      localStorage.removeItem("currentUser");
+      alert("Logged out");
+      window.location.href = "index.html";
+    };
+  </script>
 
 </body>
 </html>
