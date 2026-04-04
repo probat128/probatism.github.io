@@ -115,6 +115,43 @@
 
   document.getElementById("postButton").addEventListener("click", createPost);
   loadPosts();
+    
+async function loadReplies(postId){
+    const repliesDiv = document.getElementById("replies-" + postId);
+
+    const q = query(collection(db, "replies"), where("postId","==",postId), orderBy("time","asc"));
+    const snapshot = await getDocs(q);
+
+    let html = "";
+    snapshot.forEach(doc=>{
+      const reply = doc.data();
+      html += `<div><b>${reply.author}:</b> ${reply.content}</div>`;
+    });
+
+    repliesDiv.innerHTML = html;
+  }
+
+  window.addReply = async function(postId){
+    const input = document.getElementById("replyInput-" + postId);
+    const text = input.value.trim();
+
+    if(!text){
+      alert("Enter reply");
+      return;
+    }
+
+    const username = localStorage.getItem("currentUser") || "Anonymous";
+
+    await addDoc(collection(db, "replies"), {
+      postId: postId,
+      author: username,
+      content: text,
+      time: Date.now()
+    });
+
+    input.value = "";
+    loadReplies(postId);
+  }
 </script>
 
 </body>
