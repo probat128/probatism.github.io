@@ -79,25 +79,39 @@
     }
   }
 
-  async function loadPosts() {
-    const postsDiv = document.getElementById("posts");
-    postsDiv.innerHTML = "Loading posts...";
-    try {
-      const q = query(collection(db, "posts"), where("subforum","==",subforum), orderBy("time","desc"));
-      const snapshot = await getDocs(q);
-      if(snapshot.empty){ postsDiv.innerHTML="<p>No posts yet.</p>"; return; }
+  async function loadPosts(){
+  const postsDiv = document.getElementById("posts");
+  postsDiv.innerHTML = "Loading posts...";
 
-      let html = "";
-      snapshot.forEach(doc=>{
-        const post = doc.data();
-        const date = new Date(post.time).toLocaleString();
-        html += `<div class="post"><span class="author">${post.author}:</span> ${post.content}<br><small>${date}</small></div>`;
-      });
-      postsDiv.innerHTML = html;
-    } catch(err) {
-      postsDiv.innerHTML = "Error loading posts: " + err.message;
-    }
+  const q = query(collection(db, "posts"), where("subforum","==",subforum), orderBy("time","desc"));
+  const snapshot = await getDocs(q);
+
+  if(snapshot.empty){
+    postsDiv.innerHTML = "<p>No posts yet.</p>";
+    return;
   }
+
+  postsDiv.innerHTML = "";
+
+  for (const docSnap of snapshot.docs){
+    const post = docSnap.data();
+    const postId = docSnap.id;
+
+    const div = document.createElement("div");
+    div.className = "post";
+
+    div.innerHTML = `
+      <b>${post.author}:</b> ${post.content}
+      <div id="replies-${postId}" style="margin-left:20px;"></div>
+      <textarea id="replyInput-${postId}" placeholder="Reply..."></textarea>
+      <button onclick="addReply('${postId}')">Reply</button>
+    `;
+
+    postsDiv.appendChild(div);
+
+    loadReplies(postId);
+  }
+}
 
   document.getElementById("postButton").addEventListener("click", createPost);
   loadPosts();
