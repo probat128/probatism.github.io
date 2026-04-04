@@ -95,6 +95,14 @@ auth.onAuthStateChanged(user => {
   showProfile();
 });
 </script>
+<script>
+  const accountLink = document.getElementById("accountLink");
+  const currentUser = localStorage.getItem("currentUser");
+  if(currentUser){
+      accountLink.innerText = "Profile";
+      accountLink.href = "profile.html"; // Profile page you create
+  }
+</script>
 
 </body>
 </html>
