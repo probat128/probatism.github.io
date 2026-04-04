@@ -31,5 +31,14 @@ firebase.initializeApp(firebaseConfig);
 
   <p>This is the home page.</p>
 
+<script>
+  const accountLink = document.getElementById("accountLink");
+  const currentUser = localStorage.getItem("currentUser");
+  if(currentUser){
+      accountLink.innerText = "Profile";
+      accountLink.href = "profile.html"; // Profile page you create
+  }
+</script>
+
 </body>
 </html>
