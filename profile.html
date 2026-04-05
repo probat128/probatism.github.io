@@ -15,6 +15,7 @@
 </head>
 <body>
 
+<!-- NAV -->
 <nav>
   <a href="index.html">Home</a>
   <a href="doctrine.html">Doctrine</a>
@@ -26,7 +27,9 @@
 </nav>
 
 <h1>Profile</h1>
+
 <div id="profileInfo">Loading...</div>
+
 <h2>Your Posts & Replies</h2>
 <div id="userPosts">Loading...</div>
 
@@ -45,83 +48,137 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
+
 const username = localStorage.getItem("currentUser");
 
 // Load profile info
 async function loadProfile(){
   const profileDiv = document.getElementById("profileInfo");
   if(!username){ profileDiv.innerHTML = "You are not logged in."; return; }
-  const userSnap = await getDoc(doc(db,"users",username));
-  if(!userSnap.exists()){ profileDiv.innerHTML="User not found."; return; }
+
+  const userRef = doc(db, "users", username);
+  const userSnap = await getDoc(userRef);
+
+  if(!userSnap.exists()){ profileDiv.innerHTML = "User not found."; return; }
+
   const data = userSnap.data();
   const joinDate = new Date(data.joinDate).toLocaleString();
-  profileDiv.innerHTML = `<p><b>Username:</b> ${data.username}</p><p><b>Joined:</b> ${joinDate}</p>`;
+
+  profileDiv.innerHTML = `
+    <p><b>Username:</b> ${data.username}</p>
+    <p><b>Joined:</b> ${joinDate}</p>
+  `;
 }
 
-// Delete post/reply functions
+// Delete a post
 window.deletePost = async function(postId){
   if(!confirm("Delete this post?")) return;
-  await deleteDoc(doc(db,"posts",postId));
-  loadUserPosts();
-}
-window.deleteReply = async function(replyId){
-  if(!confirm("Delete this reply?")) return;
-  await deleteDoc(doc(db,"replies",replyId));
+  await deleteDoc(doc(db, "posts", postId));
   loadUserPosts();
 }
 
-// Load posts & replies in descending order
+// Delete a reply
+window.deleteReply = async function(replyId){
+  if(!confirm("Delete this reply?")) return;
+  await deleteDoc(doc(db, "replies", replyId));
+  loadUserPosts();
+}
+
+// Load user's posts and replies
 async function loadUserPosts(){
   const postsDiv = document.getElementById("userPosts");
   if(!username){ postsDiv.innerHTML = "Not logged in."; return; }
+
   postsDiv.innerHTML = "Loading...";
 
-  const postsSnap = await getDocs(query(collection(db,"posts"),where("author","==",username),orderBy("time","desc")));
-  const repliesSnap = await getDocs(query(collection(db,"replies"),where("author","==",username),orderBy("time","desc")));
+  // Load Posts
+  const postsQuery = query(
+    collection(db, "posts"),
+    where("author", "==", username),
+    orderBy("time", "desc")
+  );
+  const postsSnap = await getDocs(postsQuery);
 
   let html = "";
 
-  postsSnap.forEach(docSnap=>{
-    const post = docSnap.data();
-    const date = new Date(post.time).toLocaleString();
-    html += `<div class="post">
-      <div class="subforum">[${post.subforum}]</div>
-      <div onclick="window.location.href='post.html?id=${docSnap.id}'" style="cursor:pointer;">
-        <b>${post.author}:</b> ${post.content||""} ${post.image?`<img src="${post.image}">`:''}
-      </div>
-      <div class="time">Posted: ${date}</div>
-      <button class="deleteBtn" onclick="deletePost('${docSnap.id}')">Delete</button>
-    </div>`;
-  });
+  if(!postsSnap.empty){
+    postsSnap.forEach(docSnap => {
+      const post = docSnap.data();
+      const postId = docSnap.id;
+      const date = new Date(post.time).toLocaleString();
 
-  repliesSnap.forEach(docSnap=>{
-    const reply = docSnap.data();
-    const date = new Date(reply.time).toLocaleString();
-    html += `<div class="post">
-      <div class="subforum">[${reply.subforum} (reply)]</div>
-      <div onclick="window.location.href='post.html?id=${reply.postId}'" style="cursor:pointer;">
-        <b>${reply.author}:</b> ${reply.content||""} ${reply.image?`<img src="${reply.image}">`:''}
-      </div>
-      <div class="time">Posted: ${date}</div>
-      <button class="deleteBtn" onclick="deleteReply('${docSnap.id}')">Delete</button>
-    </div>`;
-  });
+      html += `
+        <div class="post">
+          <div class="subforum">[${post.subforum}]</div>
+          <div onclick="window.location.href='post.html?id=${postId}'" style="cursor:pointer;">
+            <b>${post.author}:</b> ${post.content ? post.content : ""}
+            ${post.image ? `<img src="${post.image}">` : ""}
+          </div>
+          <div class="time">Posted: ${date}</div>
+          <button class="deleteBtn" onclick="deletePost('${postId}')">Delete</button>
+        </div>
+      `;
+    });
+  }
 
-  if(html==="") html="<p>No posts or replies yet.</p>";
+  // Load Replies
+  const repliesQuery = query(
+    collection(db, "replies"),
+    where("author", "==", username),
+    orderBy("time", "desc")
+  );
+  const repliesSnap = await getDocs(repliesQuery);
+
+  if(!repliesSnap.empty){
+    repliesSnap.forEach(docSnap => {
+      const reply = docSnap.data();
+      const replyId = docSnap.id;
+      const date = new Date(reply.time).toLocaleString();
+
+      html += `
+        <div class="post">
+          <div class="subforum">[${reply.subforum} (reply)]</div>
+          <div onclick="window.location.href='post.html?id=${reply.postId}'" style="cursor:pointer;">
+            <b>${reply.author}:</b> ${reply.content ? reply.content : ""}
+            ${reply.image ? `<img src="${reply.image}">` : ""}
+          </div>
+          <div class="time">Posted: ${date}</div>
+          <button class="deleteBtn" onclick="deleteReply('${replyId}')">Delete</button>
+        </div>
+      `;
+    });
+  }
+
+  if(html === "") html = "<p>No posts or replies yet.</p>";
+
   postsDiv.innerHTML = html;
 }
 
+// Run loaders
 loadProfile();
 loadUserPosts();
 </script>
 
+<!-- Login / Logout -->
 <script>
 const accountLink = document.getElementById("accountLink");
 const logoutBtn = document.getElementById("logoutBtn");
+
 const currentUser = localStorage.getItem("currentUser");
-if(currentUser){ accountLink.innerText="Profile"; accountLink.href="profile.html"; logoutBtn.style.display="inline"; }
-else logoutBtn.style.display="none";
-logoutBtn.onclick=function(){ localStorage.removeItem("currentUser"); alert("Logged out"); window.location.href="index.html"; }
+if(currentUser){
+  accountLink.innerText = "Profile";
+  accountLink.href = "profile.html";
+  logoutBtn.style.display = "inline";
+} else {
+  logoutBtn.style.display = "none";
+}
+
+logoutBtn.onclick = function() {
+  localStorage.removeItem("currentUser");
+  alert("Logged out");
+  window.location.href = "index.html";
+};
 </script>
+
 </body>
 </html>
