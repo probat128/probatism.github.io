@@ -1,14 +1,15 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>General Forum</title>
+  <title>Profile</title>
   <style>
     body { font-family: Arial; background:#111; color:white; padding:20px; }
     nav a { color: cyan; margin-right:10px; text-decoration:none; }
-    textarea { width: 80%; height: 60px; }
+    button { margin-top:5px; padding:5px 10px; cursor:pointer; }
     .post { border:1px solid #444; padding:10px; margin:10px 0; }
     .time { color:#aaa; font-size:12px; }
     .subforum { color:orange; font-size:12px; }
+    .deleteBtn { background:red; color:white; border:none; cursor:pointer; }
     img { max-width:200px; display:block; margin-top:5px; }
   </style>
 </head>
@@ -24,20 +25,14 @@
   <button id="logoutBtn">Logout</button>
 </nav>
 
-<h1>General Forum</h1>
-
-<h3>Create Post</h3>
-<textarea id="postText" placeholder="Write your post..."></textarea><br>
-<input type="file" id="imageInput" accept="image/*"><br>
-<button id="postButton" type="button">Post</button>
-
-<h2>Posts</h2>
-<div id="postsDiv">Loading...</div>
+<h1>Profile</h1>
+<div id="profileInfo">Loading...</div>
+<h2>Your Posts & Replies</h2>
+<div id="userPosts">Loading...</div>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getFirestore, collection, addDoc, getDocs, query, orderBy } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
+import { getFirestore, doc, getDoc, collection, getDocs, query, where, orderBy, deleteDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAZXfEl3Q68vfJtaLJqODtnQBSVEzWBmc0",
@@ -50,77 +45,83 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
-const storage = getStorage(app);
-const subforum = "General";
+const username = localStorage.getItem("currentUser");
 
-const username = localStorage.getItem("currentUser") || "Anonymous";
+// Load profile info
+async function loadProfile(){
+  const profileDiv = document.getElementById("profileInfo");
+  if(!username){ profileDiv.innerHTML = "You are not logged in."; return; }
+  const userSnap = await getDoc(doc(db,"users",username));
+  if(!userSnap.exists()){ profileDiv.innerHTML="User not found."; return; }
+  const data = userSnap.data();
+  const joinDate = new Date(data.joinDate).toLocaleString();
+  profileDiv.innerHTML = `<p><b>Username:</b> ${data.username}</p><p><b>Joined:</b> ${joinDate}</p>`;
+}
 
-async function loadPosts(){
-  const postsDiv = document.getElementById("postsDiv");
+// Delete post/reply functions
+window.deletePost = async function(postId){
+  if(!confirm("Delete this post?")) return;
+  await deleteDoc(doc(db,"posts",postId));
+  loadUserPosts();
+}
+window.deleteReply = async function(replyId){
+  if(!confirm("Delete this reply?")) return;
+  await deleteDoc(doc(db,"replies",replyId));
+  loadUserPosts();
+}
+
+// Load posts & replies in descending order
+async function loadUserPosts(){
+  const postsDiv = document.getElementById("userPosts");
+  if(!username){ postsDiv.innerHTML = "Not logged in."; return; }
   postsDiv.innerHTML = "Loading...";
 
-  const postsSnap = await getDocs(query(collection(db, "posts"), orderBy("time", "desc")));
-  if(postsSnap.empty){ postsDiv.innerHTML = "<p>No posts yet.</p>"; return; }
+  const postsSnap = await getDocs(query(collection(db,"posts"),where("author","==",username),orderBy("time","desc")));
+  const repliesSnap = await getDocs(query(collection(db,"replies"),where("author","==",username),orderBy("time","desc")));
 
   let html = "";
-  postsSnap.forEach(docSnap => {
+
+  postsSnap.forEach(docSnap=>{
     const post = docSnap.data();
-    const postId = docSnap.id;
     const date = new Date(post.time).toLocaleString();
-    html += `
-      <div class="post">
-        <div class="subforum">[${post.subforum}]</div>
-        <div onclick="window.location.href='post.html?id=${postId}'" style="cursor:pointer;">
-          <b>${post.author}:</b> ${post.content ? post.content : ""}
-          ${post.image ? `<img src="${post.image}">` : ""}
-        </div>
-        <div class="time">Posted: ${date}</div>
+    html += `<div class="post">
+      <div class="subforum">[${post.subforum}]</div>
+      <div onclick="window.location.href='post.html?id=${docSnap.id}'" style="cursor:pointer;">
+        <b>${post.author}:</b> ${post.content||""} ${post.image?`<img src="${post.image}">`:''}
       </div>
-    `;
+      <div class="time">Posted: ${date}</div>
+      <button class="deleteBtn" onclick="deletePost('${docSnap.id}')">Delete</button>
+    </div>`;
   });
 
+  repliesSnap.forEach(docSnap=>{
+    const reply = docSnap.data();
+    const date = new Date(reply.time).toLocaleString();
+    html += `<div class="post">
+      <div class="subforum">[${reply.subforum} (reply)]</div>
+      <div onclick="window.location.href='post.html?id=${reply.postId}'" style="cursor:pointer;">
+        <b>${reply.author}:</b> ${reply.content||""} ${reply.image?`<img src="${reply.image}">`:''}
+      </div>
+      <div class="time">Posted: ${date}</div>
+      <button class="deleteBtn" onclick="deleteReply('${docSnap.id}')">Delete</button>
+    </div>`;
+  });
+
+  if(html==="") html="<p>No posts or replies yet.</p>";
   postsDiv.innerHTML = html;
 }
 
-document.getElementById("postButton").addEventListener("click", async () => {
-  const text = document.getElementById("postText").value.trim();
-  const file = document.getElementById("imageInput").files[0];
-
-  if(!text && !file){ alert("Write something or upload an image"); return; }
-
-  let imageUrl = "";
-  if(file){
-    const storageRef = ref(storage, "images/" + Date.now() + "_" + file.name);
-    await uploadBytes(storageRef, file);
-    imageUrl = await getDownloadURL(storageRef);
-  }
-
-  await addDoc(collection(db, "posts"), {
-    subforum,
-    author: username,
-    content: text,
-    image: imageUrl,
-    time: Date.now()
-  });
-
-  document.getElementById("postText").value = "";
-  document.getElementById("imageInput").value = "";
-
-  loadPosts();
-});
-
-loadPosts();
+loadProfile();
+loadUserPosts();
 </script>
 
 <script>
 const accountLink = document.getElementById("accountLink");
 const logoutBtn = document.getElementById("logoutBtn");
 const currentUser = localStorage.getItem("currentUser");
-if(currentUser){ accountLink.innerText = "Profile"; accountLink.href = "profile.html"; logoutBtn.style.display = "inline"; }
-else logoutBtn.style.display = "none";
-
-logoutBtn.onclick = function(){ localStorage.removeItem("currentUser"); alert("Logged out"); window.location.href="index.html"; };
+if(currentUser){ accountLink.innerText="Profile"; accountLink.href="profile.html"; logoutBtn.style.display="inline"; }
+else logoutBtn.style.display="none";
+logoutBtn.onclick=function(){ localStorage.removeItem("currentUser"); alert("Logged out"); window.location.href="index.html"; }
 </script>
-
 </body>
 </html>
