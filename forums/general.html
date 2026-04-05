@@ -29,7 +29,7 @@
 <h3>Create Post</h3>
 <textarea id="postText" placeholder="Write your post..."></textarea>
 <br>
-<button id="postButton">Post</button>
+<button id="postButton" type="button">Post</button>
 
 <!-- POSTS -->
 <h3>Posts</h3>
@@ -53,9 +53,11 @@ const db = getFirestore(app);
 
 const subforum = "general";
 
+
 // CREATE POST
 document.getElementById("postButton").addEventListener("click", async () => {
   const text = document.getElementById("postText").value.trim();
+
   if(!text){
     alert("Enter text");
     return;
@@ -63,16 +65,21 @@ document.getElementById("postButton").addEventListener("click", async () => {
 
   const username = localStorage.getItem("currentUser") || "Anonymous";
 
-  await addDoc(collection(db, "posts"), {
-    subforum: subforum,
-    author: username,
-    content: text,
-    time: Date.now()
-  });
+  try {
+    await addDoc(collection(db, "posts"), {
+      subforum: subforum,
+      author: username,
+      content: text,
+      time: Date.now()
+    });
 
-  document.getElementById("postText").value = "";
-  loadPosts();
+    document.getElementById("postText").value = "";
+    loadPosts();
+  } catch(err){
+    alert("Error posting: " + err.message);
+  }
 });
+
 
 // LOAD POSTS
 async function loadPosts() {
@@ -117,10 +124,11 @@ async function loadPosts() {
   }
 }
 
+// LOAD ON PAGE START
 loadPosts();
 </script>
 
-<!-- LOGIN / LOGOUT SCRIPT -->
+<!-- LOGIN / LOGOUT -->
 <script>
 const accountLink = document.getElementById("accountLink");
 const logoutBtn = document.getElementById("logoutBtn");
