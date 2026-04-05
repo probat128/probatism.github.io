@@ -5,39 +5,39 @@
   <style>
     body { font-family: Arial; background:#111; color:white; padding:20px; }
     nav a { color: cyan; margin-right:10px; text-decoration:none; }
-    button { margin-top:5px; padding:5px 10px; cursor:pointer; }
-    textarea { width:100%; height:80px; background:#222; color:white; border:none; padding:5px; }
+    textarea { width: 80%; height: 60px; }
     .post { border:1px solid #444; padding:10px; margin:10px 0; }
+    .time { color:#aaa; font-size:12px; }
+    .subforum { color:orange; font-size:12px; }
+    img { max-width:200px; display:block; margin-top:5px; }
   </style>
 </head>
 <body>
 
-<!-- NAV BAR -->
 <nav>
-  <a href="../index.html">Home</a>
-  <a href="../doctrine.html">Doctrine</a>
-  <a href="../forums.html">Forums</a>
-  <a href="../news.html">News</a>
-  <a href="../quiz.html">Quiz</a>
-  <a href="../signin.html" id="accountLink">Sign In / Sign Up</a>
+  <a href="index.html">Home</a>
+  <a href="doctrine.html">Doctrine</a>
+  <a href="forums.html">Forums</a>
+  <a href="news.html">News</a>
+  <a href="quiz.html">Quiz</a>
+  <a href="signin.html" id="accountLink">Sign In / Sign Up</a>
   <button id="logoutBtn">Logout</button>
 </nav>
 
 <h1>General Forum</h1>
 
-<!-- CREATE POST -->
 <h3>Create Post</h3>
-<textarea id="postText" placeholder="Write your post..."></textarea>
-<br>
+<textarea id="postText" placeholder="Write your post..."></textarea><br>
+<input type="file" id="imageInput" accept="image/*"><br>
 <button id="postButton" type="button">Post</button>
 
-<!-- POSTS -->
-<h3>Posts</h3>
-<div id="posts">Loading...</div>
+<h2>Posts</h2>
+<div id="postsDiv">Loading...</div>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getFirestore, collection, addDoc, getDocs, query, where, orderBy } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { getFirestore, collection, addDoc, getDocs, query, orderBy } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAZXfEl3Q68vfJtaLJqODtnQBSVEzWBmc0",
@@ -50,104 +50,76 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
+const storage = getStorage(app);
+const subforum = "General";
 
-const subforum = "general";
+const username = localStorage.getItem("currentUser") || "Anonymous";
 
-
-// CREATE POST
-document.getElementById("postButton").addEventListener("click", async () => {
-  const text = document.getElementById("postText").value.trim();
-
-  if(!text){
-    alert("Enter text");
-    return;
-  }
-
-  const username = localStorage.getItem("currentUser") || "Anonymous";
-
-  try {
-    await addDoc(collection(db, "posts"), {
-      subforum: subforum,
-      author: username,
-      content: text,
-      time: Date.now()
-    });
-
-    document.getElementById("postText").value = "";
-    loadPosts();
-  } catch(err){
-    alert("Error posting: " + err.message);
-  }
-});
-
-
-// LOAD POSTS
-async function loadPosts() {
-  const postsDiv = document.getElementById("posts");
+async function loadPosts(){
+  const postsDiv = document.getElementById("postsDiv");
   postsDiv.innerHTML = "Loading...";
 
-  try {
-    const q = query(
-      collection(db, "posts"),
-      where("subforum", "==", subforum),
-      orderBy("time", "desc")
-    );
+  const postsSnap = await getDocs(query(collection(db, "posts"), orderBy("time", "desc")));
+  if(postsSnap.empty){ postsDiv.innerHTML = "<p>No posts yet.</p>"; return; }
 
-    const snapshot = await getDocs(q);
+  let html = "";
+  postsSnap.forEach(docSnap => {
+    const post = docSnap.data();
+    const postId = docSnap.id;
+    const date = new Date(post.time).toLocaleString();
+    html += `
+      <div class="post">
+        <div class="subforum">[${post.subforum}]</div>
+        <div onclick="window.location.href='post.html?id=${postId}'" style="cursor:pointer;">
+          <b>${post.author}:</b> ${post.content ? post.content : ""}
+          ${post.image ? `<img src="${post.image}">` : ""}
+        </div>
+        <div class="time">Posted: ${date}</div>
+      </div>
+    `;
+  });
 
-    if(snapshot.empty){
-      postsDiv.innerHTML = "<p>No posts yet.</p>";
-      return;
-    }
-
-    postsDiv.innerHTML = "";
-
-    snapshot.forEach(docSnap => {
-      const post = docSnap.data();
-      const postId = docSnap.id;
-
-      const div = document.createElement("div");
-      div.className = "post";
-
-      div.innerHTML = `
-        <div><b>${post.author}:</b> ${post.content}</div>
-        <button onclick="window.location.href='../post.html?id=${postId}'">
-          Read Replies
-        </button>
-      `;
-
-      postsDiv.appendChild(div);
-    });
-
-  } catch(err){
-    postsDiv.innerHTML = "Error loading posts: " + err.message;
-  }
+  postsDiv.innerHTML = html;
 }
 
-// LOAD ON PAGE START
+document.getElementById("postButton").addEventListener("click", async () => {
+  const text = document.getElementById("postText").value.trim();
+  const file = document.getElementById("imageInput").files[0];
+
+  if(!text && !file){ alert("Write something or upload an image"); return; }
+
+  let imageUrl = "";
+  if(file){
+    const storageRef = ref(storage, "images/" + Date.now() + "_" + file.name);
+    await uploadBytes(storageRef, file);
+    imageUrl = await getDownloadURL(storageRef);
+  }
+
+  await addDoc(collection(db, "posts"), {
+    subforum,
+    author: username,
+    content: text,
+    image: imageUrl,
+    time: Date.now()
+  });
+
+  document.getElementById("postText").value = "";
+  document.getElementById("imageInput").value = "";
+
+  loadPosts();
+});
+
 loadPosts();
 </script>
 
-<!-- LOGIN / LOGOUT -->
 <script>
 const accountLink = document.getElementById("accountLink");
 const logoutBtn = document.getElementById("logoutBtn");
-
 const currentUser = localStorage.getItem("currentUser");
+if(currentUser){ accountLink.innerText = "Profile"; accountLink.href = "profile.html"; logoutBtn.style.display = "inline"; }
+else logoutBtn.style.display = "none";
 
-if(currentUser){
-  accountLink.innerText = "Profile";
-  accountLink.href = "../profile.html";
-  logoutBtn.style.display = "inline";
-} else {
-  logoutBtn.style.display = "none";
-}
-
-logoutBtn.onclick = function() {
-  localStorage.removeItem("currentUser");
-  alert("Logged out");
-  window.location.href = "../index.html";
-};
+logoutBtn.onclick = function(){ localStorage.removeItem("currentUser"); alert("Logged out"); window.location.href="index.html"; };
 </script>
 
 </body>
