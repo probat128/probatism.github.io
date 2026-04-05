@@ -8,6 +8,8 @@
     button { margin-top:5px; padding:5px 10px; cursor:pointer; }
     .post { border:1px solid #444; padding:10px; margin:10px 0; }
     .time { color:#aaa; font-size:12px; }
+    .subforum { color:orange; font-size:12px; }
+    .deleteBtn { background:red; color:white; border:none; }
   </style>
 </head>
 <body>
@@ -32,7 +34,7 @@
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getFirestore, doc, getDoc, collection, getDocs, query, where, orderBy } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { getFirestore, doc, getDoc, collection, getDocs, query, where, orderBy, deleteDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAZXfEl3Q68vfJtaLJqODtnQBSVEzWBmc0",
@@ -74,7 +76,16 @@ async function loadProfile(){
   `;
 }
 
-// LOAD USER POSTS WITH TIME
+// DELETE POST
+window.deletePost = async function(postId){
+  if(!confirm("Delete this post?")) return;
+
+  await deleteDoc(doc(db, "posts", postId));
+
+  loadUserPosts(); // refresh
+}
+
+// LOAD USER POSTS
 async function loadUserPosts(){
   const postsDiv = document.getElementById("userPosts");
 
@@ -100,16 +111,23 @@ async function loadUserPosts(){
 
   let html = "";
 
-  snapshot.forEach(doc => {
-    const post = doc.data();
+  snapshot.forEach(docSnap => {
+    const post = docSnap.data();
+    const postId = docSnap.id;
 
-    const date = new Date(post.time);
-    const formatted = date.toLocaleString();
+    const date = new Date(post.time).toLocaleString();
 
     html += `
       <div class="post">
-        <div><b>${post.author}:</b> ${post.content}</div>
-        <div class="time">Posted: ${formatted}</div>
+        <div class="subforum">[${post.subforum}]</div>
+
+        <div onclick="window.location.href='post.html?id=${postId}'" style="cursor:pointer;">
+          <b>${post.author}:</b> ${post.content}
+        </div>
+
+        <div class="time">Posted: ${date}</div>
+
+        <button class="deleteBtn" onclick="deletePost('${postId}')">Delete</button>
       </div>
     `;
   });
