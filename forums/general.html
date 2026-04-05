@@ -5,11 +5,12 @@
   <style>
     body { font-family: Arial; background:#111; color:white; padding:20px; }
     nav a { color: cyan; margin-right:10px; text-decoration:none; }
-    textarea { width: 80%; height: 60px; }
-    .post { border:1px solid #444; padding:10px; margin:10px 0; }
+    textarea { width:80%; height:60px; }
+    .post { border:1px solid #444; padding:10px; margin:10px 0; cursor:pointer; }
     .time { color:#aaa; font-size:12px; }
     .subforum { color:orange; font-size:12px; }
     img { max-width:200px; display:block; margin-top:5px; }
+    button { padding:5px 10px; cursor:pointer; }
   </style>
 </head>
 <body>
@@ -29,7 +30,7 @@
 <h3>Create Post</h3>
 <textarea id="postText" placeholder="Write your post..."></textarea><br>
 <input type="file" id="imageInput" accept="image/*"><br>
-<button id="postButton" type="button">Post</button>
+<button id="postButton">Post</button>
 
 <h2>Posts</h2>
 <div id="postsDiv">Loading...</div>
@@ -51,51 +52,43 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const storage = getStorage(app);
+const username = localStorage.getItem("currentUser") || "Anonymous";
 const subforum = "General";
 
-const username = localStorage.getItem("currentUser") || "Anonymous";
-
+// Load posts
 async function loadPosts(){
   const postsDiv = document.getElementById("postsDiv");
-  postsDiv.innerHTML = "Loading...";
+  postsDiv.innerHTML="Loading...";
 
-  const postsSnap = await getDocs(query(collection(db, "posts"), orderBy("time", "desc")));
-  if(postsSnap.empty){ postsDiv.innerHTML = "<p>No posts yet.</p>"; return; }
-
-  let html = "";
-  postsSnap.forEach(docSnap => {
-    const post = docSnap.data();
-    const postId = docSnap.id;
-    const date = new Date(post.time).toLocaleString();
-    html += `
-      <div class="post">
-        <div class="subforum">[${post.subforum}]</div>
-        <div onclick="window.location.href='post.html?id=${postId}'" style="cursor:pointer;">
-          <b>${post.author}:</b> ${post.content ? post.content : ""}
-          ${post.image ? `<img src="${post.image}">` : ""}
-        </div>
-        <div class="time">Posted: ${date}</div>
-      </div>
-    `;
+  const postsSnap = await getDocs(query(collection(db,"posts"), orderBy("time","desc")));
+  let html="";
+  postsSnap.forEach(docSnap=>{
+    const post=docSnap.data();
+    const date=new Date(post.time).toLocaleString();
+    html+=`<div class="post" onclick="window.location.href='post.html?id=${docSnap.id}'">
+      <div class="subforum">[${post.subforum}]</div>
+      <b>${post.author}:</b> ${post.content||""} ${post.image?`<img src="${post.image}">`:''}
+      <div class="time">Posted: ${date}</div>
+    </div>`;
   });
 
-  postsDiv.innerHTML = html;
+  if(html==="") html="<p>No posts yet.</p>";
+  postsDiv.innerHTML=html;
 }
 
-document.getElementById("postButton").addEventListener("click", async () => {
+document.getElementById("postButton").addEventListener("click", async ()=>{
   const text = document.getElementById("postText").value.trim();
   const file = document.getElementById("imageInput").files[0];
+  if(!text && !file){ alert("Write text or select an image"); return; }
 
-  if(!text && !file){ alert("Write something or upload an image"); return; }
-
-  let imageUrl = "";
+  let imageUrl="";
   if(file){
-    const storageRef = ref(storage, "images/" + Date.now() + "_" + file.name);
-    await uploadBytes(storageRef, file);
+    const storageRef = ref(storage,"images/"+Date.now()+"_"+file.name);
+    await uploadBytes(storageRef,file);
     imageUrl = await getDownloadURL(storageRef);
   }
 
-  await addDoc(collection(db, "posts"), {
+  await addDoc(collection(db,"posts"),{
     subforum,
     author: username,
     content: text,
@@ -103,9 +96,8 @@ document.getElementById("postButton").addEventListener("click", async () => {
     time: Date.now()
   });
 
-  document.getElementById("postText").value = "";
-  document.getElementById("imageInput").value = "";
-
+  document.getElementById("postText").value="";
+  document.getElementById("imageInput").value="";
   loadPosts();
 });
 
@@ -113,14 +105,12 @@ loadPosts();
 </script>
 
 <script>
-const accountLink = document.getElementById("accountLink");
-const logoutBtn = document.getElementById("logoutBtn");
-const currentUser = localStorage.getItem("currentUser");
-if(currentUser){ accountLink.innerText = "Profile"; accountLink.href = "profile.html"; logoutBtn.style.display = "inline"; }
-else logoutBtn.style.display = "none";
-
-logoutBtn.onclick = function(){ localStorage.removeItem("currentUser"); alert("Logged out"); window.location.href="index.html"; };
+const accountLink=document.getElementById("accountLink");
+const logoutBtn=document.getElementById("logoutBtn");
+const currentUser=localStorage.getItem("currentUser");
+if(currentUser){ accountLink.innerText="Profile"; accountLink.href="profile.html"; logoutBtn.style.display="inline"; }
+else logoutBtn.style.display="none";
+logoutBtn.onclick=function(){ localStorage.removeItem("currentUser"); alert("Logged out"); window.location.href="index.html"; }
 </script>
-
 </body>
 </html>
