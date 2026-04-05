@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Post Thread</title>
+  <style>
+    body { font-family: Arial; background:#111; color:white; padding:20px; }
+    nav a { color: cyan; margin-right:10px; text-decoration:none; }
+    button { margin-top:5px; padding:5px 10px; cursor:pointer; }
+    textarea { width:100%; height:80px; background:#222; color:white; border:none; padding:5px; }
+    .post { border:1px solid #444; padding:10px; margin:10px 0; }
+    .reply { border-left:2px solid #888; margin:5px 0; padding-left:10px; }
+  </style>
+</head>
+<body>
+
+<!-- NAV BAR -->
+<nav>
+  <a href="index.html">Home</a>
+  <a href="doctrine.html">Doctrine</a>
+  <a href="forums.html">Forums</a>
+  <a href="news.html">News</a>
+  <a href="quiz.html">Quiz</a>
+  <a href="signin.html" id="accountLink">Sign In / Sign Up</a>
+  <button id="logoutBtn">Logout</button>
+</nav>
+
+<br>
+<a href="forums/general.html">← Back to General</a>
+
+<!-- POST -->
+<h2>Post</h2>
+<div id="post">Loading...</div>
+
+<!-- REPLIES -->
+<h3>Replies</h3>
+<div id="replies">Loading...</div>
+
+<!-- ADD REPLY -->
+<h3>Add Reply</h3>
+<textarea id="replyInput" placeholder="Write your reply..."></textarea>
+<br>
+<button id="replyButton">Reply</button>
+
+<!-- FIREBASE -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { getFirestore, doc, getDoc, collection, addDoc, getDocs, query, where, orderBy } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAZXfEl3Q68vfJtaLJqODtnQBSVEzWBmc0",
+  authDomain: "probatismm.firebaseapp.com",
+  projectId: "probatismm",
+  storageBucket: "probatismm.firebasestorage.app",
+  messagingSenderId: "746935651152",
+  appId: "1:746935651152:web:82491ddac346bc654a3a55"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+// GET POST ID FROM URL
+const params = new URLSearchParams(window.location.search);
+const postId = params.get("id");
+
+// LOAD POST
+async function loadPost(){
+  const postDiv = document.getElementById("post");
+
+  if(!postId){
+    postDiv.innerHTML = "No post ID provided.";
+    return;
+  }
+
+  const docRef = doc(db, "posts", postId);
+  const docSnap = await getDoc(docRef);
+
+  if(!docSnap.exists()){
+    postDiv.innerHTML = "Post not found.";
+    return;
+  }
+
+  const post = docSnap.data();
+
+  postDiv.innerHTML = `
+    <div class="post">
+      <b>${post.author}:</b> ${post.content}
+    </div>
+  `;
+}
+
+// LOAD REPLIES
+async function loadReplies(){
+  const repliesDiv = document.getElementById("replies");
+
+  const q = query(
+    collection(db, "replies"),
+    where("postId", "==", postId),
+    orderBy("time", "asc")
+  );
+
+  const snapshot = await getDocs(q);
+
+  if(snapshot.empty){
+    repliesDiv.innerHTML = "<p>No replies yet.</p>";
+    return;
+  }
+
+  let html = "";
+
+  snapshot.forEach(doc => {
+    const reply = doc.data();
+    html += `
+      <div class="reply">
+        <b>${reply.author}:</b> ${reply.content}
+      </div>
+    `;
+  });
+
+  repliesDiv.innerHTML = html;
+}
+
+// ADD REPLY
+document.getElementById("replyButton").addEventListener("click", async () => {
+  const input = document.getElementById("replyInput");
+  const text = input.value.trim();
+
+  if(!text){
+    alert("Enter reply");
+    return;
+  }
+
+  const username = localStorage.getItem("currentUser") || "Anonymous";
+
+  await addDoc(collection(db, "replies"), {
+    postId: postId,
+    author: username,
+    content: text,
+    time: Date.now()
+  });
+
+  input.value = "";
+  loadReplies();
+});
+
+// INITIAL LOAD
+loadPost();
+loadReplies();
+</script>
+
+<!-- LOGIN / LOGOUT -->
+<script>
+const accountLink = document.getElementById("accountLink");
+const logoutBtn = document.getElementById("logoutBtn");
+
+const currentUser = localStorage.getItem("currentUser");
+
+if(currentUser){
+  accountLink.innerText = "Profile";
+  accountLink.href = "profile.html";
+  logoutBtn.style.display = "inline";
+} else {
+  logoutBtn.style.display = "none";
+}
+
+logoutBtn.onclick = function() {
+  localStorage.removeItem("currentUser");
+  alert("Logged out");
+  window.location.href = "index.html";
+};
+</script>
+
+</body>
+</html>
