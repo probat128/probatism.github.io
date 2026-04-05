@@ -1,36 +1,50 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>View Post</title>
+  <title>Post Thread</title>
   <style>
     body { font-family: Arial; background:#111; color:white; padding:20px; }
-    .post, .reply { border:1px solid #444; padding:10px; margin:10px 0; }
-    .subforum { color:orange; font-size:12px; }
-    .time { color:#aaa; font-size:12px; }
-    img { max-width:200px; display:block; margin-top:5px; }
-    textarea { width:80%; height:60px; }
+    nav a { color: cyan; margin-right:10px; text-decoration:none; }
     button { margin-top:5px; padding:5px 10px; cursor:pointer; }
+    textarea { width:100%; height:80px; background:#222; color:white; border:none; padding:5px; }
+    .post { border:1px solid #444; padding:10px; margin:10px 0; }
+    .reply { border-left:2px solid #888; margin:5px 0; padding-left:10px; }
   </style>
 </head>
 <body>
 
-<a href="forums.html">Back to Forums</a>
-<h1>Post</h1>
+<!-- NAV BAR -->
+<nav>
+  <a href="index.html">Home</a>
+  <a href="doctrine.html">Doctrine</a>
+  <a href="forums.html">Forums</a>
+  <a href="news.html">News</a>
+  <a href="quiz.html">Quiz</a>
+  <a href="signin.html" id="accountLink">Sign In / Sign Up</a>
+  <button id="logoutBtn">Logout</button>
+</nav>
 
-<div id="postDiv">Loading...</div>
+<br>
+<a href="forums/general.html">← Back to General</a>
 
-<h3>Reply</h3>
-<textarea id="replyText" placeholder="Write a reply..."></textarea><br>
-<input type="file" id="replyImage" accept="image/*"><br>
-<button id="replyBtn">Post Reply</button>
+<!-- POST -->
+<h2>Post</h2>
+<div id="post">Loading...</div>
 
-<h2>Replies</h2>
-<div id="repliesDiv">Loading...</div>
+<!-- REPLIES -->
+<h3>Replies</h3>
+<div id="replies">Loading...</div>
 
+<!-- ADD REPLY -->
+<h3>Add Reply</h3>
+<textarea id="replyInput" placeholder="Write your reply..."></textarea>
+<br>
+<button id="replyButton">Reply</button>
+
+<!-- FIREBASE -->
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getFirestore, doc, getDoc, collection, addDoc, query, where, orderBy, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
+import { getFirestore, doc, getDoc, collection, addDoc, getDocs, query, where, orderBy } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAZXfEl3Q68vfJtaLJqODtnQBSVEzWBmc0",
@@ -43,54 +57,61 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
-const storage = getStorage(app);
 
-const username = localStorage.getItem("currentUser") || "Anonymous";
-
-// Get postId from URL
+// GET POST ID FROM URL
 const params = new URLSearchParams(window.location.search);
 const postId = params.get("id");
 
-// Load post
+// LOAD POST
 async function loadPost(){
-  const postSnap = await getDoc(doc(db, "posts", postId));
-  const postDiv = document.getElementById("postDiv");
+  const postDiv = document.getElementById("post");
 
-  if(!postSnap.exists()){ postDiv.innerHTML="Post not found"; return; }
+  if(!postId){
+    postDiv.innerHTML = "No post ID provided.";
+    return;
+  }
 
-  const post = postSnap.data();
-  const date = new Date(post.time).toLocaleString();
+  const docRef = doc(db, "posts", postId);
+  const docSnap = await getDoc(docRef);
+
+  if(!docSnap.exists()){
+    postDiv.innerHTML = "Post not found.";
+    return;
+  }
+
+  const post = docSnap.data();
 
   postDiv.innerHTML = `
     <div class="post">
-      <div class="subforum">[${post.subforum}]</div>
-      <div><b>${post.author}:</b> ${post.content || ""} ${post.image ? `<img src="${post.image}">` : ""}</div>
-      <div class="time">Posted: ${date}</div>
+      <b>${post.author}:</b> ${post.content}
     </div>
   `;
 }
 
-// Load replies
+// LOAD REPLIES
 async function loadReplies(){
-  const repliesDiv = document.getElementById("repliesDiv");
-  const repliesQuery = query(
+  const repliesDiv = document.getElementById("replies");
+
+  const q = query(
     collection(db, "replies"),
     where("postId", "==", postId),
-    orderBy("time","desc")
+    orderBy("time", "asc")
   );
-  const repliesSnap = await getDocs(repliesQuery);
 
-  if(repliesSnap.empty){ repliesDiv.innerHTML = "<p>No replies yet.</p>"; return; }
+  const snapshot = await getDocs(q);
+
+  if(snapshot.empty){
+    repliesDiv.innerHTML = "<p>No replies yet.</p>";
+    return;
+  }
 
   let html = "";
-  repliesSnap.forEach(docSnap=>{
-    const reply = docSnap.data();
-    const date = new Date(reply.time).toLocaleString();
+
+  snapshot.forEach(doc => {
+    const reply = doc.data();
     html += `
       <div class="reply">
-        <div class="subforum">[${reply.subforum} (reply)]</div>
-        <div><b>${reply.author}:</b> ${reply.content || ""} ${reply.image ? `<img src="${reply.image}">` : ""}</div>
-        <div class="time">Posted: ${date}</div>
+        <b>${reply.author}:</b> ${reply.content}
       </div>
     `;
   });
@@ -98,36 +119,54 @@ async function loadReplies(){
   repliesDiv.innerHTML = html;
 }
 
-// Post a reply
-document.getElementById("replyBtn").addEventListener("click", async ()=>{
-  const text = document.getElementById("replyText").value.trim();
-  const file = document.getElementById("replyImage").files[0];
-  if(!text && !file){ alert("Write text or select an image"); return; }
+// ADD REPLY
+document.getElementById("replyButton").addEventListener("click", async () => {
+  const input = document.getElementById("replyInput");
+  const text = input.value.trim();
 
-  let imageUrl = "";
-  if(file){
-    const storageRef = ref(storage,"images/"+Date.now()+"_"+file.name);
-    await uploadBytes(storageRef,file);
-    imageUrl = await getDownloadURL(storageRef);
+  if(!text){
+    alert("Enter reply");
+    return;
   }
 
-  await addDoc(collection(db,"replies"),{
-    postId,
-    subforum:"General",
-    author:username,
-    content:text,
-    image:imageUrl,
-    time:Date.now()
+  const username = localStorage.getItem("currentUser") || "Anonymous";
+
+  await addDoc(collection(db, "replies"), {
+    postId: postId,
+    author: username,
+    content: text,
+    time: Date.now()
   });
 
-  document.getElementById("replyText").value="";
-  document.getElementById("replyImage").value="";
+  input.value = "";
   loadReplies();
 });
 
-// Run loaders
+// INITIAL LOAD
 loadPost();
 loadReplies();
+</script>
+
+<!-- LOGIN / LOGOUT -->
+<script>
+const accountLink = document.getElementById("accountLink");
+const logoutBtn = document.getElementById("logoutBtn");
+
+const currentUser = localStorage.getItem("currentUser");
+
+if(currentUser){
+  accountLink.innerText = "Profile";
+  accountLink.href = "profile.html";
+  logoutBtn.style.display = "inline";
+} else {
+  logoutBtn.style.display = "none";
+}
+
+logoutBtn.onclick = function() {
+  localStorage.removeItem("currentUser");
+  alert("Logged out");
+  window.location.href = "index.html";
+};
 </script>
 
 </body>
