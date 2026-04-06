@@ -5,8 +5,8 @@
 <style>
 body { font-family: Arial; background: rgb(232,224,207); color: rgb(91,46,97); padding:20px; }
 nav a { color: rgb(91,46,97); margin-right:10px; text-decoration:none; }
-button { margin-top:5px; padding:5px 10px; cursor:pointer; background: rgb(232,224,207); color: rgb(91,46,97); border: 1px solid rgb(91,46,97); border-radius:5px; }
-textarea { width:100%; height:80px; background: rgb(232,224,207); color: rgb(91,46,97); border:1px solid rgb(91,46,97); padding:5px; }
+button { margin-top:5px; padding:5px 10px; cursor:pointer; background: rgb(232,224,207); color: rgb(91,46,97); border: 1px solid rgb(91,46,97); border-radius:0; }
+textarea { width:100%; height:80px; background: rgb(232,224,207); color: rgb(91,46,97); border:1px solid rgb(91,46,97); padding:5px; border-radius:0; }
 .post { border:1px solid rgb(91,46,97); padding:10px; margin:10px 0; }
 
 /* CUSTOM DELETE MODAL */
@@ -32,7 +32,7 @@ textarea { width:100%; height:80px; background: rgb(232,224,207); color: rgb(91,
     margin: 0 10px;
     cursor: pointer;
     border:none;
-    border-radius:5px;
+    border-radius:0;
 }
 .modal-btn.confirm { background: rgb(91,46,97); color: rgb(232,224,207); }
 .modal-btn.cancel { background: rgb(232,224,207); color: rgb(91,46,97); border: 1px solid rgb(91,46,97); }
@@ -168,7 +168,6 @@ async function loadPosts() {
                 <button onclick="window.location.href='../post.html?id=${postId}'">Read Replies</button>
             `;
 
-            // Only show delete button if current user is author
             if(currentUser === post.author){
                 const delBtn = document.createElement("button");
                 delBtn.innerText = "Delete Post";
