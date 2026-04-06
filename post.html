@@ -1,44 +1,51 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Post Page</title>
+  <title>Post Thread</title>
   <style>
     body { font-family: Arial; background:#111; color:white; padding:20px; }
     nav a { color: cyan; margin-right:10px; text-decoration:none; }
     button { margin-top:5px; padding:5px 10px; cursor:pointer; }
     textarea { width:100%; height:80px; background:#222; color:white; border:none; padding:5px; }
-    .post, .reply { border:1px solid #444; padding:10px; margin:10px 0; }
-    .reply { margin-left:20px; }
+    .post { border:1px solid #444; padding:10px; margin:10px 0; }
+    .reply { border-left:2px solid #888; margin:5px 0; padding-left:10px; }
   </style>
 </head>
 <body>
 
+<!-- NAV BAR -->
 <nav>
-  <a href="../index.html">Home</a>
-  <a href="../forums.html">Forums</a>
-  <a href="../signin.html" id="accountLink">Sign In / Sign Up</a>
-  <button id="logoutBtn" style="display:none;">Logout</button>
+  <a href="index.html">Home</a>
+  <a href="doctrine.html">Doctrine</a>
+  <a href="forums.html">Forums</a>
+  <a href="news.html">News</a>
+  <a href="quiz.html">Quiz</a>
+  <a href="signin.html" id="accountLink">Sign In / Sign Up</a>
+  <button id="logoutBtn">Logout</button>
 </nav>
 
-<h1>Post</h1>
+<br>
+<a href="forums/general.html">← Back to General</a>
 
-<div id="postContainer">Loading post...</div>
+<!-- POST -->
+<h2>Post</h2>
+<div id="post">Loading...</div>
 
+<!-- REPLIES -->
 <h3>Replies</h3>
 <div id="repliesContainer">Loading replies...</div>
 
+<!-- ADD REPLY -->
 <h3>Add Reply</h3>
-<textarea id="replyText" placeholder="Write your reply..."></textarea><br>
-<button id="replyButton">Post Reply</button>
+<textarea id="replyInput" placeholder="Write your reply..."></textarea>
+<br>
+<button id="replyButton">Reply</button>
 
+<!-- FIREBASE -->
 <script type="module">
-import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getFirestore, collection, addDoc, doc, getDoc, getDocs, query, where, orderBy } 
-from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-import { getAuth, onAuthStateChanged, signOut } 
-from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { getFirestore, doc, getDoc, collection, addDoc, getDocs, query, where } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-// FIREBASE CONFIG
 const firebaseConfig = {
   apiKey: "AIzaSyAZXfEl3Q68vfJtaLJqODtnQBSVEzWBmc0",
   authDomain: "probatismm.firebaseapp.com",
@@ -48,97 +55,60 @@ const firebaseConfig = {
   appId: "1:746935651152:web:82491ddac346bc654a3a55"
 };
 
-// INITIALIZE FIREBASE APP ONCE
-const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
+const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
-const auth = getAuth(app);
-
-const accountLink = document.getElementById("accountLink");
-const logoutBtn = document.getElementById("logoutBtn");
-let currentUser = null;
 
 // GET POST ID FROM URL
-const urlParams = new URLSearchParams(window.location.search);
-const postId = urlParams.get("id");
-
-if (!postId) {
-  alert("No post specified");
-  window.location.href = "../general.html";
-}
-
-// AUTH STATE
-onAuthStateChanged(auth, (user) => {
-  if (user) {
-    currentUser = user.email.replace("@fake.com", "");
-    accountLink.innerText = "Profile";
-    accountLink.href = "../profile.html";
-    logoutBtn.style.display = "inline";
-  } else {
-    currentUser = null;
-    accountLink.innerText = "Sign In / Sign Up";
-    accountLink.href = "../signin.html";
-    logoutBtn.style.display = "none";
-  }
-
-  // Load post & replies once auth state is known
-  loadPost();
-  loadReplies();
-});
-
-// LOGOUT
-logoutBtn.onclick = async () => {
-  try {
-    await signOut(auth);
-    currentUser = null;
-    alert("Logged out");
-    window.location.href = "../index.html";
-  } catch(e) {
-    alert("Error logging out");
-  }
-};
+const params = new URLSearchParams(window.location.search);
+const postId = params.get("id");
 
 // LOAD POST
-async function loadPost() {
-  const postContainer = document.getElementById("postContainer");
-  try {
-    const postDoc = await getDoc(doc(db, "posts", postId));
-    if (!postDoc.exists()) {
-      postContainer.innerHTML = "Post not found.";
-      return;
-    }
-    const post = postDoc.data();
-    const date = new Date(post.time).toLocaleString();
-    postContainer.innerHTML = `
-      <div class="post">
-        <b>${post.author}:</b> ${post.content}<br>
-        <span style="font-size:12px;color:#aaa;">${date}</span>
-      </div>
-    `;
-  } catch(err) {
-    postContainer.innerHTML = "Error loading post.";
+async function loadPost(){
+  const postDiv = document.getElementById("post");
+
+  if(!postId){
+    postDiv.innerHTML = "No post ID provided.";
+    return;
   }
+
+  const docRef = doc(db, "posts", postId);
+  const docSnap = await getDoc(docRef);
+
+  if(!docSnap.exists()){
+    postDiv.innerHTML = "Post not found.";
+    return;
+  }
+
+  const post = docSnap.data();
+
+  postDiv.innerHTML = `
+    <div class="post">
+      <b>${post.author}:</b> ${post.content}
+    </div>
+  `;
 }
 
-// LOAD REPLIES (NEWEST FIRST)
+// LOAD REPLIES
 async function loadReplies() {
   const repliesDiv = document.getElementById("repliesContainer");
   repliesDiv.innerHTML = "Loading replies...";
+
   try {
-    const q = query(
-      collection(db, "replies"),
-      where("postId", "==", postId),
-      orderBy("time", "desc") // <-- changed to descending
+    const snapshot = await getDocs(
+      query(collection(db, "replies"), where("postId", "==", postId))
     );
 
-    const snapshot = await getDocs(q);
     if (snapshot.empty) {
       repliesDiv.innerHTML = "<p>No replies yet.</p>";
       return;
     }
 
+    // Convert to array and sort newest first
+    const replies = snapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() }));
+    replies.sort((a, b) => b.time - a.time);
+
     repliesDiv.innerHTML = "";
-    snapshot.forEach(docSnap => {
-      const reply = docSnap.data();
+    replies.forEach(reply => {
       const date = new Date(reply.time).toLocaleString();
       const div = document.createElement("div");
       div.className = "reply";
@@ -146,35 +116,65 @@ async function loadReplies() {
                        <span style="font-size:12px;color:#aaa;">${date}</span>`;
       repliesDiv.appendChild(div);
     });
+
   } catch(err) {
+    console.error(err);
     repliesDiv.innerHTML = "Error loading replies.";
   }
 }
 
 // ADD REPLY
 document.getElementById("replyButton").addEventListener("click", async () => {
-  const text = document.getElementById("replyText").value.trim();
-  if (!text) { alert("Enter text"); return; }
+  const input = document.getElementById("replyInput");
+  const text = input.value.trim();
 
-  const username = currentUser ? currentUser : "Anonymous";
+  if(!text){
+    alert("Enter reply");
+    return;
+  }
+
+  const username = localStorage.getItem("currentUser") || "Anonymous";
 
   try {
     await addDoc(collection(db, "replies"), {
-      postId,
+      postId: postId,
       author: username,
       content: text,
       time: Date.now()
     });
-    document.getElementById("replyText").value = "";
+    input.value = "";
     loadReplies();
-  } catch(err) {
-    if(err.code === "permission-denied"){
-      alert("You don’t have permission to reply.");
-    } else {
-      alert("Something went wrong. Try again.");
-    }
+  } catch(err){
+    console.error(err);
+    alert("Error posting: " + err.message);
   }
 });
+
+// INITIAL LOAD
+loadPost();
+loadReplies();
+</script>
+
+<!-- LOGIN / LOGOUT -->
+<script>
+const accountLink = document.getElementById("accountLink");
+const logoutBtn = document.getElementById("logoutBtn");
+
+const currentUser = localStorage.getItem("currentUser");
+
+if (currentUser) {
+  accountLink.innerText = "Profile";
+  accountLink.href = "profile.html";
+  logoutBtn.style.display = "inline";
+} else {
+  logoutBtn.style.display = "none";
+}
+
+logoutBtn.onclick = function () {
+  localStorage.removeItem("currentUser");
+  alert("Logged out");
+  window.location.href = "index.html";
+};
 </script>
 
 </body>
