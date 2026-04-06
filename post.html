@@ -40,7 +40,7 @@ from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
 // FIREBASE CONFIG
 const firebaseConfig = {
-  apiKey: "AIzaSyAZXfEl3Q68vfJtaLJqODtnQBSVEzWBmc0",
+  apiKey: "YOUR_API_KEY",
   authDomain: "probatismm.firebaseapp.com",
   projectId: "probatismm",
   storageBucket: "probatismm.firebasestorage.app",
@@ -119,7 +119,7 @@ async function loadPost() {
   }
 }
 
-// LOAD REPLIES
+// LOAD REPLIES (NEWEST FIRST)
 async function loadReplies() {
   const repliesDiv = document.getElementById("repliesContainer");
   repliesDiv.innerHTML = "Loading replies...";
@@ -127,7 +127,7 @@ async function loadReplies() {
     const q = query(
       collection(db, "replies"),
       where("postId", "==", postId),
-      orderBy("time", "asc")
+      orderBy("time", "desc") // <-- changed to descending
     );
 
     const snapshot = await getDocs(q);
