@@ -1,51 +1,46 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Post Thread</title>
+  <title>Post Page</title>
   <style>
     body { font-family: Arial; background:#111; color:white; padding:20px; }
     nav a { color: cyan; margin-right:10px; text-decoration:none; }
     button { margin-top:5px; padding:5px 10px; cursor:pointer; }
     textarea { width:100%; height:80px; background:#222; color:white; border:none; padding:5px; }
-    .post { border:1px solid #444; padding:10px; margin:10px 0; }
-    .reply { border-left:2px solid #888; margin:5px 0; padding-left:10px; }
+    .post, .reply { border:1px solid #444; padding:10px; margin:10px 0; }
+    .reply { margin-left:20px; }
   </style>
 </head>
 <body>
 
 <nav>
-  <a href="index.html">Home</a>
-  <a href="doctrine.html">Doctrine</a>
-  <a href="forums.html">Forums</a>
-  <a href="news.html">News</a>
-  <a href="quiz.html">Quiz</a>
-  <a href="signin.html" id="accountLink">Sign In / Sign Up</a>
-  <button id="logoutBtn">Logout</button>
+  <a href="../index.html">Home</a>
+  <a href="../forums.html">Forums</a>
+  <a href="../signin.html" id="accountLink">Sign In / Sign Up</a>
+  <button id="logoutBtn" style="display:none;">Logout</button>
 </nav>
 
-<br>
-<a href="forums/general.html">← Back to General</a>
+<h1>Post</h1>
 
-<h2>Post</h2>
-<div id="post">Loading...</div>
+<div id="postContainer">Loading post...</div>
 
 <h3>Replies</h3>
-<div id="replies">Loading...</div>
+<div id="repliesContainer">Loading replies...</div>
 
 <h3>Add Reply</h3>
-<textarea id="replyInput"></textarea>
-<br>
-<button id="replyButton">Reply</button>
+<textarea id="replyText" placeholder="Write your reply..."></textarea><br>
+<button id="replyButton">Post Reply</button>
 
 <script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getFirestore, doc, getDoc, collection, addDoc, getDocs, query, where, orderBy } 
+import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { getFirestore, collection, addDoc, doc, getDoc, getDocs, query, where, orderBy } 
 from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { getAuth, onAuthStateChanged, signOut } 
 from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
+// FIREBASE CONFIG
 const firebaseConfig = {
-  apiKey: "AIzaSyAZXfEl3Q68vfJtaLJqODtnQBSVEzWBmc0",
+  apiKey: "YOUR_API_KEY",
   authDomain: "probatismm.firebaseapp.com",
   projectId: "probatismm",
   storageBucket: "probatismm.firebasestorage.app",
@@ -53,137 +48,133 @@ const firebaseConfig = {
   appId: "1:746935651152:web:82491ddac346bc654a3a55"
 };
 
-import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-
+// INITIALIZE FIREBASE APP ONCE
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
 const db = getFirestore(app);
 const auth = getAuth(app);
 
 const accountLink = document.getElementById("accountLink");
 const logoutBtn = document.getElementById("logoutBtn");
-
 let currentUser = null;
+
+// GET POST ID FROM URL
+const urlParams = new URLSearchParams(window.location.search);
+const postId = urlParams.get("id");
+
+if (!postId) {
+  alert("No post specified");
+  window.location.href = "../general.html";
+}
 
 // AUTH STATE
 onAuthStateChanged(auth, (user) => {
   if (user) {
-    const username = user.email.replace("@fake.com", "");
-    localStorage.setItem("currentUser", username);
-    currentUser = username;
-
+    currentUser = user.email.replace("@fake.com", "");
     accountLink.innerText = "Profile";
-    accountLink.href = "profile.html";
+    accountLink.href = "../profile.html";
     logoutBtn.style.display = "inline";
   } else {
-    localStorage.removeItem("currentUser");
     currentUser = null;
-
     accountLink.innerText = "Sign In / Sign Up";
-    accountLink.href = "signin.html";
+    accountLink.href = "../signin.html";
     logoutBtn.style.display = "none";
   }
+
+  // Load post & replies once auth state is known
+  loadPost();
+  loadReplies();
 });
 
 // LOGOUT
-logoutBtn.onclick = function() {
-  signOut(auth);
-  localStorage.removeItem("currentUser");
-  alert("Logged out");
-  window.location.href = "index.html";
+logoutBtn.onclick = async () => {
+  try {
+    await signOut(auth);
+    currentUser = null;
+    alert("Logged out");
+    window.location.href = "../index.html";
+  } catch(e) {
+    alert("Error logging out");
+  }
 };
 
-// GET POST ID
-const params = new URLSearchParams(window.location.search);
-const postId = params.get("id");
-
 // LOAD POST
-async function loadPost(){
-  const postDiv = document.getElementById("post");
-
-  if(!postId){
-    postDiv.innerHTML = "No post ID provided.";
-    return;
+async function loadPost() {
+  const postContainer = document.getElementById("postContainer");
+  try {
+    const postDoc = await getDoc(doc(db, "posts", postId));
+    if (!postDoc.exists()) {
+      postContainer.innerHTML = "Post not found.";
+      return;
+    }
+    const post = postDoc.data();
+    const date = new Date(post.time).toLocaleString();
+    postContainer.innerHTML = `
+      <div class="post">
+        <b>${post.author}:</b> ${post.content}<br>
+        <span style="font-size:12px;color:#aaa;">${date}</span>
+      </div>
+    `;
+  } catch(err) {
+    postContainer.innerHTML = "Error loading post.";
   }
-
-  const docRef = doc(db, "posts", postId);
-  const docSnap = await getDoc(docRef);
-
-  if(!docSnap.exists()){
-    postDiv.innerHTML = "Post not found.";
-    return;
-  }
-
-  const post = docSnap.data();
-  const date = new Date(post.time).toLocaleString();
-
-  postDiv.innerHTML = `
-    <div class="post">
-      <b>${post.author}:</b> ${post.content}
-      <div style="font-size:12px;color:#aaa;">${date}</div>
-    </div>
-  `;
 }
 
 // LOAD REPLIES
-async function loadReplies(){
-  const repliesDiv = document.getElementById("replies");
+async function loadReplies() {
+  const repliesDiv = document.getElementById("repliesContainer");
+  repliesDiv.innerHTML = "Loading replies...";
+  try {
+    const q = query(
+      collection(db, "replies"),
+      where("postId", "==", postId),
+      orderBy("time", "asc")
+    );
 
-  const q = query(
-    collection(db, "replies"),
-    where("postId", "==", postId),
-    orderBy("time", "asc")
-  );
+    const snapshot = await getDocs(q);
+    if (snapshot.empty) {
+      repliesDiv.innerHTML = "<p>No replies yet.</p>";
+      return;
+    }
 
-  const snapshot = await getDocs(q);
-
-  if(snapshot.empty){
-    repliesDiv.innerHTML = "<p>No replies yet.</p>";
-    return;
+    repliesDiv.innerHTML = "";
+    snapshot.forEach(docSnap => {
+      const reply = docSnap.data();
+      const date = new Date(reply.time).toLocaleString();
+      const div = document.createElement("div");
+      div.className = "reply";
+      div.innerHTML = `<b>${reply.author}:</b> ${reply.content}<br>
+                       <span style="font-size:12px;color:#aaa;">${date}</span>`;
+      repliesDiv.appendChild(div);
+    });
+  } catch(err) {
+    repliesDiv.innerHTML = "Error loading replies.";
   }
-
-  let html = "";
-
-  snapshot.forEach(docSnap => {
-    const reply = docSnap.data();
-    const date = new Date(reply.time).toLocaleString();
-
-    html += `
-      <div class="reply">
-        <b>${reply.author}:</b> ${reply.content}
-        <div style="font-size:12px;color:#aaa;">${date}</div>
-      </div>
-    `;
-  });
-
-  repliesDiv.innerHTML = html;
 }
 
 // ADD REPLY
 document.getElementById("replyButton").addEventListener("click", async () => {
-  const input = document.getElementById("replyInput");
-  const text = input.value.trim();
-
-  if(!text){
-    alert("Enter reply");
-    return;
-  }
+  const text = document.getElementById("replyText").value.trim();
+  if (!text) { alert("Enter text"); return; }
 
   const username = currentUser ? currentUser : "Anonymous";
 
-  await addDoc(collection(db, "replies"), {
-    postId: postId,
-    author: username,
-    content: text,
-    time: Date.now()
-  });
-
-  input.value = "";
-  loadReplies();
+  try {
+    await addDoc(collection(db, "replies"), {
+      postId,
+      author: username,
+      content: text,
+      time: Date.now()
+    });
+    document.getElementById("replyText").value = "";
+    loadReplies();
+  } catch(err) {
+    if(err.code === "permission-denied"){
+      alert("You don’t have permission to reply.");
+    } else {
+      alert("Something went wrong. Try again.");
+    }
+  }
 });
-
-// INIT
-loadPost();
-loadReplies();
 </script>
 
 </body>
