@@ -8,6 +8,34 @@
     button { margin-top:5px; padding:5px 10px; cursor:pointer; }
     textarea { width:100%; height:80px; background:#222; color:white; border:none; padding:5px; }
     .post { border:1px solid #444; padding:10px; margin:10px 0; }
+
+    /* Custom Modal */
+    .modal-bg {
+      display: none;
+      position: fixed;
+      top:0; left:0; width:100%; height:100%;
+      background: rgba(0,0,0,0.7);
+      justify-content: center; align-items: center;
+      z-index: 1000;
+    }
+    .modal-content {
+      background: #222;
+      padding: 20px;
+      border-radius: 10px;
+      width: 300px;
+      text-align: center;
+      color: white;
+    }
+    .modal-content p { margin-bottom: 20px; }
+    .modal-btn {
+      padding: 5px 15px;
+      margin: 0 10px;
+      cursor: pointer;
+      border:none;
+      border-radius:5px;
+    }
+    .modal-btn.confirm { background: #d33; color:white; }
+    .modal-btn.cancel { background: #555; color:white; }
   </style>
 </head>
 <body>
@@ -32,6 +60,15 @@
 
 <h3>Posts</h3>
 <div id="posts">Loading...</div>
+
+<!-- Custom Delete Modal -->
+<div id="deleteModal" class="modal-bg">
+  <div class="modal-content">
+    <p>Are you sure you want to delete your post?</p>
+    <button class="modal-btn confirm" id="confirmDeleteBtn">Yes</button>
+    <button class="modal-btn cancel" id="cancelDeleteBtn">No</button>
+  </div>
+</div>
 
 <script type="module">
 import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
@@ -58,6 +95,7 @@ const accountLink = document.getElementById("accountLink");
 const logoutBtn = document.getElementById("logoutBtn");
 
 let currentUser = null;
+let postToDelete = null;
 
 // AUTH STATE
 onAuthStateChanged(auth, (user) => {
@@ -76,36 +114,22 @@ onAuthStateChanged(auth, (user) => {
 
 // LOGOUT
 logoutBtn.onclick = async () => {
-  try {
-    await signOut(auth);
-    currentUser = null;
-    alert("Logged out");
-    window.location.href = "../index.html";
-  } catch(e) { alert("Error logging out."); }
+  try { await signOut(auth); currentUser = null; alert("Logged out"); window.location.href = "../index.html"; }
+  catch(e) { alert("Error logging out."); }
 };
 
 // CREATE POST
 document.getElementById("postButton").addEventListener("click", async () => {
   const text = document.getElementById("postText").value.trim();
   if(!text){ alert("Enter text"); return; }
-
   const username = currentUser ? currentUser : "Anonymous";
-
   try {
-    await addDoc(collection(db, "posts"), {
-      subforum,
-      author: username,
-      content: text,
-      time: Date.now()
-    });
+    await addDoc(collection(db, "posts"), { subforum, author: username, content: text, time: Date.now() });
     document.getElementById("postText").value = "";
     loadPosts();
   } catch(err) {
-    if(err.code === "permission-denied") {
-      alert("You don’t have permission to post.");
-    } else {
-      alert("Something went wrong. Try again.");
-    }
+    if(err.code === "permission-denied") alert("You don’t have permission to post.");
+    else alert("Something went wrong. Try again.");
   }
 });
 
@@ -132,9 +156,8 @@ async function loadPosts() {
       div.className = "post";
       const date = new Date(post.time).toLocaleString();
 
-      // Only allow deletion if user is owner
       const deleteButton = (currentUser === post.author) ? 
-        `<button onclick="deletePost('${postId}')">Delete</button>` : "";
+        `<button onclick="showDeleteModal('${postId}')">Delete</button>` : "";
 
       div.innerHTML = `
         <div><b>${post.author}:</b> ${post.content}</div>
@@ -145,16 +168,31 @@ async function loadPosts() {
       postsDiv.appendChild(div);
     });
 
-  } catch(err) { postsDiv.innerHTML = "Error loading posts."; }
+  } catch(err){ postsDiv.innerHTML = "Error loading posts."; }
 }
 
-// DELETE POST
-window.deletePost = async function(id){
-  if(!confirm("Delete this post?")) return;
-  try {
-    await deleteDoc(doc(db, "posts", id));
-    loadPosts();
-  } catch(err){ alert("Delete error."); }
+// SHOW DELETE MODAL
+window.showDeleteModal = function(id){
+  postToDelete = id;
+  document.getElementById("deleteModal").style.display = "flex";
+}
+
+// CANCEL DELETE
+document.getElementById("cancelDeleteBtn").onclick = () => {
+  postToDelete = null;
+  document.getElementById("deleteModal").style.display = "none";
+}
+
+// CONFIRM DELETE
+document.getElementById("confirmDeleteBtn").onclick = async () => {
+  if(postToDelete){
+    try {
+      await deleteDoc(doc(db, "posts", postToDelete));
+      postToDelete = null;
+      document.getElementById("deleteModal").style.display = "none";
+      loadPosts();
+    } catch(err){ alert("Delete error."); }
+  }
 }
 
 loadPosts();
