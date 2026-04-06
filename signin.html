@@ -8,6 +8,14 @@
     button { padding:5px 10px; margin:5px 0; cursor:pointer; }
     .tab { cursor:pointer; margin-right:10px; color:cyan; }
     .active { font-weight:bold; text-decoration:underline; }
+
+    #status {
+      margin-top:10px;
+      font-weight:bold;
+    }
+
+    .success { color: lightgreen; }
+    .error { color: red; }
   </style>
 </head>
 <body>
@@ -47,12 +55,20 @@ const auth = getAuth(app);
 
 let mode = "signin";
 
+function showStatus(message, type){
+  const status = document.getElementById("status");
+  status.innerText = message;
+  status.className = type;
+}
+
 window.setMode = function(newMode){
   mode = newMode;
   document.getElementById("title").innerText = newMode === "signin" ? "Sign In" : "Sign Up";
 
   document.getElementById("signInTab").classList.toggle("active", newMode === "signin");
   document.getElementById("signUpTab").classList.toggle("active", newMode === "signup");
+
+  showStatus("", "");
 }
 
 window.submitForm = async function(){
@@ -60,47 +76,54 @@ window.submitForm = async function(){
   const password = document.getElementById("password").value.trim();
 
   if(!username || !password){
-    alert("Enter username and password");
+    showStatus("Enter username and password", "error");
     return;
   }
 
-  const email = username + "@fake.com"; // convert username → email
+  const email = username + "@fake.com";
   const userRef = doc(db, "users", username);
 
   try {
 
-    // SIGN UP
     if(mode === "signup"){
       const userSnap = await getDoc(userRef);
 
       if(userSnap.exists()){
-        alert("Username already exists");
+        showStatus("Username already exists", "error");
         return;
       }
 
-      await createUserWithEmailAndPassword(auth, email, password);
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
 
-      await setDoc(userRef, {
-        username: username,
-        joinDate: Date.now()
-      });
+      // ensure auth is ready before writing
+      if(userCredential.user){
+        await setDoc(userRef, {
+          username: username,
+          joinDate: Date.now()
+        });
+      }
 
       localStorage.setItem("currentUser", username);
-      alert("Account created!");
-      window.location.href = "index.html";
+      showStatus("Account created!", "success");
+
+      setTimeout(() => {
+        window.location.href = "index.html";
+      }, 1000);
     }
 
-    // SIGN IN
     if(mode === "signin"){
       await signInWithEmailAndPassword(auth, email, password);
 
       localStorage.setItem("currentUser", username);
-      alert("Logged in!");
-      window.location.href = "index.html";
+      showStatus("Logged in!", "success");
+
+      setTimeout(() => {
+        window.location.href = "index.html";
+      }, 1000);
     }
 
   } catch(err){
-    alert("Error: " + err.message);
+    showStatus("Error: " + err.message, "error");
   }
 }
 </script>
