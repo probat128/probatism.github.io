@@ -3,12 +3,41 @@
 <head>
   <title>Post Thread</title>
   <style>
-    body { font-family: Arial; background:#111; color:white; padding:20px; }
-    nav a { color: cyan; margin-right:10px; text-decoration:none; }
-    button { margin-top:5px; padding:5px 10px; cursor:pointer; }
-    textarea { width:100%; height:80px; background:#222; color:white; border:none; padding:5px; }
-    .post { border:1px solid #444; padding:10px; margin:10px 0; }
-    .reply { border-left:2px solid #888; margin:5px 0; padding-left:10px; }
+    body { font-family: Arial; background: rgb(232,224,207); color: rgb(91,46,97); padding:20px; }
+    nav a { color: rgb(91,46,97); margin-right:10px; text-decoration:none; }
+    button { margin-top:5px; padding:5px 10px; cursor:pointer; background: rgb(232,224,207); color: rgb(91,46,97); border: 1px solid rgb(91,46,97); border-radius:0; }
+    textarea { width:100%; height:80px; background: rgb(232,224,207); color: rgb(91,46,97); border:1px solid rgb(91,46,97); padding:5px; border-radius:0; }
+    .post { border:1px solid rgb(91,46,97); padding:10px; margin:10px 0; }
+    .reply { border-left:2px solid rgb(91,46,97); margin:5px 0; padding-left:10px; }
+    a { text-decoration:none; color: rgb(91,46,97); }
+    
+    /* Optional modal for delete confirmation */
+    .modal-bg {
+      display: none;
+      position: fixed;
+      top:0; left:0; width:100%; height:100%;
+      background: rgba(232,224,207,0.8);
+      justify-content: center;
+      align-items: center;
+      z-index:1000;
+    }
+    .modal-content {
+      background: rgb(232,224,207);
+      padding: 20px;
+      border: 2px solid rgb(91,46,97);
+      width: 300px;
+      text-align: center;
+      color: rgb(91,46,97);
+    }
+    .modal-btn {
+      padding: 5px 15px;
+      margin: 0 10px;
+      cursor: pointer;
+      border:none;
+      border-radius:0;
+    }
+    .modal-btn.confirm { background: rgb(91,46,97); color: rgb(232,224,207); }
+    .modal-btn.cancel { background: rgb(232,224,207); color: rgb(91,46,97); border: 1px solid rgb(91,46,97); }
   </style>
 </head>
 <body>
@@ -37,14 +66,23 @@
 <br>
 <button id="replyButton">Reply</button>
 
+<!-- Optional modal for future delete functionality -->
+<div id="deleteModal" class="modal-bg">
+  <div class="modal-content">
+    <p>Are you sure you want to delete this item?</p>
+    <button id="confirmDeleteBtn" class="modal-btn confirm">Delete</button>
+    <button id="cancelDeleteBtn" class="modal-btn cancel">Cancel</button>
+  </div>
+</div>
+
 <script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getFirestore, doc, getDoc, collection, addDoc, getDocs, query, where } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
 // CONFIG
 const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
+  apiKey: "AIzaSyAZXfEl3Q68vfJtaLJqODtnQBSVEzWBmc0",
   authDomain: "probatismm.firebaseapp.com",
   projectId: "probatismm",
   storageBucket: "probatismm.firebasestorage.app",
@@ -52,7 +90,7 @@ const firebaseConfig = {
   appId: "1:746935651152:web:82491ddac346bc654a3a55"
 };
 
-const app = initializeApp(firebaseConfig);
+const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
 const db = getFirestore(app);
 const auth = getAuth(app);
 
@@ -116,7 +154,7 @@ async function loadReplies(){
       const date = new Date(reply.time).toLocaleString();
       const div = document.createElement("div");
       div.className="reply";
-      div.innerHTML = `<b>${reply.author}</b>: ${reply.content}<br><span style="font-size:12px;color:#aaa;">${date}</span>`;
+      div.innerHTML = `<b>${reply.author}</b>: ${reply.content}<br><span style="font-size:12px;color: rgb(91,46,97);">${date}</span>`;
       repliesDiv.appendChild(div);
     });
   } catch(e){
