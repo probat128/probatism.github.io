@@ -176,12 +176,26 @@ async function loadProfile(){
   document.getElementById("description").value = data.description || "";
 }
 
-// SAVE DESCRIPTION
+// SAVE DESCRIPTION with 5s cooldown
+let lastSaveTime = 0;
 document.getElementById("saveDescBtn").onclick = async () => {
+  const now = Date.now();
+  if(now - lastSaveTime < 5000){
+    showModal("Please wait 5 seconds before saving again.");
+    return;
+  }
+
+  const desc = document.getElementById("description").value;
+  if(desc.length > 400){
+    showModal("Description cannot exceed 400 characters.");
+    return;
+  }
+
   await setDoc(doc(db, "users", username), {
-    description: document.getElementById("description").value
+    description: desc
   }, { merge:true });
 
+  lastSaveTime = now;
   showModal("Saved");
 };
 
