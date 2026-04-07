@@ -1,293 +1,240 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>User Profile</title>
+  <title>Profile</title>
   <style>
-    /* ---------- COLORS & BASIC STYLING ---------- */
-    body {
-      background-color: rgb(232, 224, 207); /* e8e0cf */
-      color: rgb(91, 46, 97); /* 5b2e61 */
-      font-family: Arial, sans-serif;
-      margin: 0;
-      padding: 0;
+    body { font-family: Arial; background:#e8e0cf; color:#5b2e61; padding:20px; }
+    nav a { color:#5b2e61; margin-right:10px; text-decoration:none; }
+    button { margin-top:5px; padding:5px 10px; cursor:pointer; background:#5b2e61; color:#e8e0cf; border:none; }
+    button:hover { background:#472351; }
+
+    .profile-pic {
+      width:256px;
+      height:256px;
+      object-fit:cover;
+      border:2px solid #5b2e61;
+      display:block;
+      margin-top:10px;
     }
 
-    .container {
-      max-width: 900px;
-      margin: 40px auto;
-      padding: 20px;
-      background-color: #fff;
-      border-radius: 12px;
-      box-shadow: 0 4px 8px rgba(91, 46, 97, 0.2);
+    .post { border:1px solid #5b2e61; padding:10px; margin:10px 0; }
+    .time { color:#5b2e61; font-size:12px; }
+    .subforum { color:#5b2e61; font-size:12px; }
+    .deleteBtn { background:red; color:white; border:none; cursor:pointer; }
+
+    #description {
+      width:100%;
+      height:80px;
+      background:#e8e0cf;
+      color:#5b2e61;
+      border:2px solid #5b2e61;
+      padding:5px;
     }
 
-    h1 {
-      text-align: center;
-      margin-bottom: 20px;
-    }
-
-    .profile-picture {
-      width: 256px;
-      height: 256px;
-      border-radius: 12px;
-      object-fit: cover;
-      display: block;
-      margin: 0 auto 20px auto;
-      border: 3px solid rgb(91, 46, 97);
-    }
-
-    .info-section {
-      margin-bottom: 20px;
-      text-align: center;
-    }
-
-    .info-section label {
-      font-weight: bold;
-      display: block;
-      margin-bottom: 6px;
-    }
-
-    input[type="file"],
-    textarea {
-      display: block;
-      margin: 0 auto 10px auto;
-      padding: 8px;
-      border: 2px solid rgb(91, 46, 97);
-      border-radius: 6px;
-      width: 80%;
-      max-width: 400px;
-      font-size: 16px;
-      color: rgb(91, 46, 97);
-    }
-
-    textarea {
-      resize: vertical;
-      min-height: 80px;
-      max-height: 200px;
-    }
-
-    button {
-      background-color: rgb(91, 46, 97);
-      color: rgb(232, 224, 207);
-      border: none;
-      padding: 10px 20px;
-      border-radius: 6px;
-      font-size: 16px;
-      cursor: pointer;
-      margin: 5px;
-    }
-
-    button:hover {
-      background-color: rgb(121, 76, 136);
-    }
-
-    /* ---------- Custom Notifications ---------- */
+    /* Custom notification */
     #notification {
       position: fixed;
       top: 20px;
       left: 50%;
       transform: translateX(-50%);
-      background-color: rgb(91, 46, 97);
-      color: rgb(232, 224, 207);
-      padding: 12px 20px;
-      border-radius: 8px;
-      font-weight: bold;
+      background: #5b2e61;
+      color: #e8e0cf;
+      padding: 10px 20px;
       display: none;
       z-index: 1000;
-      box-shadow: 0 4px 8px rgba(91, 46, 97, 0.3);
+      border: 2px solid #5b2e61;
     }
-
-    /* Delete button for posts/replies */
-    .delete-btn {
-      background-color: #b03a2e;
-    }
-
-    .delete-btn:hover {
-      background-color: #d35400;
-    }
-
   </style>
 </head>
 <body>
-  <div class="container">
-    <h1>User Profile</h1>
 
-    <div class="info-section">
-      <img id="profilePic" class="profile-picture" src="" alt="Profile Picture">
-    </div>
+<nav>
+  <a href="index.html">Home</a>
+  <a href="doctrine.html">Doctrine</a>
+  <a href="forums.html">Forums</a>
+  <a href="news.html">News</a>
+  <a href="quiz.html">Quiz</a>
+  <a href="signin.html" id="accountLink">Sign In / Sign Up</a>
+  <button id="logoutBtn">Logout</button>
+</nav>
 
-    <div class="info-section">
-      <label>Username:</label>
-      <div id="username"></div>
-    </div>
+<h1>Profile</h1>
 
-    <div class="info-section">
-      <label>Joined:</label>
-      <div id="joinDate"></div>
-    </div>
+<div id="notification"></div>
 
-    <div class="info-section">
-      <label for="description">Description (max 400 chars):</label>
-      <textarea id="description" maxlength="400" placeholder="Write something about yourself..."></textarea>
-      <button id="saveDescriptionBtn">Save Description</button>
-    </div>
+<div id="profileInfo">Loading...</div>
 
-    <div class="info-section">
-      <label for="uploadProfile">Upload 256x256 Profile Picture:</label>
-      <input type="file" id="uploadProfile" accept="image/*">
-      <button id="saveProfilePicBtn">Save Profile Picture</button>
-    </div>
+<label><b>Description:</b></label>
+<textarea id="description" maxlength="400"></textarea>
+<button id="saveDescBtn">Save Description</button>
 
-    <div class="info-section">
-      <h2>Your Posts</h2>
-      <div id="userPosts"></div>
-    </div>
-  </div>
+<br><br>
 
-  <!-- Custom Notification -->
-  <div id="notification"></div>
+<label><b>Profile Picture:</b></label>
+<input type="file" id="profilePic" accept="image/*">
+<button id="uploadPicBtn">Upload</button>
 
-  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
+<h2>Your Posts & Replies</h2>
+<div id="userPosts">Loading...</div>
 
-  <script>
-    // ---------- FIREBASE CONFIG ----------
-    const firebaseConfig = {
-      apiKey: "AIzaSyAZXfEl3Q68vfJtaLJqODtnQBSVEzWBmc0",
-      authDomain: "probatismm.firebaseapp.com",
-      projectId: "probatismm",
-      storageBucket: "probatismm.firebasestorage.app",
-      messagingSenderId: "746935651152",
-      appId: "1:746935651152:web:82491ddac346bc654a3a55"
-    };
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { getFirestore, doc, getDoc, setDoc, collection, getDocs, query, where, orderBy, deleteDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.firestore();
-    const auth = firebase.auth();
+const firebaseConfig = {
+  apiKey: "AIzaSyAZXfEl3Q68vfJtaLJqODtnQBSVEzWBmc0",
+  authDomain: "probatismm.firebaseapp.com",
+  projectId: "probatismm",
+  storageBucket: "probatismm.firebasestorage.app",
+  messagingSenderId: "746935651152",
+  appId: "1:746935651152:web:82491ddac346bc654a3a55"
+};
 
-    // ---------- UTILITY: Notification ----------
-    function showNotification(message) {
-      const notif = document.getElementById("notification");
-      notif.innerText = message;
-      notif.style.display = "block";
-      setTimeout(() => { notif.style.display = "none"; }, 3000);
-    }
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
 
-    // ---------- GET CURRENT USER ----------
-    let currentUserEmail = "";
-    auth.onAuthStateChanged(user => {
-      if(user) {
-        currentUserEmail = user.email.split("@")[0];
-        loadUserProfile(currentUserEmail);
-      } else {
-        showNotification("Please log in.");
-      }
-    });
+const username = localStorage.getItem("currentUser");
 
-    // ---------- LOAD USER PROFILE ----------
-    async function loadUserProfile(userId) {
-      try {
-        const userDoc = await db.collection("users").doc(userId).get();
-        if(userDoc.exists) {
-          const data = userDoc.data();
-          document.getElementById("username").innerText = userId;
-          document.getElementById("description").value = data.description || "";
-          document.getElementById("profilePic").src = data.profilePic || "";
+function notify(msg) {
+  const n = document.getElementById("notification");
+  n.innerText = msg;
+  n.style.display = "block";
+  setTimeout(() => { n.style.display = "none"; }, 3000);
+}
 
-          if(data.joinDate) {
-            const joinDate = new Date(data.joinDate);
-            const diffDays = Math.floor((Date.now() - joinDate) / (1000*60*60*24));
-            document.getElementById("joinDate").innerText = `Joined: ${joinDate.toDateString()} (${diffDays} days ago)`;
-          } else {
-            document.getElementById("joinDate").innerText = "Joined: Unknown";
-          }
-        }
-        loadUserPosts(userId);
-      } catch(err) {
-        console.error(err);
-        showNotification("Failed to load profile.");
-      }
-    }
+// LOAD PROFILE
+async function loadProfile(){
+  const profileDiv = document.getElementById("profileInfo");
+  if(!username){
+    profileDiv.innerHTML = "Not logged in.";
+    return;
+  }
 
-    // ---------- SAVE DESCRIPTION ----------
-    document.getElementById("saveDescriptionBtn").addEventListener("click", async () => {
-      const desc = document.getElementById("description").value;
-      try {
-        await db.collection("users").doc(currentUserEmail).update({ description: desc });
-        showNotification("Description saved!");
-      } catch(err) {
-        console.error(err);
-        showNotification("Failed to save description.");
-      }
-    });
+  const snap = await getDoc(doc(db, "users", username));
+  if(!snap.exists()){
+    profileDiv.innerHTML = "User not found.";
+    return;
+  }
 
-    // ---------- SAVE PROFILE PICTURE ----------
-    let selectedProfileFile = null;
-    document.getElementById("uploadProfile").addEventListener("change", (e) => {
-      if(e.target.files[0]) {
-        selectedProfileFile = e.target.files[0];
-        showNotification("File selected!");
-      }
-    });
+  const data = snap.data();
+  const joinDate = data.joinDate ? new Date(data.joinDate) : null;
+  const daysAgo = joinDate ? Math.floor((Date.now() - joinDate) / (1000*60*60*24)) : "Unknown";
+  const profilePic = data.profilePic || "";
 
-    document.getElementById("saveProfilePicBtn").addEventListener("click", async () => {
-      if(!selectedProfileFile) {
-        showNotification("Select a file first.");
-        return;
-      }
-      if(selectedProfileFile.size > 500000) {
-        showNotification("File too large (max 500KB).");
-        return;
-      }
-      const reader = new FileReader();
-      reader.onload = async () => {
-        try {
-          await db.collection("users").doc(currentUserEmail).update({ profilePic: reader.result });
-          document.getElementById("profilePic").src = reader.result;
-          showNotification("Profile picture updated!");
-        } catch(err) {
-          console.error(err);
-          showNotification("Failed to update profile picture.");
-        }
+  profileDiv.innerHTML = `
+    <p><b>Username:</b> ${data.username}</p>
+    <p><b>Joined:</b> ${joinDate ? joinDate.toLocaleDateString() : "Unknown"} (${daysAgo} days ago)</p>
+    ${profilePic ? `<img class="profile-pic" src="${profilePic}">` : "<p>No profile picture</p>"}
+  `;
+
+  document.getElementById("description").value = data.description || "";
+}
+
+// SAVE DESCRIPTION
+document.getElementById("saveDescBtn").onclick = async () => {
+  await setDoc(doc(db, "users", username), {
+    description: document.getElementById("description").value
+  }, { merge:true });
+  notify("Saved");
+};
+
+// RESIZE IMAGE TO BASE64
+function resizeImageToBase64(file){
+  return new Promise(resolve=>{
+    const reader = new FileReader();
+    reader.onload = e=>{
+      const img = new Image();
+      img.onload = ()=>{
+        const canvas = document.createElement("canvas");
+        canvas.width = 256;
+        canvas.height = 256;
+        const ctx = canvas.getContext("2d");
+        const size = Math.min(img.width, img.height);
+        const sx = (img.width - size)/2;
+        const sy = (img.height - size)/2;
+        ctx.drawImage(img, sx, sy, size, size, 0, 0, 256, 256);
+        resolve(canvas.toDataURL("image/png"));
       };
-      reader.readAsDataURL(selectedProfileFile);
-    });
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
 
-    // ---------- LOAD USER POSTS ----------
-    async function loadUserPosts(userId) {
-      const postsDiv = document.getElementById("userPosts");
-      postsDiv.innerHTML = "";
-      const snapshot = await db.collection("posts").where("author", "==", userId).get();
-      snapshot.forEach(doc => {
-        const data = doc.data();
-        const postEl = document.createElement("div");
-        postEl.style.border = "1px solid rgb(91,46,97)";
-        postEl.style.padding = "10px";
-        postEl.style.marginBottom = "10px";
-        postEl.style.borderRadius = "6px";
+// UPLOAD PROFILE PIC
+document.getElementById("uploadPicBtn").onclick = async ()=>{
+  const file = document.getElementById("profilePic").files[0];
+  if(!file){ notify("Select a file"); return; }
+  const base64 = await resizeImageToBase64(file);
+  await setDoc(doc(db,"users",username),{ profilePic: base64 },{merge:true});
+  notify("Profile picture updated!");
+  loadProfile();
+};
 
-        postEl.innerHTML = `
-          <p>${data.content}</p>
-          <button class="delete-btn">Delete</button>
-        `;
-        const delBtn = postEl.querySelector(".delete-btn");
-        delBtn.addEventListener("click", async () => {
-          try {
-            await db.collection("posts").doc(doc.id).delete();
-            showNotification("Post deleted!");
-            postEl.remove();
-          } catch(err) {
-            console.error(err);
-            showNotification("Failed to delete post.");
-          }
-        });
+// DELETE POST / REPLY
+window.deletePost = async function(postId){
+  if(!confirm("Delete?")) return;
+  await deleteDoc(doc(db,"posts",postId));
+  loadUserPosts();
+};
+window.deleteReply = async function(replyId){
+  if(!confirm("Delete?")) return;
+  await deleteDoc(doc(db,"replies",replyId));
+  loadUserPosts();
+};
 
-        postsDiv.appendChild(postEl);
-      });
-    }
-  </script>
+// LOAD POSTS
+async function loadUserPosts(){
+  const div = document.getElementById("userPosts");
+  div.innerHTML = "Loading...";
+
+  let html = "";
+
+  const posts = await getDocs(query(collection(db,"posts"), where("author","==",username), orderBy("time","desc")));
+  posts.forEach(docSnap=>{
+    const p = docSnap.data();
+    html += `<div class="post">
+      <b>${p.author}:</b> ${p.content}
+      <br><button class="deleteBtn" onclick="deletePost('${docSnap.id}')">Delete</button>
+    </div>`;
+  });
+
+  const replies = await getDocs(query(collection(db,"replies"), where("author","==",username), orderBy("time","desc")));
+  replies.forEach(docSnap=>{
+    const r = docSnap.data();
+    html += `<div class="post">
+      <b>${r.author} (reply):</b> ${r.content}
+      <br><button class="deleteBtn" onclick="deleteReply('${docSnap.id}')">Delete</button>
+    </div>`;
+  });
+
+  if(html==="") html="<p>No posts</p>";
+  div.innerHTML = html;
+}
+
+loadProfile();
+loadUserPosts();
+</script>
+
+<script>
+const accountLink = document.getElementById("accountLink");
+const logoutBtn = document.getElementById("logoutBtn");
+
+const currentUser = localStorage.getItem("currentUser");
+if(currentUser){
+  accountLink.innerText = "Profile";
+  accountLink.href = "profile.html";
+  logoutBtn.style.display = "inline";
+} else {
+  logoutBtn.style.display = "none";
+}
+
+logoutBtn.onclick = function() {
+  localStorage.removeItem("currentUser");
+  notify("Logged out");
+  window.location.href = "index.html";
+};
+</script>
+
 </body>
 </html>
