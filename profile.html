@@ -3,30 +3,83 @@
 <head>
   <title>Profile</title>
   <style>
-    body { font-family: Arial; background:#111; color:white; padding:20px; }
-    nav a { color: cyan; margin-right:10px; text-decoration:none; }
-    button { margin-top:5px; padding:5px 10px; cursor:pointer; }
+    body { 
+      font-family: Arial; 
+      background:#e8e0cf; 
+      color:#5b2e61; 
+      padding:20px; 
+    }
+    nav a { 
+      color: #5b2e61; 
+      margin-right:10px; 
+      text-decoration:none; 
+    }
+    button { 
+      margin-top:5px; 
+      padding:5px 10px; 
+      cursor:pointer; 
+      border:2px solid #5b2e61;
+      background-color:#5b2e61; 
+      color:#e8e0cf; 
+    }
 
     .profile-pic {
       width:256px;
       height:256px;
       object-fit:cover;
-      border:2px solid #444;
+      border:2px solid #5b2e61;
       display:block;
       margin-top:10px;
     }
 
-    .post { border:1px solid #444; padding:10px; margin:10px 0; }
-    .time { color:#aaa; font-size:12px; }
-    .deleteBtn { background:red; color:white; border:none; cursor:pointer; }
+    .post { 
+      border:1px solid #5b2e61; 
+      padding:10px; 
+      margin:10px 0; 
+    }
+    .time { 
+      color:#5b2e61; 
+      font-size:12px; 
+    }
+    .deleteBtn { 
+      background:#5b2e61; 
+      color:#e8e0cf; 
+      border:none; 
+      cursor:pointer; 
+      padding:5px 10px;
+    }
 
     #description {
       width:100%;
       height:80px;
-      background:#222;
-      color:white;
-      border:none;
+      background:#e8e0cf;
+      color:#5b2e61;
+      border:2px solid #5b2e61;
       padding:5px;
+    }
+
+    /* Modal for messages */
+    #modal {
+      display:none;
+      position:fixed;
+      top:30%;
+      left:50%;
+      transform: translate(-50%, -30%);
+      width:300px;
+      border:2px solid #5b2e61;
+      background-color:#e8e0cf;
+      color:#5b2e61;
+      padding:20px;
+      z-index:1000;
+    }
+    #modal button {
+      width:100%;
+      border:2px solid #5b2e61;
+      background-color:#5b2e61;
+      color:#e8e0cf;
+      padding:5px;
+      cursor:pointer;
+      margin-top:10px;
     }
   </style>
 </head>
@@ -59,6 +112,12 @@
 <h2>Your Posts & Replies</h2>
 <div id="userPosts">Loading...</div>
 
+<!-- Modal for messages -->
+<div id="modal">
+  <div id="modalText"></div>
+  <button id="modalOk">OK</button>
+</div>
+
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getFirestore, doc, getDoc, setDoc, collection, getDocs, query, where, orderBy, deleteDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
@@ -76,6 +135,18 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
 const username = localStorage.getItem("currentUser");
+
+// Modal helper
+const modal = document.getElementById("modal");
+const modalText = document.getElementById("modalText");
+const modalOk = document.getElementById("modalOk");
+
+function showModal(message){
+  modalText.innerText = message;
+  modal.style.display = "block";
+}
+
+modalOk.onclick = () => modal.style.display = "none";
 
 // LOAD PROFILE
 async function loadProfile(){
@@ -111,7 +182,7 @@ document.getElementById("saveDescBtn").onclick = async () => {
     description: document.getElementById("description").value
   }, { merge:true });
 
-  alert("Saved");
+  showModal("Saved");
 };
 
 // RESIZE IMAGE
@@ -142,7 +213,7 @@ function resizeImage(file){
 // UPLOAD PIC
 document.getElementById("uploadPicBtn").onclick = async ()=>{
   const file = document.getElementById("profilePic").files[0];
-  if(!file){ alert("Select file"); return; }
+  if(!file){ showModal("Select file"); return; }
 
   const base64 = await resizeImage(file);
 
@@ -150,7 +221,7 @@ document.getElementById("uploadPicBtn").onclick = async ()=>{
     profilePic: base64
   },{merge:true});
 
-  alert("Uploaded!");
+  showModal("Uploaded!");
   loadProfile();
 };
 
