@@ -45,6 +45,32 @@
       z-index: 1000;
       border: 2px solid #5b2e61;
     }
+
+    /* Delete confirmation modal */
+    #deleteModal {
+      position: fixed;
+      top:0;
+      left:0;
+      width:100%;
+      height:100%;
+      background: rgba(0,0,0,0.5);
+      display:none;
+      justify-content:center;
+      align-items:center;
+      z-index:2000;
+    }
+    #deleteModalContent {
+      background:#e8e0cf;
+      color:#5b2e61;
+      padding:20px;
+      border:2px solid #5b2e61;
+      width:300px;
+      text-align:center;
+    }
+    #deleteModalContent button {
+      margin:5px;
+      width:80px;
+    }
   </style>
 </head>
 <body>
@@ -62,6 +88,7 @@
 <h1>Profile</h1>
 
 <div id="notification"></div>
+
 <div id="profileInfo">Loading...</div>
 
 <label><b>Description:</b></label>
@@ -76,6 +103,15 @@
 
 <h2>Your Posts & Replies</h2>
 <div id="userPosts">Loading...</div>
+
+<!-- Delete modal -->
+<div id="deleteModal">
+  <div id="deleteModalContent">
+    <p id="deleteText">Are you sure?</p>
+    <button id="confirmDeleteBtn">Yes</button>
+    <button id="cancelDeleteBtn">No</button>
+  </div>
+</div>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
@@ -94,6 +130,9 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const username = localStorage.getItem("currentUser");
 
+let pendingDelete = null;
+let pendingType = null;
+
 function notify(msg) {
   const n = document.getElementById("notification");
   n.innerText = msg;
@@ -101,23 +140,17 @@ function notify(msg) {
   setTimeout(() => { n.style.display = "none"; }, 3000);
 }
 
-// LOAD PROFILE
+// PROFILE
 async function loadProfile(){
   const profileDiv = document.getElementById("profileInfo");
-  if(!username){
-    profileDiv.innerHTML = "Not logged in.";
-    return;
-  }
+  if(!username){ profileDiv.innerHTML="Not logged in."; return; }
 
-  const snap = await getDoc(doc(db, "users", username));
-  if(!snap.exists()){
-    profileDiv.innerHTML = "User not found.";
-    return;
-  }
+  const snap = await getDoc(doc(db,"users",username));
+  if(!snap.exists()){ profileDiv.innerHTML="User not found."; return; }
 
   const data = snap.data();
   const joinDate = data.joinDate ? new Date(data.joinDate) : null;
-  const daysAgo = joinDate ? Math.floor((Date.now() - joinDate) / (1000*60*60*24)) : "Unknown";
+  const daysAgo = joinDate ? Math.floor((Date.now() - joinDate)/(1000*60*60*24)) : "Unknown";
   const profilePic = data.profilePic || "";
 
   profileDiv.innerHTML = `
@@ -131,13 +164,11 @@ async function loadProfile(){
 
 // SAVE DESCRIPTION
 document.getElementById("saveDescBtn").onclick = async () => {
-  await setDoc(doc(db, "users", username), {
-    description: document.getElementById("description").value
-  }, { merge:true });
+  await setDoc(doc(db,"users",username), { description: document.getElementById("description").value }, {merge:true});
   notify("Description saved");
 };
 
-// RESIZE IMAGE TO BASE64
+// RESIZE IMAGE
 function resizeImageToBase64(file){
   return new Promise(resolve=>{
     const reader = new FileReader();
@@ -148,10 +179,10 @@ function resizeImageToBase64(file){
         canvas.width = 256;
         canvas.height = 256;
         const ctx = canvas.getContext("2d");
-        const size = Math.min(img.width, img.height);
-        const sx = (img.width - size)/2;
-        const sy = (img.height - size)/2;
-        ctx.drawImage(img, sx, sy, size, size, 0, 0, 256, 256);
+        const size = Math.min(img.width,img.height);
+        const sx = (img.width-size)/2;
+        const sy = (img.height-size)/2;
+        ctx.drawImage(img,sx,sy,size,size,0,0,256,256);
         resolve(canvas.toDataURL("image/png"));
       };
       img.src = e.target.result;
@@ -170,16 +201,29 @@ document.getElementById("uploadPicBtn").onclick = async ()=>{
   loadProfile();
 };
 
-// DELETE POST / REPLY
-window.deletePost = async function(postId){
-  if(!confirm("Delete?")) return;
-  await deleteDoc(doc(db,"posts",postId));
-  loadUserPosts();
+// DELETE POSTS / REPLIES
+window.deleteItem = function(id,type){
+  pendingDelete = id;
+  pendingType = type;
+  document.getElementById("deleteText").innerText = "Are you sure you want to delete this " + type + "?";
+  document.getElementById("deleteModal").style.display = "flex";
 };
-window.deleteReply = async function(replyId){
-  if(!confirm("Delete?")) return;
-  await deleteDoc(doc(db,"replies",replyId));
-  loadUserPosts();
+
+document.getElementById("confirmDeleteBtn").onclick = async ()=>{
+  if(pendingDelete && pendingType){
+    if(pendingType==="post") await deleteDoc(doc(db,"posts",pendingDelete));
+    else if(pendingType==="reply") await deleteDoc(doc(db,"replies",pendingDelete));
+    pendingDelete=null; pendingType=null;
+    document.getElementById("deleteModal").style.display="none";
+    notify("Deleted successfully");
+    loadUserPosts();
+  }
+};
+
+document.getElementById("cancelDeleteBtn").onclick = ()=>{
+  pendingDelete=null;
+  pendingType=null;
+  document.getElementById("deleteModal").style.display="none";
 };
 
 // LOAD POSTS
@@ -188,13 +232,12 @@ async function loadUserPosts(){
   div.innerHTML = "Loading...";
 
   let html = "";
-
   const posts = await getDocs(query(collection(db,"posts"), where("author","==",username), orderBy("time","desc")));
   posts.forEach(docSnap=>{
     const p = docSnap.data();
     html += `<div class="post">
       <b>${p.author}:</b> ${p.content}
-      <br><button class="deleteBtn" onclick="deletePost('${docSnap.id}')">Delete</button>
+      <br><button class="deleteBtn" onclick="deleteItem('${docSnap.id}','post')">Delete</button>
     </div>`;
   });
 
@@ -203,7 +246,7 @@ async function loadUserPosts(){
     const r = docSnap.data();
     html += `<div class="post">
       <b>${r.author} (reply):</b> ${r.content}
-      <br><button class="deleteBtn" onclick="deleteReply('${docSnap.id}')">Delete</button>
+      <br><button class="deleteBtn" onclick="deleteItem('${docSnap.id}','reply')">Delete</button>
     </div>`;
   });
 
@@ -218,20 +261,19 @@ loadUserPosts();
 <script>
 const accountLink = document.getElementById("accountLink");
 const logoutBtn = document.getElementById("logoutBtn");
-
 const currentUser = localStorage.getItem("currentUser");
 if(currentUser){
-  accountLink.innerText = "Profile";
-  accountLink.href = "profile.html";
-  logoutBtn.style.display = "inline";
-} else {
-  logoutBtn.style.display = "none";
-}
+  accountLink.innerText="Profile";
+  accountLink.href="profile.html";
+  logoutBtn.style.display="inline";
+}else logoutBtn.style.display="none";
 
-logoutBtn.onclick = function() {
+logoutBtn.onclick = function(){
   localStorage.removeItem("currentUser");
-  notify("Logged out");
-  window.location.href = "index.html";
+  const n = document.getElementById("notification");
+  n.innerText = "Logged out";
+  n.style.display="block";
+  setTimeout(()=>{ n.style.display="none"; window.location.href="index.html"; },1500);
 };
 </script>
 
