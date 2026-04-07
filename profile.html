@@ -6,20 +6,24 @@
     body { font-family: Arial; background:#111; color:white; padding:20px; }
     nav a { color: cyan; margin-right:10px; text-decoration:none; }
     button { margin-top:5px; padding:5px 10px; cursor:pointer; }
+    .post { border:1px solid #444; padding:10px; margin:10px 0; }
+    .time { color:#aaa; font-size:12px; }
+    .subforum { color:orange; font-size:12px; }
+    .deleteBtn { background:red; color:white; border:none; cursor:pointer; }
 
+    /* ✅ NEW: profile picture styling */
     .profile-pic {
       width:256px;
       height:256px;
       object-fit:cover;
-      border:2px solid #444;
       display:block;
       margin-top:10px;
+      border:2px solid #444;
     }
 
-    .post { border:1px solid #444; padding:10px; margin:10px 0; }
-    .time { color:#aaa; font-size:12px; }
-    .subforum { color:orange; font-size:12px; }
+    img { max-width:200px; display:block; margin-top:5px; }
 
+    /* ✅ NEW: description box */
     #description {
       width:100%;
       height:80px;
@@ -27,11 +31,13 @@
       color:white;
       border:none;
       padding:5px;
+      margin-top:10px;
     }
   </style>
 </head>
 <body>
 
+<!-- NAV -->
 <nav>
   <a href="index.html">Home</a>
   <a href="doctrine.html">Doctrine</a>
@@ -46,22 +52,24 @@
 
 <div id="profileInfo">Loading...</div>
 
-<label><b>Description:</b></label>
-<textarea id="description" maxlength="400"></textarea>
+<!-- ✅ DESCRIPTION -->
+<label><b>Description (max 400 chars):</b></label>
+<textarea id="description" maxlength="400" placeholder="Write something about yourself..."></textarea>
 <button id="saveDescBtn">Save Description</button>
 
 <br><br>
 
-<label><b>Upload Profile Picture (small image recommended):</b></label>
+<!-- ✅ PROFILE PIC -->
+<label><b>Profile Picture:</b></label>
 <input type="file" id="profilePic">
-<button id="uploadPicBtn">Upload</button>
+<button id="uploadPicBtn">Upload Profile Picture</button>
 
 <h2>Your Posts & Replies</h2>
 <div id="userPosts">Loading...</div>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getFirestore, doc, getDoc, setDoc, collection, getDocs, query, where, orderBy } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { getFirestore, doc, getDoc, collection, getDocs, query, where, orderBy, deleteDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAZXfEl3Q68vfJtaLJqODtnQBSVEzWBmc0",
@@ -79,49 +87,52 @@ const username = localStorage.getItem("currentUser");
 
 // LOAD PROFILE
 async function loadProfile(){
-  const div = document.getElementById("profileInfo");
+  const profileDiv = document.getElementById("profileInfo");
+  if(!username){ profileDiv.innerHTML = "You are not logged in."; return; }
 
-  if(!username){
-    div.innerHTML = "Not logged in.";
-    return;
+  const userRef = doc(db, "users", username);
+  const userSnap = await getDoc(userRef);
+
+  if(!userSnap.exists()){ profileDiv.innerHTML = "User not found."; return; }
+
+  const data = userSnap.data();
+
+  // ✅ FIX join date bug
+  let joinDateText = "Unknown";
+  if(data.joinDate){
+    const d = new Date(data.joinDate);
+    if(!isNaN(d.getTime())){
+      const daysAgo = Math.floor((Date.now() - d.getTime()) / (1000*60*60*24));
+      joinDateText = `${d.toLocaleString()} (${daysAgo} days ago)`;
+    }
   }
 
-  const snap = await getDoc(doc(db, "users", username));
-
-  if(!snap.exists()){
-    div.innerHTML = "User not found.";
-    return;
-  }
-
-  const data = snap.data();
-  const joinDate = new Date(data.joinDate);
-
-  div.innerHTML = `
+  profileDiv.innerHTML = `
     <p><b>Username:</b> ${data.username}</p>
-    <p><b>Joined:</b> ${joinDate.toLocaleDateString()}</p>
+    <p><b>Joined:</b> ${joinDateText}</p>
     ${data.profilePic ? `<img class="profile-pic" src="${data.profilePic}">` : "<p>No profile picture</p>"}
   `;
 
   document.getElementById("description").value = data.description || "";
 }
 
-// SAVE DESCRIPTION
+// ✅ SAVE DESCRIPTION
 document.getElementById("saveDescBtn").onclick = async () => {
   await setDoc(doc(db, "users", username), {
-    description: document.getElementById("description").value
+    description: document.getElementById("description").value.trim()
   }, { merge:true });
 
-  alert("Saved");
+  alert("Description saved");
 };
 
-// UPLOAD IMAGE (BASE64)
+// ✅ UPLOAD PROFILE PIC (BASE64 — NO STORAGE)
 document.getElementById("uploadPicBtn").onclick = () => {
   const file = document.getElementById("profilePic").files[0];
-  if(!file){ alert("Select file"); return; }
+  if(!file){ alert("Select a file"); return; }
 
-  // limit size (IMPORTANT)
+  // limit size
   if(file.size > 200 * 1024){
-    alert("Image too large (max 200KB)");
+    alert("Max 200KB image");
     return;
   }
 
@@ -134,34 +145,101 @@ document.getElementById("uploadPicBtn").onclick = () => {
       profilePic: base64
     }, { merge:true });
 
-    alert("Profile picture saved!");
+    alert("Profile picture updated!");
     loadProfile();
   };
 
   reader.readAsDataURL(file);
 };
 
-// LOAD POSTS (unchanged)
+// DELETE POST
+window.deletePost = async function(postId){
+  if(!confirm("Delete this post?")) return;
+  await deleteDoc(doc(db, "posts", postId));
+  loadUserPosts();
+}
+
+// DELETE REPLY
+window.deleteReply = async function(replyId){
+  if(!confirm("Delete this reply?")) return;
+  await deleteDoc(doc(db, "replies", replyId));
+  loadUserPosts();
+}
+
+// LOAD POSTS + REPLIES (UNCHANGED)
 async function loadUserPosts(){
-  const div = document.getElementById("userPosts");
-  div.innerHTML = "Loading...";
+  const postsDiv = document.getElementById("userPosts");
+  if(!username){ postsDiv.innerHTML = "Not logged in."; return; }
+
+  postsDiv.innerHTML = "Loading...";
+
+  const postsQuery = query(
+    collection(db, "posts"),
+    where("author", "==", username),
+    orderBy("time", "desc")
+  );
+  const postsSnap = await getDocs(postsQuery);
 
   let html = "";
 
-  const posts = await getDocs(query(collection(db,"posts"), where("author","==",username), orderBy("time","desc")));
-  posts.forEach(docSnap=>{
-    const p = docSnap.data();
-    html += `<div class="post"><b>${p.author}:</b> ${p.content}</div>`;
-  });
+  if(!postsSnap.empty){
+    postsSnap.forEach(docSnap => {
+      const post = docSnap.data();
+      const postId = docSnap.id;
+      const date = new Date(post.time).toLocaleString();
 
-  if(html==="") html = "<p>No posts</p>";
-  div.innerHTML = html;
+      html += `
+        <div class="post">
+          <div class="subforum">[${post.subforum}]</div>
+          <div onclick="window.location.href='post.html?id=${postId}'" style="cursor:pointer;">
+            <b>${post.author}:</b> ${post.content ? post.content : ""}
+            ${post.image ? `<img src="${post.image}">` : ""}
+          </div>
+          <div class="time">Posted: ${date}</div>
+          <button class="deleteBtn" onclick="deletePost('${postId}')">Delete</button>
+        </div>
+      `;
+    });
+  }
+
+  const repliesQuery = query(
+    collection(db, "replies"),
+    where("author", "==", username),
+    orderBy("time", "desc")
+  );
+  const repliesSnap = await getDocs(repliesQuery);
+
+  if(!repliesSnap.empty){
+    repliesSnap.forEach(docSnap => {
+      const reply = docSnap.data();
+      const replyId = docSnap.id;
+      const date = new Date(reply.time).toLocaleString();
+
+      html += `
+        <div class="post">
+          <div class="subforum">[${reply.subforum} (reply)]</div>
+          <div onclick="window.location.href='post.html?id=${reply.postId}'" style="cursor:pointer;">
+            <b>${reply.author}:</b> ${reply.content ? reply.content : ""}
+            ${reply.image ? `<img src="${reply.image}">` : ""}
+          </div>
+          <div class="time">Posted: ${date}</div>
+          <button class="deleteBtn" onclick="deleteReply('${replyId}')">Delete</button>
+        </div>
+      `;
+    });
+  }
+
+  if(html === "") html = "<p>No posts or replies yet.</p>";
+
+  postsDiv.innerHTML = html;
 }
 
+// RUN
 loadProfile();
 loadUserPosts();
 </script>
 
+<!-- LOGIN / LOGOUT -->
 <script>
 const accountLink = document.getElementById("accountLink");
 const logoutBtn = document.getElementById("logoutBtn");
