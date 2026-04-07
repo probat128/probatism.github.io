@@ -10,13 +10,12 @@
     .time { color:#aaa; font-size:12px; }
     .subforum { color:orange; font-size:12px; }
     .deleteBtn { background:red; color:white; border:none; cursor:pointer; }
-    img { max-width:200px; display:block; margin-top:5px; }
+    img { max-width:150px; display:block; margin-top:5px; }
     #description { width:100%; height:80px; background:#222; color:white; border:none; padding:5px; }
   </style>
 </head>
 <body>
 
-<!-- NAV -->
 <nav>
   <a href="index.html">Home</a>
   <a href="doctrine.html">Doctrine</a>
@@ -32,13 +31,15 @@
 <div id="profileContainer">
   <div id="profileInfo">Loading...</div>
 
-  <label for="profilePic">Profile Picture:</label>
-  <input type="file" id="profilePic">
-  <button id="uploadPicBtn">Upload</button>
-
-  <label for="description">Description (max 400 chars):</label>
+  <label><b>Description (max 400 chars):</b></label>
   <textarea id="description" maxlength="400" placeholder="Write something about yourself..."></textarea>
   <button id="saveDescBtn">Save Description</button>
+
+  <br><br>
+
+  <label><b>Change Profile Picture:</b></label>
+  <input type="file" id="profilePic">
+  <button id="uploadPicBtn">Upload Profile Picture</button>
 
   <h2>Your Posts & Replies</h2>
   <div id="userPosts">Loading...</div>
@@ -64,7 +65,8 @@ window.addEventListener("DOMContentLoaded", () => {
           };
 
           let app;
-          try { app = initializeApp(firebaseConfig); } catch(e) { app = window.firebaseApp || initializeApp(firebaseConfig); }
+          try { app = initializeApp(firebaseConfig); } catch(e) { app = initializeApp(firebaseConfig); }
+
           const db = getFirestore(app);
           const auth = getAuth(app);
           const storage = getStorage(app);
@@ -73,29 +75,38 @@ window.addEventListener("DOMContentLoaded", () => {
           const profileInfo = document.getElementById("profileInfo");
           const descriptionEl = document.getElementById("description");
 
-          // Show profile info
+          // LOAD PROFILE
           async function loadProfile(){
-            if(!username){ profileInfo.innerHTML = "You are not logged in."; return; }
+            if(!username){
+              profileInfo.innerHTML = "You are not logged in.";
+              return;
+            }
 
             const userRef = doc(db, "users", username);
             const userSnap = await getDoc(userRef);
-            if(!userSnap.exists()){ profileInfo.innerHTML = "User not found."; return; }
+
+            if(!userSnap.exists()){
+              profileInfo.innerHTML = "User not found.";
+              return;
+            }
 
             const data = userSnap.data();
-            const joinDate = new Date(data.joinDate);
-            const now = new Date();
-            const daysAgo = Math.floor((now - joinDate)/(1000*60*60*24));
 
-            let profilePicHTML = "";
-            if(data.profilePic){
-              profilePicHTML = `<img src="${data.profilePic}" alt="Profile Picture">`;
-            }
+            const joinDateObj = new Date(data.joinDate);
+            const joinDate = isNaN(joinDateObj.getTime())
+              ? "Unknown"
+              : joinDateObj.toLocaleDateString();
+
+            const daysAgo = isNaN(joinDateObj.getTime())
+              ? "0"
+              : Math.floor((Date.now() - joinDateObj.getTime()) / (1000*60*60*24));
+
+            const profilePic = data.profilePic || "";
 
             profileInfo.innerHTML = `
               <p><b>Username:</b> ${data.username}</p>
-              <p><b>Joined:</b> ${isNaN(joinDate) ? "Unknown" : joinDate.toLocaleDateString()} (${isNaN(daysAgo) ? "0" : daysAgo} days ago)</p>
-              ${profilePicHTML}
-              <p><b>Description:</b></p>
+              <p><b>Joined:</b> ${joinDate} (${daysAgo} days ago)</p>
+              ${profilePic ? `<img id="profileImage" src="${profilePic}?t=${Date.now()}">` : ""}
             `;
 
             if(data.description){
@@ -103,50 +114,80 @@ window.addEventListener("DOMContentLoaded", () => {
             }
           }
 
-          // Upload profile picture
-          document.getElementById("uploadPicBtn").addEventListener("click", async () => {
-            const file = document.getElementById("profilePic").files[0];
-            if(!file){ alert("Select a file"); return; }
-
-            const storageRef = ref(storage, `profilePics/${username}`);
-            await uploadBytes(storageRef, file);
-            const url = await getDownloadURL(storageRef);
-
-            await setDoc(doc(db, "users", username), { profilePic: url }, { merge: true });
-            alert("Profile picture uploaded!");
-            loadProfile();
-          });
-
-          // Save description
+          // SAVE DESCRIPTION
           document.getElementById("saveDescBtn").addEventListener("click", async () => {
             const text = descriptionEl.value.trim();
-            await setDoc(doc(db, "users", username), { description: text }, { merge: true });
+
+            await setDoc(doc(db, "users", username), {
+              description: text
+            }, { merge: true });
+
             alert("Description saved!");
             loadProfile();
           });
 
-          // Delete post
+          // UPLOAD PROFILE PICTURE
+          document.getElementById("uploadPicBtn").addEventListener("click", async () => {
+            const file = document.getElementById("profilePic").files[0];
+            if(!file){
+              alert("Select a file first");
+              return;
+            }
+
+            try {
+              const storageRef = ref(storage, `profilePics/${username}`);
+              await uploadBytes(storageRef, file);
+
+              const url = await getDownloadURL(storageRef);
+
+              await setDoc(doc(db, "users", username), {
+                profilePic: url
+              }, { merge: true });
+
+              // instantly update image without reload
+              const img = document.getElementById("profileImage");
+              if(img){
+                img.src = url + "?t=" + Date.now();
+              }
+
+              alert("Profile picture updated!");
+              loadProfile();
+
+            } catch(err){
+              alert("Upload error: " + err.message);
+            }
+          });
+
+          // DELETE POST
           window.deletePost = async function(postId){
             if(!confirm("Delete this post?")) return;
             await deleteDoc(doc(db, "posts", postId));
             loadUserPosts();
           }
 
-          // Delete reply
+          // DELETE REPLY
           window.deleteReply = async function(replyId){
             if(!confirm("Delete this reply?")) return;
             await deleteDoc(doc(db, "replies", replyId));
             loadUserPosts();
           }
 
-          // Load user's posts and replies
+          // LOAD USER POSTS
           async function loadUserPosts(){
             const postsDiv = document.getElementById("userPosts");
-            if(!username){ postsDiv.innerHTML = "Not logged in."; return; }
+            if(!username){
+              postsDiv.innerHTML = "Not logged in.";
+              return;
+            }
 
             postsDiv.innerHTML = "Loading...";
 
-            const postsQuery = query(collection(db, "posts"), where("author", "==", username), orderBy("time", "desc"));
+            const postsQuery = query(
+              collection(db, "posts"),
+              where("author", "==", username),
+              orderBy("time", "desc")
+            );
+
             const postsSnap = await getDocs(postsQuery);
 
             let html = "";
@@ -161,8 +202,7 @@ window.addEventListener("DOMContentLoaded", () => {
                   <div class="post">
                     <div class="subforum">[${post.subforum}]</div>
                     <div onclick="window.location.href='post.html?id=${postId}'" style="cursor:pointer;">
-                      <b>${post.author}:</b> ${post.content ? post.content : ""}
-                      ${post.image ? `<img src="${post.image}">` : ""}
+                      <b>${post.author}:</b> ${post.content || ""}
                     </div>
                     <div class="time">Posted: ${date}</div>
                     <button class="deleteBtn" onclick="deletePost('${postId}')">Delete</button>
@@ -171,7 +211,12 @@ window.addEventListener("DOMContentLoaded", () => {
               });
             }
 
-            const repliesQuery = query(collection(db, "replies"), where("author", "==", username), orderBy("time", "desc"));
+            const repliesQuery = query(
+              collection(db, "replies"),
+              where("author", "==", username),
+              orderBy("time", "desc")
+            );
+
             const repliesSnap = await getDocs(repliesQuery);
 
             if(!repliesSnap.empty){
@@ -182,10 +227,9 @@ window.addEventListener("DOMContentLoaded", () => {
 
                 html += `
                   <div class="post">
-                    <div class="subforum">[${reply.subforum} (reply)]</div>
+                    <div class="subforum">[reply]</div>
                     <div onclick="window.location.href='post.html?id=${reply.postId}'" style="cursor:pointer;">
-                      <b>${reply.author}:</b> ${reply.content ? reply.content : ""}
-                      ${reply.image ? `<img src="${reply.image}">` : ""}
+                      <b>${reply.author}:</b> ${reply.content || ""}
                     </div>
                     <div class="time">Posted: ${date}</div>
                     <button class="deleteBtn" onclick="deleteReply('${replyId}')">Delete</button>
@@ -199,13 +243,14 @@ window.addEventListener("DOMContentLoaded", () => {
             postsDiv.innerHTML = html;
           }
 
-          // Initial load
+          // INIT
           loadProfile();
           loadUserPosts();
 
-          // Login / logout UI
+          // NAV LOGIC
           const accountLink = document.getElementById("accountLink");
           const logoutBtn = document.getElementById("logoutBtn");
+
           if(username){
             accountLink.innerText = "Profile";
             accountLink.href = "profile.html";
@@ -219,6 +264,7 @@ window.addEventListener("DOMContentLoaded", () => {
             alert("Logged out");
             window.location.href = "index.html";
           };
+
         });
       });
     });
