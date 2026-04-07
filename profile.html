@@ -20,7 +20,8 @@
     .post { border:1px solid #5b2e61; padding:10px; margin:10px 0; }
     .time { color:#5b2e61; font-size:12px; }
     .subforum { color:#5b2e61; font-size:12px; }
-    .deleteBtn { background:red; color:white; border:none; cursor:pointer; }
+    .deleteBtn { background:#5b2e61; color:#e8e0cf; border:none; cursor:pointer; padding:3px 8px; }
+    .deleteBtn:hover { background:#472351; }
 
     #description {
       width:100%;
@@ -31,7 +32,7 @@
       padding:5px;
     }
 
-    /* Custom notification */
+    /* Notification */
     #notification {
       position: fixed;
       top: 20px;
@@ -61,7 +62,6 @@
 <h1>Profile</h1>
 
 <div id="notification"></div>
-
 <div id="profileInfo">Loading...</div>
 
 <label><b>Description:</b></label>
@@ -92,7 +92,6 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
-
 const username = localStorage.getItem("currentUser");
 
 function notify(msg) {
@@ -135,7 +134,7 @@ document.getElementById("saveDescBtn").onclick = async () => {
   await setDoc(doc(db, "users", username), {
     description: document.getElementById("description").value
   }, { merge:true });
-  notify("Saved");
+  notify("Description saved");
 };
 
 // RESIZE IMAGE TO BASE64
