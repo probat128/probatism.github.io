@@ -6,12 +6,29 @@
     body { font-family: Arial; background:#111; color:white; padding:20px; }
     nav a { color: cyan; margin-right:10px; text-decoration:none; }
     button { margin-top:5px; padding:5px 10px; cursor:pointer; }
+
+    .profile-pic {
+      width:256px;
+      height:256px;
+      object-fit:cover;
+      border:2px solid #444;
+      display:block;
+      margin-top:10px;
+    }
+
     .post { border:1px solid #444; padding:10px; margin:10px 0; }
     .time { color:#aaa; font-size:12px; }
     .subforum { color:orange; font-size:12px; }
     .deleteBtn { background:red; color:white; border:none; cursor:pointer; }
-    img { max-width:150px; display:block; margin-top:5px; }
-    #description { width:100%; height:80px; background:#222; color:white; border:none; padding:5px; }
+
+    #description {
+      width:100%;
+      height:80px;
+      background:#222;
+      color:white;
+      border:none;
+      padding:5px;
+    }
   </style>
 </head>
 <body>
@@ -37,7 +54,7 @@
 
   <br><br>
 
-  <label><b>Change Profile Picture:</b></label>
+  <label><b>Upload Profile Picture (MUST be 256x256):</b></label>
   <input type="file" id="profilePic">
   <button id="uploadPicBtn">Upload Profile Picture</button>
 
@@ -52,220 +69,198 @@ window.addEventListener("DOMContentLoaded", () => {
 
   import("https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js").then(({initializeApp}) => {
     import("https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js").then(({getFirestore, doc, getDoc, collection, getDocs, query, where, orderBy, setDoc, deleteDoc}) => {
-      import("https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js").then(({getAuth}) => {
-        import("https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js").then(({getStorage, ref, uploadBytes, getDownloadURL}) => {
+      import("https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js").then(({getStorage, ref, uploadBytes, getDownloadURL}) => {
 
-          const firebaseConfig = {
-            apiKey: "AIzaSyAZXfEl3Q68vfJtaLJqODtnQBSVEzWBmc0",
-            authDomain: "probatismm.firebaseapp.com",
-            projectId: "probatismm",
-            storageBucket: "probatismm.firebasestorage.app",
-            messagingSenderId: "746935651152",
-            appId: "1:746935651152:web:82491ddac346bc654a3a55"
-          };
+        const firebaseConfig = {
+          apiKey: "AIzaSyAZXfEl3Q68vfJtaLJqODtnQBSVEzWBmc0",
+          authDomain: "probatismm.firebaseapp.com",
+          projectId: "probatismm",
+          storageBucket: "probatismm.appspot.com", // ✅ FIXED
+          messagingSenderId: "746935651152",
+          appId: "1:746935651152:web:82491ddac346bc654a3a55"
+        };
 
-          let app;
-          try { app = initializeApp(firebaseConfig); } catch(e) { app = initializeApp(firebaseConfig); }
+        let app;
+        try { app = initializeApp(firebaseConfig); } catch(e) { app = initializeApp(firebaseConfig); }
 
-          const db = getFirestore(app);
-          const auth = getAuth(app);
-          const storage = getStorage(app);
+        const db = getFirestore(app);
+        const storage = getStorage(app);
 
-          const username = localStorage.getItem("currentUser");
-          const profileInfo = document.getElementById("profileInfo");
-          const descriptionEl = document.getElementById("description");
+        const username = localStorage.getItem("currentUser");
+        const profileInfo = document.getElementById("profileInfo");
+        const descriptionEl = document.getElementById("description");
 
-          // LOAD PROFILE
-          async function loadProfile(){
-            if(!username){
-              profileInfo.innerHTML = "You are not logged in.";
-              return;
-            }
-
-            const userRef = doc(db, "users", username);
-            const userSnap = await getDoc(userRef);
-
-            if(!userSnap.exists()){
-              profileInfo.innerHTML = "User not found.";
-              return;
-            }
-
-            const data = userSnap.data();
-
-            const joinDateObj = new Date(data.joinDate);
-            const joinDate = isNaN(joinDateObj.getTime())
-              ? "Unknown"
-              : joinDateObj.toLocaleDateString();
-
-            const daysAgo = isNaN(joinDateObj.getTime())
-              ? "0"
-              : Math.floor((Date.now() - joinDateObj.getTime()) / (1000*60*60*24));
-
-            const profilePic = data.profilePic || "";
-
-            profileInfo.innerHTML = `
-              <p><b>Username:</b> ${data.username}</p>
-              <p><b>Joined:</b> ${joinDate} (${daysAgo} days ago)</p>
-              ${profilePic ? `<img id="profileImage" src="${profilePic}?t=${Date.now()}">` : ""}
-            `;
-
-            if(data.description){
-              descriptionEl.value = data.description;
-            }
+        // LOAD PROFILE
+        async function loadProfile(){
+          if(!username){
+            profileInfo.innerHTML = "You are not logged in.";
+            return;
           }
 
-          // SAVE DESCRIPTION
-          document.getElementById("saveDescBtn").addEventListener("click", async () => {
-            const text = descriptionEl.value.trim();
+          const userRef = doc(db, "users", username);
+          const snap = await getDoc(userRef);
+
+          if(!snap.exists()){
+            profileInfo.innerHTML = "User not found.";
+            return;
+          }
+
+          const data = snap.data();
+
+          const joinDateObj = new Date(data.joinDate);
+          const joinDate = isNaN(joinDateObj.getTime())
+            ? "Unknown"
+            : joinDateObj.toLocaleDateString();
+
+          const daysAgo = isNaN(joinDateObj.getTime())
+            ? "0"
+            : Math.floor((Date.now() - joinDateObj.getTime()) / (1000*60*60*24));
+
+          const profilePic = data.profilePic || "";
+
+          profileInfo.innerHTML = `
+            <p><b>Username:</b> ${data.username}</p>
+            <p><b>Joined:</b> ${joinDate} (${daysAgo} days ago)</p>
+            ${profilePic ? `<img class="profile-pic" id="profileImage" src="${profilePic}?t=${Date.now()}">` : "<p>No profile picture yet</p>"}
+          `;
+
+          descriptionEl.value = data.description || "";
+        }
+
+        // SAVE DESCRIPTION
+        document.getElementById("saveDescBtn").onclick = async () => {
+          await setDoc(doc(db, "users", username), {
+            description: descriptionEl.value.trim()
+          }, { merge:true });
+
+          alert("Description saved");
+        };
+
+        // VALIDATE IMAGE SIZE
+        function validateImage(file){
+          return new Promise((resolve) => {
+            const img = new Image();
+            img.onload = () => {
+              resolve(img.width === 256 && img.height === 256);
+            };
+            img.src = URL.createObjectURL(file);
+          });
+        }
+
+        // UPLOAD PROFILE PIC
+        document.getElementById("uploadPicBtn").onclick = async () => {
+          const file = document.getElementById("profilePic").files[0];
+          if(!file){
+            alert("Select a file first");
+            return;
+          }
+
+          const valid = await validateImage(file);
+          if(!valid){
+            alert("Image must be EXACTLY 256x256 pixels");
+            return;
+          }
+
+          try {
+            const storageRef = ref(storage, `profilePics/${username}`);
+            await uploadBytes(storageRef, file);
+
+            const url = await getDownloadURL(storageRef);
 
             await setDoc(doc(db, "users", username), {
-              description: text
-            }, { merge: true });
+              profilePic: url
+            }, { merge:true });
 
-            alert("Description saved!");
+            // instant UI update
             loadProfile();
-          });
 
-          // UPLOAD PROFILE PICTURE
-          document.getElementById("uploadPicBtn").addEventListener("click", async () => {
-            const file = document.getElementById("profilePic").files[0];
-            if(!file){
-              alert("Select a file first");
-              return;
-            }
+            alert("Profile picture updated!");
 
-            try {
-              const storageRef = ref(storage, `profilePics/${username}`);
-              await uploadBytes(storageRef, file);
-
-              const url = await getDownloadURL(storageRef);
-
-              await setDoc(doc(db, "users", username), {
-                profilePic: url
-              }, { merge: true });
-
-              // instantly update image without reload
-              const img = document.getElementById("profileImage");
-              if(img){
-                img.src = url + "?t=" + Date.now();
-              }
-
-              alert("Profile picture updated!");
-              loadProfile();
-
-            } catch(err){
-              alert("Upload error: " + err.message);
-            }
-          });
-
-          // DELETE POST
-          window.deletePost = async function(postId){
-            if(!confirm("Delete this post?")) return;
-            await deleteDoc(doc(db, "posts", postId));
-            loadUserPosts();
+          } catch(err){
+            alert("Upload failed: " + err.message);
           }
+        };
 
-          // DELETE REPLY
-          window.deleteReply = async function(replyId){
-            if(!confirm("Delete this reply?")) return;
-            await deleteDoc(doc(db, "replies", replyId));
-            loadUserPosts();
-          }
-
-          // LOAD USER POSTS
-          async function loadUserPosts(){
-            const postsDiv = document.getElementById("userPosts");
-            if(!username){
-              postsDiv.innerHTML = "Not logged in.";
-              return;
-            }
-
-            postsDiv.innerHTML = "Loading...";
-
-            const postsQuery = query(
-              collection(db, "posts"),
-              where("author", "==", username),
-              orderBy("time", "desc")
-            );
-
-            const postsSnap = await getDocs(postsQuery);
-
-            let html = "";
-
-            if(!postsSnap.empty){
-              postsSnap.forEach(docSnap => {
-                const post = docSnap.data();
-                const postId = docSnap.id;
-                const date = new Date(post.time).toLocaleString();
-
-                html += `
-                  <div class="post">
-                    <div class="subforum">[${post.subforum}]</div>
-                    <div onclick="window.location.href='post.html?id=${postId}'" style="cursor:pointer;">
-                      <b>${post.author}:</b> ${post.content || ""}
-                    </div>
-                    <div class="time">Posted: ${date}</div>
-                    <button class="deleteBtn" onclick="deletePost('${postId}')">Delete</button>
-                  </div>
-                `;
-              });
-            }
-
-            const repliesQuery = query(
-              collection(db, "replies"),
-              where("author", "==", username),
-              orderBy("time", "desc")
-            );
-
-            const repliesSnap = await getDocs(repliesQuery);
-
-            if(!repliesSnap.empty){
-              repliesSnap.forEach(docSnap => {
-                const reply = docSnap.data();
-                const replyId = docSnap.id;
-                const date = new Date(reply.time).toLocaleString();
-
-                html += `
-                  <div class="post">
-                    <div class="subforum">[reply]</div>
-                    <div onclick="window.location.href='post.html?id=${reply.postId}'" style="cursor:pointer;">
-                      <b>${reply.author}:</b> ${reply.content || ""}
-                    </div>
-                    <div class="time">Posted: ${date}</div>
-                    <button class="deleteBtn" onclick="deleteReply('${replyId}')">Delete</button>
-                  </div>
-                `;
-              });
-            }
-
-            if(html === "") html = "<p>No posts or replies yet.</p>";
-
-            postsDiv.innerHTML = html;
-          }
-
-          // INIT
-          loadProfile();
+        // DELETE POST
+        window.deletePost = async function(postId){
+          if(!confirm("Delete this post?")) return;
+          await deleteDoc(doc(db, "posts", postId));
           loadUserPosts();
+        };
 
-          // NAV LOGIC
-          const accountLink = document.getElementById("accountLink");
-          const logoutBtn = document.getElementById("logoutBtn");
+        // DELETE REPLY
+        window.deleteReply = async function(replyId){
+          if(!confirm("Delete this reply?")) return;
+          await deleteDoc(doc(db, "replies", replyId));
+          loadUserPosts();
+        };
 
-          if(username){
-            accountLink.innerText = "Profile";
-            accountLink.href = "profile.html";
-            logoutBtn.style.display = "inline";
-          } else {
-            logoutBtn.style.display = "none";
-          }
+        // LOAD POSTS
+        async function loadUserPosts(){
+          const postsDiv = document.getElementById("userPosts");
+          postsDiv.innerHTML = "Loading...";
 
-          logoutBtn.onclick = function() {
-            localStorage.removeItem("currentUser");
-            alert("Logged out");
-            window.location.href = "index.html";
-          };
+          let html = "";
 
-        });
+          const postsSnap = await getDocs(query(
+            collection(db, "posts"),
+            where("author", "==", username),
+            orderBy("time", "desc")
+          ));
+
+          postsSnap.forEach(docSnap => {
+            const p = docSnap.data();
+            html += `
+              <div class="post">
+                <b>${p.author}:</b> ${p.content || ""}
+                <div class="time">${new Date(p.time).toLocaleString()}</div>
+                <button onclick="deletePost('${docSnap.id}')">Delete</button>
+              </div>
+            `;
+          });
+
+          const repliesSnap = await getDocs(query(
+            collection(db, "replies"),
+            where("author", "==", username),
+            orderBy("time", "desc")
+          ));
+
+          repliesSnap.forEach(docSnap => {
+            const r = docSnap.data();
+            html += `
+              <div class="post">
+                <b>${r.author} (reply):</b> ${r.content || ""}
+                <div class="time">${new Date(r.time).toLocaleString()}</div>
+                <button onclick="deleteReply('${docSnap.id}')">Delete</button>
+              </div>
+            `;
+          });
+
+          if(html === "") html = "<p>No posts or replies yet.</p>";
+          postsDiv.innerHTML = html;
+        }
+
+        // INIT
+        loadProfile();
+        loadUserPosts();
+
+        // NAV
+        const accountLink = document.getElementById("accountLink");
+        const logoutBtn = document.getElementById("logoutBtn");
+
+        if(username){
+          accountLink.innerText = "Profile";
+          logoutBtn.style.display = "inline";
+        } else {
+          logoutBtn.style.display = "none";
+        }
+
+        logoutBtn.onclick = () => {
+          localStorage.removeItem("currentUser");
+          alert("Logged out");
+          window.location.href = "index.html";
+        };
+
       });
     });
   });
