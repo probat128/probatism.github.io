@@ -168,7 +168,7 @@ document.getElementById("saveDescBtn").onclick = async () => {
   notify("Description saved");
 };
 
-// RESIZE IMAGE
+// RESIZE IMAGE (FROM PREVIOUS WORKING VERSION)
 function resizeImageToBase64(file){
   return new Promise(resolve=>{
     const reader = new FileReader();
@@ -191,14 +191,18 @@ function resizeImageToBase64(file){
   });
 }
 
-// UPLOAD PROFILE PIC
+// UPLOAD PROFILE PIC (WORKING LOGIC RESTORED)
 document.getElementById("uploadPicBtn").onclick = async ()=>{
   const file = document.getElementById("profilePic").files[0];
   if(!file){ notify("Select a file"); return; }
-  const base64 = await resizeImageToBase64(file);
-  await setDoc(doc(db,"users",username),{ profilePic: base64 },{merge:true});
-  notify("Profile picture updated!");
-  loadProfile();
+  try {
+    const base64 = await resizeImageToBase64(file);
+    await setDoc(doc(db,"users",username),{ profilePic: base64 },{merge:true});
+    notify("Profile picture updated!");
+    loadProfile();
+  } catch(err){
+    notify("Error: " + err.message);
+  }
 };
 
 // DELETE POSTS / REPLIES
