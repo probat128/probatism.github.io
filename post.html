@@ -1,26 +1,71 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Post Thread</title>
-  <style>
-    body { font-family: Arial; background:#111; color:white; padding:20px; }
-    nav a { color: cyan; margin-right:10px; text-decoration:none; }
-    button { margin-top:5px; padding:5px 10px; cursor:pointer; }
-    textarea { width:100%; height:80px; background:#222; color:white; border:none; padding:5px; }
-    .post { border:1px solid #444; padding:10px; margin:10px 0; }
-    .reply { border-left:2px solid #888; margin:5px 0; padding-left:10px; }
-  </style>
+<title>Post Thread</title>
+<style>
+body { font-family: Arial; background: rgb(232,224,207); color: rgb(91,46,97); padding:20px; }
+nav a { color: rgb(91,46,97); margin-right:10px; text-decoration:none; }
+button { margin-top:5px; padding:5px 10px; cursor:pointer; background: rgb(232,224,207); color: rgb(91,46,97); border:1px solid rgb(91,46,97); }
+textarea { width:100%; height:80px; background: rgb(232,224,207); color: rgb(91,46,97); border:1px solid rgb(91,46,97); padding:5px; }
+
+.post, .reply {
+  border:1px solid rgb(91,46,97);
+  padding:10px;
+  margin:10px 0;
+  display:flex;
+  gap:10px;
+}
+
+.profile-thumb {
+  width:40px;
+  height:40px;
+  object-fit:cover;
+  border:1px solid rgb(91,46,97);
+}
+
+.content {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.post-img {
+  max-width:256px;
+  max-height:256px;
+  margin-top:5px;
+  cursor:pointer;
+  border:1px solid rgb(91,46,97);
+}
+
+.time {
+  font-size:12px;
+}
+
+/* IMAGE MODAL */
+#imgModal {
+  display:none;
+  position:fixed;
+  top:0; left:0;
+  width:100%; height:100%;
+  background: rgba(0,0,0,0.8);
+  justify-content:center;
+  align-items:center;
+}
+#imgModal img {
+  max-width:95%;
+  max-height:95%;
+}
+</style>
 </head>
 <body>
 
 <nav>
-  <a href="index.html">Home</a>
-  <a href="doctrine.html">Doctrine</a>
-  <a href="forums.html">Forums</a>
-  <a href="news.html">News</a>
-  <a href="quiz.html">Quiz</a>
-  <a href="signin.html" id="accountLink">Sign In / Sign Up</a>
-  <button id="logoutBtn">Logout</button>
+<a href="index.html">Home</a>
+<a href="doctrine.html">Doctrine</a>
+<a href="forums.html">Forums</a>
+<a href="news.html">News</a>
+<a href="quiz.html">Quiz</a>
+<a href="signin.html" id="accountLink">Sign In / Sign Up</a>
+<button id="logoutBtn">Logout</button>
 </nav>
 
 <br>
@@ -30,15 +75,18 @@
 <div id="post">Loading...</div>
 
 <h3>Replies</h3>
-<div id="repliesContainer">Loading replies...</div>
+<div id="repliesContainer">Loading...</div>
 
 <h3>Add Reply</h3>
-<textarea id="replyInput" placeholder="Write your reply..."></textarea>
-<br>
+<textarea id="replyInput" maxlength="8000"></textarea><br>
+<input type="file" id="replyImage" accept="image/*"><br>
 <button id="replyButton">Reply</button>
 
+<!-- IMAGE MODAL -->
+<div id="imgModal"><img id="modalImg"></div>
+
 <script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getFirestore, doc, getDoc, collection, addDoc, getDocs, query, where, deleteDoc } 
 from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { getAuth, onAuthStateChanged, signOut } 
@@ -54,155 +102,221 @@ const firebaseConfig = {
   appId: "1:746935651152:web:82491ddac346bc654a3a55"
 };
 
-const app = initializeApp(firebaseConfig);
+const app = getApps().length===0 ? initializeApp(firebaseConfig) : getApps()[0];
 const db = getFirestore(app);
 const auth = getAuth(app);
 
 const params = new URLSearchParams(window.location.search);
 const postId = params.get("id");
 
-// AUTH STATE
 let currentUser = null;
 let currentAdmin = false;
+
 const accountLink = document.getElementById("accountLink");
 const logoutBtn = document.getElementById("logoutBtn");
 
-onAuthStateChanged(auth, (user) => {
+// AUTH
+onAuthStateChanged(auth, (user)=>{
   if(user){
     currentUser = user.email.replace("@fake.com","");
-    currentAdmin = user?.admin || false;
-
     accountLink.innerText = "Profile";
     accountLink.href = "profile.html";
     logoutBtn.style.display = "inline";
   } else {
     currentUser = null;
-    currentAdmin = false;
     accountLink.innerText = "Sign In / Sign Up";
-    accountLink.href = "signin.html";
     logoutBtn.style.display = "none";
   }
 });
 
 // LOGOUT
-logoutBtn.onclick = async () => {
+logoutBtn.onclick = async ()=>{
   await signOut(auth);
-  currentUser = null;
-  currentAdmin = false;
-  alert("Logged out");
   window.location.href = "index.html";
 };
 
+// IMAGE HELPERS
+function resizeImage(file){
+  return new Promise(resolve=>{
+    const reader = new FileReader();
+    reader.onload = e=>{
+      const img = new Image();
+      img.onload = ()=>{
+        const canvas=document.createElement("canvas");
+        canvas.width=256; canvas.height=256;
+        const ctx=canvas.getContext("2d");
+
+        const size=Math.min(img.width,img.height);
+        const sx=(img.width-size)/2;
+        const sy=(img.height-size)/2;
+
+        ctx.drawImage(img,sx,sy,size,size,0,0,256,256);
+        resolve(canvas.toDataURL("image/png"));
+      };
+      img.src=e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function getFullImage(file){
+  return new Promise(resolve=>{
+    const reader=new FileReader();
+    reader.onload=e=>resolve(e.target.result);
+    reader.readAsDataURL(file);
+  });
+}
+
 // LOAD POST
 async function loadPost(){
-  const postDiv = document.getElementById("post");
-  if(!postId){ postDiv.innerHTML = "No post ID provided."; return; }
+  const div = document.getElementById("post");
 
-  try {
-    const docRef = doc(db, "posts", postId);
-    const docSnap = await getDoc(docRef);
+  const snap = await getDoc(doc(db,"posts",postId));
+  if(!snap.exists()){ div.innerHTML="Post not found"; return; }
 
-    if(!docSnap.exists()){ postDiv.innerHTML = "Post not found."; return; }
+  const post = snap.data();
+  const date = new Date(post.time).toLocaleString();
 
-    const post = docSnap.data();
-    const date = new Date(post.time).toLocaleString();
+  let profilePic="";
+  if(post.author !== "Anonymous"){
+    const userSnap = await getDoc(doc(db,"users",post.author));
+    if(userSnap.exists() && userSnap.data().profilePic){
+      profilePic = `<img class="profile-thumb" src="${userSnap.data().profilePic}">`;
+    }
+  }
 
-    let deleteButton = "";
-    if(currentUser === post.author || currentAdmin){
-      deleteButton = `<button onclick="deletePost('${postId}')">Delete Post</button>`;
+  const shortText = post.content.length > 400 ? post.content.slice(0,400) : post.content;
+  const needsMore = post.content.length > 400;
+
+  div.innerHTML = `
+    ${profilePic}
+    <div>
+      <b>${post.author}</b>
+      <div class="content">${shortText}</div>
+      ${needsMore ? `<button id="readMorePost">Read More</button>` : ""}
+      ${post.image ? `<img class="post-img" src="${post.image}" data-full="${post.fullImage || post.image}">` : ""}
+      <div class="time">${date}</div>
+    </div>
+  `;
+
+  if(needsMore){
+    document.getElementById("readMorePost").onclick=()=>{
+      div.querySelector(".content").innerText = post.content;
+      document.getElementById("readMorePost").remove();
+    };
+  }
+}
+
+// LOAD REPLIES
+async function loadReplies(){
+  const container = document.getElementById("repliesContainer");
+  container.innerHTML="";
+
+  const snap = await getDocs(query(collection(db,"replies"), where("postId","==",postId)));
+
+  if(snap.empty){
+    container.innerHTML="<p>No replies yet.</p>";
+    return;
+  }
+
+  const replies = snap.docs.map(d=>({id:d.id,...d.data()}));
+  replies.sort((a,b)=>b.time-a.time);
+
+  for(const reply of replies){
+
+    const date = new Date(reply.time).toLocaleString();
+
+    let profilePic="";
+    if(reply.author !== "Anonymous"){
+      const userSnap = await getDoc(doc(db,"users",reply.author));
+      if(userSnap.exists() && userSnap.data().profilePic){
+        profilePic = `<img class="profile-thumb" src="${userSnap.data().profilePic}">`;
+      }
     }
 
-    postDiv.innerHTML = `
-      <div class="post">
-        <b>${post.author}</b>: ${post.content}<br>
-        <span style="font-size:12px;color:#aaa;">${date}</span><br>
-        ${deleteButton}
+    const shortText = reply.content.length > 400 ? reply.content.slice(0,400) : reply.content;
+    const needsMore = reply.content.length > 400;
+
+    const div = document.createElement("div");
+    div.className="reply";
+
+    div.innerHTML = `
+      ${profilePic}
+      <div>
+        <b>${reply.author}</b>
+        <div class="content">${shortText}</div>
+        ${needsMore ? `<button class="readMoreBtn">Read More</button>` : ""}
+        ${reply.image ? `<img class="post-img" src="${reply.image}" data-full="${reply.fullImage || reply.image}">` : ""}
+        <div class="time">${date}</div>
       </div>
     `;
-  } catch(e){
-    console.error(e);
-    postDiv.innerHTML = "Error loading post.";
+
+    if(needsMore){
+      div.querySelector(".readMoreBtn").onclick=()=>{
+        div.querySelector(".content").innerText = reply.content;
+        div.querySelector(".readMoreBtn").remove();
+      };
+    }
+
+    container.appendChild(div);
   }
-}
 
-// DELETE POST
-window.deletePost = async function(id){
-  if(!confirm("Delete this post?")) return;
-  try {
-    await deleteDoc(doc(db,"posts",id));
-    alert("Post deleted");
-    window.location.href = "forums/general.html";
-  } catch(e){ alert("Error deleting post: " + e.message); }
-}
-
-// LOAD REPLIES (newest first)
-async function loadReplies(){
-  const repliesDiv = document.getElementById("repliesContainer");
-  repliesDiv.innerHTML = "Loading replies...";
-
-  try {
-    const snapshot = await getDocs(query(collection(db,"replies"), where("postId","==",postId)));
-    if(snapshot.empty){ repliesDiv.innerHTML="<p>No replies yet.</p>"; return; }
-
-    const replies = snapshot.docs.map(docSnap => ({id: docSnap.id, ...docSnap.data()}));
-    replies.sort((a,b)=>b.time - a.time); // newest first
-
-    repliesDiv.innerHTML="";
-    replies.forEach(reply=>{
-      const date = new Date(reply.time).toLocaleString();
-      let deleteButton = "";
-      if(currentUser === reply.author || currentAdmin){
-        deleteButton = `<button onclick="deleteReply('${reply.id}')">Delete</button>`;
-      }
-
-      const div = document.createElement("div");
-      div.className="reply";
-      div.innerHTML = `
-        <b>${reply.author}</b>: ${reply.content}<br>
-        <span style="font-size:12px;color:#aaa;">${date}</span><br>
-        ${deleteButton}
-      `;
-      repliesDiv.appendChild(div);
-    });
-  } catch(e){
-    console.error(e);
-    repliesDiv.innerHTML="Error loading replies.";
-  }
-}
-
-// DELETE REPLY
-window.deleteReply = async function(id){
-  if(!confirm("Delete this reply?")) return;
-  try {
-    await deleteDoc(doc(db,"replies",id));
-    loadReplies();
-  } catch(e){ alert("Error deleting reply: "+e.message); }
+  // IMAGE CLICK
+  document.querySelectorAll(".post-img").forEach(img=>{
+    img.onclick=()=>{
+      document.getElementById("modalImg").src = img.dataset.full;
+      document.getElementById("imgModal").style.display="flex";
+    };
+  });
 }
 
 // POST REPLY
-document.getElementById("replyButton").addEventListener("click", async ()=>{
+document.getElementById("replyButton").onclick = async ()=>{
   const text = document.getElementById("replyInput").value.trim();
-  if(!text){ alert("Enter reply"); return; }
+  const file = document.getElementById("replyImage").files[0];
 
-  if(!currentUser){ alert("You must be logged in to reply."); return; }
-
-  try {
-    await addDoc(collection(db,"replies"),{
-      postId,
-      author: currentUser,
-      content: text,
-      time: Date.now()
-    });
-    document.getElementById("replyInput").value="";
-    loadReplies();
-  } catch(e){
-    console.error(e);
-    alert("Error posting: "+e.message);
+  if(text.length > 8000){
+    alert("Reply too long");
+    return;
   }
-});
 
+  if(!text && !file){
+    alert("Add content");
+    return;
+  }
+
+  let image=null;
+  let fullImage=null;
+
+  if(file){
+    image = await resizeImage(file);
+    fullImage = await getFullImage(file);
+  }
+
+  await addDoc(collection(db,"replies"),{
+    postId,
+    author: currentUser || "Anonymous",
+    content: text,
+    image,
+    fullImage,
+    time: Date.now()
+  });
+
+  document.getElementById("replyInput").value="";
+  document.getElementById("replyImage").value="";
+
+  loadReplies();
+};
+
+// CLOSE IMAGE
+document.getElementById("imgModal").onclick = ()=>{
+  imgModal.style.display="none";
+};
+
+// INIT
 loadPost();
 loadReplies();
+
 </script>
 </body>
 </html>
