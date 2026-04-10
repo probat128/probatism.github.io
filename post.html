@@ -57,26 +57,11 @@ button {
   margin:10px 0;
 }
 
-/* =========================
-   FIX: THREAD LAYOUT WRAPPER
-========================= */
-.threadWrapper{
-  display:flex;
-  flex-direction:column;
-  gap:10px;
-}
-
-/* REPLIES AREA */
-#replies {
-  display:flex;
-  flex-direction:column;
-  gap:8px;
-}
-
 /* REPLY BOX */
 .replyBox {
   border:1px solid rgb(91,46,97);
   padding:8px;
+  margin:8px 0;
   display:flex;
   gap:10px;
   align-items:flex-start;
@@ -111,14 +96,14 @@ button {
   text-decoration:underline;
 }
 
-/* DELETE */
+/* DELETE BUTTON */
 .deleteBtn {
   font-size:12px;
   padding:3px 6px;
   margin-top:5px;
 }
 
-/* IMAGE */
+/* IMAGE THUMB */
 .imgThumb {
   max-width:256px;
   max-height:256px;
@@ -127,7 +112,7 @@ button {
   margin-top:5px;
 }
 
-/* FULL IMAGE */
+/* FULL IMAGE OVERLAY */
 .imgOverlay {
   display:none;
   position:fixed;
@@ -174,6 +159,12 @@ button {
   margin-top:10px;
 }
 
+/* 🔥 FIX: thread layout container ensures correct stacking */
+.threadContainer {
+  display:flex;
+  flex-direction:column;
+}
+
 </style>
 </head>
 
@@ -195,11 +186,10 @@ button {
 <h2>Post</h2>
 <div id="post"></div>
 
-<h3>Replies</h3>
+<!-- 🔥 FIXED THREAD WRAPPER -->
+<div class="threadContainer">
 
-<!-- ✅ FIX: LOCK LAYOUT ORDER -->
-<div class="threadWrapper">
-
+  <h3>Replies</h3>
   <div id="replies"></div>
 
   <button id="loadMoreReplies" class="loadMoreBtn">Load More Replies</button>
@@ -259,7 +249,6 @@ const auth = getAuth(app);
 
 const postId = new URLSearchParams(location.search).get("id");
 
-/* STATE */
 let currentUser=null;
 let deleteTarget=null;
 let replyList=[];
@@ -272,7 +261,9 @@ currentUser=user.email.replace("@fake.com","");
 document.getElementById("accountLink").innerText="Profile";
 document.getElementById("accountLink").href="profile.html";
 }
-else currentUser=null;
+else{
+currentUser=null;
+}
 });
 
 document.getElementById("logoutBtn").onclick=async()=>{
@@ -291,7 +282,7 @@ overlay.style.display="flex";
 
 overlay.onclick=()=>overlay.style.display="none";
 
-/* READ MORE */
+/* READ MORE (UNCHANGED FIXED SYNTAX) */
 function readMore(text){
 if(!text) return "";
 if(text.length<=400) return text;
@@ -311,13 +302,23 @@ this.style.display='none';
 `;
 }
 
-/* LOAD POST */
+/* AVATAR */
+async function getAvatar(username){
+if(!username || username==="Anonymous") return null;
+const snap = await getDoc(doc(db,"users",username));
+if(!snap.exists()) return null;
+return snap.data().profilePic || null;
+}
+
+/* POST */
 async function loadPost(){
 const snap=await getDoc(doc(db,"posts",postId));
 const p=snap.data();
+const avatar = await getAvatar(p.author);
 
 document.getElementById("post").innerHTML=`
 <div class="postBox">
+${avatar?`<img class="avatar" src="${avatar}">`:``}
 <b>${p.author}</b><br>
 ${readMore(p.content)}
 ${p.image?`<br><img class="imgThumb" src="${p.image}" onclick="showImg(this.src)">`:``}
@@ -325,19 +326,16 @@ ${p.image?`<br><img class="imgThumb" src="${p.image}" onclick="showImg(this.src)
 `;
 }
 
-/* LOAD REPLIES */
+/* REPLIES */
 async function fetchReplies(){
 const q=await getDocs(query(collection(db,"replies"),where("postId","==",postId)));
-
 replyList=q.docs.map(d=>({id:d.id,...d.data()}));
 replyList.sort((a,b)=>b.time-a.time);
-
 renderReplies(true);
 }
 
 /* RENDER */
-function renderReplies(reset=false){
-
+async function renderReplies(reset=false){
 const container=document.getElementById("replies");
 
 if(reset){
@@ -347,13 +345,14 @@ replyIndex=0;
 
 const chunk=replyList.slice(replyIndex,replyIndex+10);
 
-chunk.forEach(r=>{
+for(const r of chunk){
+const avatar = await getAvatar(r.author);
 
 const el=document.createElement("div");
 el.className="replyBox";
 
 el.innerHTML=`
-${r.avatar?`<img class="avatar" src="${r.avatar}">`:``}
+${avatar?`<img class="avatar" src="${avatar}">`:``}
 
 <div class="contentWrap">
 <b>${r.author}</b><br>
@@ -366,7 +365,7 @@ ${r.author===currentUser?`<button class="deleteBtn" onclick="openDelete('${r.id}
 `;
 
 container.appendChild(el);
-});
+}
 
 replyIndex+=10;
 
@@ -376,7 +375,7 @@ replyIndex>=replyList.length?"none":"block";
 
 document.getElementById("loadMoreReplies").onclick=()=>renderReplies(false);
 
-/* DELETE MODAL */
+/* DELETE */
 const modal=document.getElementById("modal");
 const modalText=document.getElementById("modalText");
 
@@ -399,7 +398,6 @@ fetchReplies();
 
 /* SEND */
 document.getElementById("sendReply").onclick=async()=>{
-
 const text=document.getElementById("replyText").value.trim();
 const file=document.getElementById("replyImg").files[0];
 
