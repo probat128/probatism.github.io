@@ -15,6 +15,10 @@ body {
   color: rgb(91,46,97);
   padding:20px;
   line-height:1.4;
+
+  /* FIX: prevent weird layout shifting */
+  display:flex;
+  flex-direction:column;
 }
 
 /* NAV */
@@ -22,6 +26,13 @@ nav a {
   color: rgb(91,46,97);
   margin-right:10px;
   text-decoration:none;
+}
+
+/* FIX: MAIN WRAPPER STRUCTURE */
+#pageWrapper{
+  display:flex;
+  flex-direction:column;
+  width:100%;
 }
 
 /* TEXT FIX */
@@ -67,7 +78,7 @@ button {
   align-items:flex-start;
 }
 
-/* PROFILE PIC */
+/* PROFILE PIC (SQUARE FIXED) */
 .avatar {
   width:32px;
   height:32px;
@@ -160,19 +171,19 @@ button {
 }
 
 /* =========================
-   🔥 FIX: THREAD LAYOUT WRAPPER
+   FIX: REPLY INPUT POSITION
 ========================= */
 
-.threadLayout {
-  display:flex;
-  flex-direction:column;
-}
-
-/* makes reply section visually attached */
-.replyComposer {
+#replySection{
   margin-top:20px;
   padding-top:10px;
   border-top:1px solid rgb(91,46,97);
+}
+
+/* FIX: ensure replies don't push input away visually */
+#replies{
+  display:flex;
+  flex-direction:column;
 }
 
 </style>
@@ -196,25 +207,19 @@ button {
 <h2>Post</h2>
 <div id="post"></div>
 
-<!-- THREAD WRAPPER FIX -->
-<div class="threadLayout">
-
 <h3>Replies</h3>
 <div id="replies"></div>
 <button id="loadMoreReplies" class="loadMoreBtn">Load More Replies</button>
 
-<!-- FIXED POSITIONING SECTION -->
-<div class="replyComposer">
+<!-- FIX: KEEP INPUT GROUP ALWAYS BELOW -->
+<div id="replySection">
+  <h3>Add Reply</h3>
 
-<h3>Add Reply</h3>
-
-<textarea id="replyText" placeholder="Write reply (8000 max)"></textarea>
-<br>
-<input type="file" id="replyImg">
-<br>
-<button id="sendReply">Reply</button>
-
-</div>
+  <textarea id="replyText" placeholder="Write reply (8000 max)"></textarea>
+  <br>
+  <input type="file" id="replyImg">
+  <br>
+  <button id="sendReply">Reply</button>
 </div>
 
 <!-- IMAGE MODAL -->
@@ -275,7 +280,9 @@ currentUser=user.email.replace("@fake.com","");
 document.getElementById("accountLink").innerText="Profile";
 document.getElementById("accountLink").href="profile.html";
 }
-else currentUser=null;
+else{
+currentUser=null;
+}
 });
 
 document.getElementById("logoutBtn").onclick=async()=>{
@@ -314,13 +321,24 @@ this.style.display='none';
 `;
 }
 
+/* LOAD USER AVATAR */
+async function getAvatar(username){
+if(!username || username==="Anonymous") return null;
+const snap = await getDoc(doc(db,"users",username));
+if(!snap.exists()) return null;
+return snap.data().profilePic || null;
+}
+
 /* LOAD POST */
 async function loadPost(){
 const snap=await getDoc(doc(db,"posts",postId));
 const p=snap.data();
 
+const avatar = await getAvatar(p.author);
+
 document.getElementById("post").innerHTML=`
 <div class="postBox">
+${avatar?`<img class="avatar" src="${avatar}">`:``}
 <b>${p.author}</b><br>
 ${readMore(p.content)}
 ${p.image?`<br><img class="imgThumb" src="${p.image}" onclick="showImg(this.src)">`:``}
@@ -351,11 +369,14 @@ const chunk=replyList.slice(replyIndex,replyIndex+10);
 
 for(const r of chunk){
 
+const avatar = await getAvatar(r.author);
+
 const el=document.createElement("div");
 el.className="replyBox";
 
 el.innerHTML=`
-${r.avatar?`<img class="avatar" src="${r.avatar}">`:``}
+${avatar?`<img class="avatar" src="${avatar}">`:``}
+
 <div class="contentWrap">
 <b>${r.author}</b><br>
 ${readMore(r.content)}
@@ -377,7 +398,7 @@ replyIndex>=replyList.length?"none":"block";
 
 document.getElementById("loadMoreReplies").onclick=()=>renderReplies(false);
 
-/* DELETE */
+/* DELETE MODAL */
 const modal=document.getElementById("modal");
 const modalText=document.getElementById("modalText");
 
@@ -400,6 +421,7 @@ fetchReplies();
 
 /* SEND */
 document.getElementById("sendReply").onclick=async()=>{
+
 const text=document.getElementById("replyText").value.trim();
 const file=document.getElementById("replyImg").files[0];
 
@@ -423,7 +445,6 @@ document.getElementById("replyText").value="";
 fetchReplies();
 };
 
-/* INIT */
 loadPost();
 fetchReplies();
 
