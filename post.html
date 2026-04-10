@@ -35,37 +35,41 @@
       border: 1px solid rgb(91,46,97);
     }
 
-    /* FIXED BOX SIZING */
+    /* MATCH GENERAL.HTML BOX STYLE */
     .post, .reply {
       border: 1px solid rgb(91,46,97);
       padding: 10px;
       margin: 10px 0;
-      max-width: 800px;
       word-wrap: break-word;
-      white-space: pre-wrap;
+      overflow-wrap: break-word;
+      max-width: 100%;
     }
 
     .meta {
       font-size: 12px;
-      opacity: 0.8;
+      opacity: 0.75;
+      margin-top: 5px;
     }
 
+    /* IMAGE (same as general style but fixed click size) */
     .img {
       max-width: 256px;
       max-height: 256px;
       margin-top: 8px;
       cursor: pointer;
       border: 1px solid rgb(91,46,97);
+      display: block;
     }
 
+    /* ✅ FIXED: SQUARE profile picture (NOT circular) */
     .pfp {
-      width: 32px;
-      height: 32px;
-      border-radius: 50%;
+      width: 28px;
+      height: 28px;
       object-fit: cover;
-      vertical-align: middle;
+      display: inline-block;
       margin-right: 6px;
       border: 1px solid rgb(91,46,97);
+      vertical-align: middle;
     }
 
     .usernameRow {
@@ -75,9 +79,18 @@
     }
 
     .smallBtn {
-      padding: 3px 8px;
+      padding: 3px 6px;
       font-size: 12px;
       margin-left: 5px;
+      margin-top: 5px;
+    }
+
+    /* READ MORE (minimal UI like forum style) */
+    .readMore {
+      font-size: 12px;
+      cursor: pointer;
+      text-decoration: underline;
+      margin-top: 3px;
     }
 
     /* IMAGE MODAL */
@@ -97,13 +110,6 @@
     #imgModal img {
       max-width: 90%;
       max-height: 90%;
-    }
-
-    .readMore {
-      color: rgb(91,46,97);
-      cursor: pointer;
-      font-size: 12px;
-      text-decoration: underline;
     }
   </style>
 </head>
@@ -214,18 +220,14 @@ window.closeImg = () => {
   document.getElementById("imgModal").style.display = "none";
 };
 
-/* READ MORE */
+/* READ MORE (SAFE + NO BOX EXPANSION) */
 function formatText(text, id){
   if(!text) return "";
 
-  if(text.length <= 400){
-    return text;
-  }
-
-  const short = text.slice(0,400);
+  if(text.length <= 400) return text;
 
   return `
-    <span id="short-${id}">${short}...</span>
+    <span id="short-${id}">${text.slice(0,400)}...</span>
     <span id="full-${id}" style="display:none;">${text}</span>
     <div class="readMore" onclick="toggleReadMore('${id}')">Read more</div>
   `;
@@ -236,24 +238,24 @@ window.toggleReadMore = (id) => {
   document.getElementById(`full-${id}`).style.display = "inline";
 };
 
-/* LOAD USER PROFILE (for PFP) */
-async function getUserProfile(name){
+/* GET USER PROFILE (PFP ONLY) */
+async function getUser(name){
   const snap = await getDoc(doc(db,"users",name));
   return snap.exists() ? snap.data() : null;
 }
 
 /* LOAD POST */
 async function loadPost(){
-  const postDiv = document.getElementById("post");
+  const box = document.getElementById("post");
 
   const snap = await getDoc(doc(db,"posts",postId));
   if(!snap.exists()){
-    postDiv.innerHTML = "Post not found.";
+    box.innerHTML = "Post not found.";
     return;
   }
 
   const p = snap.data();
-  const user = await getUserProfile(p.author);
+  const user = await getUser(p.author);
 
   const pfp = user?.profilePic
     ? `<img class="pfp" src="${user.profilePic}">`
@@ -265,13 +267,10 @@ async function loadPost(){
 
   const date = new Date(p.time).toLocaleString();
 
-  postDiv.innerHTML = `
+  box.innerHTML = `
     <div class="post">
-      <div class="usernameRow">
-        ${pfp}
-        <b>${p.author}</b>
-      </div>
-      <div>${formatText(p.content, "post")}</div>
+      ${pfp}<b>${p.author}</b><br>
+      ${formatText(p.content, "post")}
       ${img}
       <div class="meta">${date}</div>
       ${(currentUser===p.author||currentAdmin)
@@ -280,7 +279,6 @@ async function loadPost(){
   `;
 }
 
-/* DELETE POST */
 window.deletePost = async (id) => {
   if(!confirm("Delete this post?")) return;
   await deleteDoc(doc(db,"posts",id));
@@ -299,7 +297,7 @@ async function loadReplies(){
   box.innerHTML = "";
 
   for(const r of replies){
-    const user = await getUserProfile(r.author);
+    const user = await getUser(r.author);
 
     const pfp = user?.profilePic
       ? `<img class="pfp" src="${user.profilePic}">`
@@ -312,20 +310,13 @@ async function loadReplies(){
     const date = new Date(r.time).toLocaleString();
 
     const div = document.createElement("div");
-    div.className="reply";
+    div.className = "reply";
 
     div.innerHTML = `
-      <div class="usernameRow">
-        ${pfp}
-        <b>${r.author}</b>
-      </div>
-
-      <div>${formatText(r.content, r.id)}</div>
-
+      ${pfp}<b>${r.author}</b><br>
+      ${formatText(r.content, r.id)}
       ${img}
-
       <div class="meta">${date}</div>
-
       ${(currentUser===r.author||currentAdmin)
         ? `<button class="smallBtn" onclick="deleteReply('${r.id}')">Delete</button>` : ""}
     `;
@@ -334,7 +325,7 @@ async function loadReplies(){
   }
 }
 
-/* DELETE REPLY */
+/* DELETE REPLY (CONFIRM FIXED) */
 window.deleteReply = async (id) => {
   if(!confirm("Are you sure you want to delete this reply?")) return;
   await deleteDoc(doc(db,"replies",id));
