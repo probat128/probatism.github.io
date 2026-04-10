@@ -35,14 +35,12 @@
       border: 1px solid rgb(91,46,97);
     }
 
-    /* MATCH GENERAL.HTML BOX STYLE */
     .post, .reply {
       border: 1px solid rgb(91,46,97);
       padding: 10px;
       margin: 10px 0;
       word-wrap: break-word;
       overflow-wrap: break-word;
-      max-width: 100%;
     }
 
     .meta {
@@ -51,7 +49,6 @@
       margin-top: 5px;
     }
 
-    /* IMAGE (same as general style but fixed click size) */
     .img {
       max-width: 256px;
       max-height: 256px;
@@ -61,7 +58,6 @@
       display: block;
     }
 
-    /* ✅ FIXED: SQUARE profile picture (NOT circular) */
     .pfp {
       width: 28px;
       height: 28px;
@@ -72,12 +68,6 @@
       vertical-align: middle;
     }
 
-    .usernameRow {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-
     .smallBtn {
       padding: 3px 6px;
       font-size: 12px;
@@ -85,7 +75,7 @@
       margin-top: 5px;
     }
 
-    /* READ MORE (minimal UI like forum style) */
+    /* READ MORE */
     .readMore {
       font-size: 12px;
       cursor: pointer;
@@ -110,6 +100,42 @@
     #imgModal img {
       max-width: 90%;
       max-height: 90%;
+    }
+
+    /* ✅ CUSTOM DELETE MODAL (MATCHES general.html) */
+    #deleteModal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(232,224,207,0.85);
+      justify-content: center;
+      align-items: center;
+      z-index: 10000;
+    }
+
+    .modalBox {
+      background: rgb(232,224,207);
+      border: 2px solid rgb(91,46,97);
+      padding: 20px;
+      text-align: center;
+      width: 300px;
+    }
+
+    .modalBtn {
+      margin: 5px;
+      padding: 5px 12px;
+      cursor: pointer;
+      border: 1px solid rgb(91,46,97);
+      background: rgb(232,224,207);
+      color: rgb(91,46,97);
+    }
+
+    .confirmBtn {
+      background: rgb(91,46,97);
+      color: rgb(232,224,207);
     }
   </style>
 </head>
@@ -136,13 +162,22 @@
 <div id="repliesContainer">Loading replies...</div>
 
 <h3>Add Reply</h3>
-<textarea id="replyInput" maxlength="8000" placeholder="Write your reply..."></textarea>
+<textarea id="replyInput" maxlength="8000"></textarea>
 <br>
 <button id="replyButton">Reply</button>
 
 <!-- IMAGE MODAL -->
 <div id="imgModal" onclick="closeImg()">
   <img id="modalImg">
+</div>
+
+<!-- DELETE MODAL (NEW UI FIX) -->
+<div id="deleteModal">
+  <div class="modalBox">
+    <p>Are you sure you want to delete this reply?</p>
+    <button class="modalBtn confirmBtn" id="confirmDelete">Delete</button>
+    <button class="modalBtn" id="cancelDelete">Cancel</button>
+  </div>
 </div>
 
 <script type="module">
@@ -182,6 +217,7 @@ const postId = new URLSearchParams(window.location.search).get("id");
 
 let currentUser = null;
 let currentAdmin = false;
+let pendingDeleteId = null;
 
 const accountLink = document.getElementById("accountLink");
 const logoutBtn = document.getElementById("logoutBtn");
@@ -220,7 +256,7 @@ window.closeImg = () => {
   document.getElementById("imgModal").style.display = "none";
 };
 
-/* READ MORE (SAFE + NO BOX EXPANSION) */
+/* READ MORE FIX (DISAPPEARS AFTER CLICK) */
 function formatText(text, id){
   if(!text) return "";
 
@@ -229,16 +265,17 @@ function formatText(text, id){
   return `
     <span id="short-${id}">${text.slice(0,400)}...</span>
     <span id="full-${id}" style="display:none;">${text}</span>
-    <div class="readMore" onclick="toggleReadMore('${id}')">Read more</div>
+    <div class="readMore" id="rm-${id}" onclick="toggleReadMore('${id}')">Read more</div>
   `;
 }
 
 window.toggleReadMore = (id) => {
   document.getElementById(`short-${id}`).style.display = "none";
   document.getElementById(`full-${id}`).style.display = "inline";
+  document.getElementById(`rm-${id}`).style.display = "none";
 };
 
-/* GET USER PROFILE (PFP ONLY) */
+/* GET USER */
 async function getUser(name){
   const snap = await getDoc(doc(db,"users",name));
   return snap.exists() ? snap.data() : null;
@@ -249,12 +286,8 @@ async function loadPost(){
   const box = document.getElementById("post");
 
   const snap = await getDoc(doc(db,"posts",postId));
-  if(!snap.exists()){
-    box.innerHTML = "Post not found.";
-    return;
-  }
-
   const p = snap.data();
+
   const user = await getUser(p.author);
 
   const pfp = user?.profilePic
@@ -270,7 +303,7 @@ async function loadPost(){
   box.innerHTML = `
     <div class="post">
       ${pfp}<b>${p.author}</b><br>
-      ${formatText(p.content, "post")}
+      ${formatText(p.content,"post")}
       ${img}
       <div class="meta">${date}</div>
       ${(currentUser===p.author||currentAdmin)
@@ -310,29 +343,43 @@ async function loadReplies(){
     const date = new Date(r.time).toLocaleString();
 
     const div = document.createElement("div");
-    div.className = "reply";
+    div.className="reply";
 
     div.innerHTML = `
       ${pfp}<b>${r.author}</b><br>
-      ${formatText(r.content, r.id)}
+      ${formatText(r.content,r.id)}
       ${img}
       <div class="meta">${date}</div>
+
       ${(currentUser===r.author||currentAdmin)
-        ? `<button class="smallBtn" onclick="deleteReply('${r.id}')">Delete</button>` : ""}
+        ? `<button class="smallBtn" onclick="showDelete('${r.id}')">Delete</button>` : ""}
     `;
 
     box.appendChild(div);
   }
 }
 
-/* DELETE REPLY (CONFIRM FIXED) */
-window.deleteReply = async (id) => {
-  if(!confirm("Are you sure you want to delete this reply?")) return;
-  await deleteDoc(doc(db,"replies",id));
-  loadReplies();
+/* CUSTOM DELETE MODAL LOGIC */
+window.showDelete = (id) => {
+  pendingDeleteId = id;
+  document.getElementById("deleteModal").style.display = "flex";
 };
 
-/* POST REPLY */
+document.getElementById("cancelDelete").onclick = () => {
+  pendingDeleteId = null;
+  document.getElementById("deleteModal").style.display = "none";
+};
+
+document.getElementById("confirmDelete").onclick = async () => {
+  if(pendingDeleteId){
+    await deleteDoc(doc(db,"replies",pendingDeleteId));
+    pendingDeleteId = null;
+    document.getElementById("deleteModal").style.display = "none";
+    loadReplies();
+  }
+};
+
+/* REPLY POST */
 document.getElementById("replyButton").onclick = async () => {
   const text = document.getElementById("replyInput").value.trim();
   if(!text) return alert("Enter reply");
