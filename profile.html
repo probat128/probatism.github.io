@@ -37,10 +37,20 @@
       padding:10px; 
       margin:10px 0; 
     }
+
+    .post img {
+      max-width:256px;
+      max-height:256px;
+      display:block;
+      margin-top:5px;
+      border:1px solid #5b2e61;
+    }
+
     .time { 
       color:#5b2e61; 
       font-size:12px; 
     }
+
     .deleteBtn { 
       background:#5b2e61; 
       color:#e8e0cf; 
@@ -58,7 +68,6 @@
       padding:5px;
     }
 
-    /* Modal for messages */
     #modal {
       display:none;
       position:fixed;
@@ -72,6 +81,7 @@
       padding:20px;
       z-index:1000;
     }
+
     #modal button {
       width:100%;
       border:2px solid #5b2e61;
@@ -91,7 +101,7 @@
   <a href="forums.html">Forums</a>
   <a href="news.html">News</a>
   <a href="quiz.html">Quiz</a>
-  <a href="signin.html" id="accountLink">Sign In / Sign Up</a>
+  <a href="profile.html" id="accountLink">Profile</a>
   <button id="logoutBtn">Logout</button>
 </nav>
 
@@ -112,7 +122,6 @@
 <h2>Your Posts & Replies</h2>
 <div id="userPosts">Loading...</div>
 
-<!-- Modal for messages -->
 <div id="modal">
   <div id="modalText"></div>
   <button id="modalOk">OK</button>
@@ -120,7 +129,8 @@
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getFirestore, doc, getDoc, setDoc, collection, getDocs, query, where, orderBy, deleteDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { getFirestore, doc, getDoc, setDoc, collection, getDocs, query, where, deleteDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAZXfEl3Q68vfJtaLJqODtnQBSVEzWBmc0",
@@ -133,172 +143,156 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
+const auth = getAuth(app);
 
-const username = localStorage.getItem("currentUser");
+let username = null;
 
-// Modal helper
+// MODAL
 const modal = document.getElementById("modal");
 const modalText = document.getElementById("modalText");
-const modalOk = document.getElementById("modalOk");
 
-function showModal(message){
-  modalText.innerText = message;
+function showModal(msg){
+  modalText.innerText = msg;
   modal.style.display = "block";
 }
+document.getElementById("modalOk").onclick = ()=> modal.style.display="none";
 
-modalOk.onclick = () => modal.style.display = "none";
+// AUTH FIX
+onAuthStateChanged(auth, async (user)=>{
+  if(!user){
+    window.location.href = "signin.html";
+    return;
+  }
+
+  username = user.email.replace("@fake.com","");
+  loadProfile();
+  loadUserPosts();
+});
+
+// LOGOUT
+document.getElementById("logoutBtn").onclick = async ()=>{
+  await signOut(auth);
+  window.location.href="index.html";
+};
 
 // LOAD PROFILE
 async function loadProfile(){
   const profileDiv = document.getElementById("profileInfo");
 
-  if(!username){
-    profileDiv.innerHTML = "Not logged in.";
-    return;
-  }
-
-  const snap = await getDoc(doc(db, "users", username));
-  if(!snap.exists()){
-    profileDiv.innerHTML = "User not found.";
-    return;
-  }
-
+  const snap = await getDoc(doc(db,"users",username));
   const data = snap.data();
+
   const joinDate = new Date(data.joinDate);
-  const daysAgo = Math.floor((Date.now() - joinDate) / (1000*60*60*24));
+  const daysAgo = Math.floor((Date.now() - joinDate)/(1000*60*60*24));
 
   profileDiv.innerHTML = `
     <p><b>Username:</b> ${data.username}</p>
     <p><b>Joined:</b> ${joinDate.toLocaleDateString()} (${daysAgo} days ago)</p>
-    ${data.profilePic ? `<img class="profile-pic" src="${data.profilePic}">` : "<p>No profile picture</p>"}
+    ${data.profilePic ? `<img class="profile-pic" src="${data.profilePic}">` : ""}
   `;
 
   document.getElementById("description").value = data.description || "";
 }
 
-// SAVE DESCRIPTION with 5s cooldown
-let lastSaveTime = 0;
-document.getElementById("saveDescBtn").onclick = async () => {
-  const now = Date.now();
-  if(now - lastSaveTime < 5000){
-    showModal("Please wait 5 seconds before saving again.");
+// SAVE DESC
+let lastSaveTime=0;
+document.getElementById("saveDescBtn").onclick = async ()=>{
+  if(Date.now()-lastSaveTime<5000){
+    showModal("Wait 5 seconds");
     return;
   }
 
-  const desc = document.getElementById("description").value;
-  if(desc.length > 400){
-    showModal("Description cannot exceed 400 characters.");
-    return;
-  }
+  const desc=document.getElementById("description").value;
 
-  await setDoc(doc(db, "users", username), {
-    description: desc
-  }, { merge:true });
+  await setDoc(doc(db,"users",username),{description:desc},{merge:true});
 
-  lastSaveTime = now;
+  lastSaveTime=Date.now();
   showModal("Saved");
 };
 
-// RESIZE IMAGE
+// IMAGE RESIZE
 function resizeImage(file){
   return new Promise(resolve=>{
-    const reader = new FileReader();
-    reader.onload = e=>{
-      const img = new Image();
-      img.onload = ()=>{
-        const canvas = document.createElement("canvas");
-        canvas.width = 256;
-        canvas.height = 256;
-        const ctx = canvas.getContext("2d");
+    const r=new FileReader();
+    r.onload=e=>{
+      const img=new Image();
+      img.onload=()=>{
+        const c=document.createElement("canvas");
+        c.width=256; c.height=256;
+        const ctx=c.getContext("2d");
 
-        const size = Math.min(img.width, img.height);
-        const sx = (img.width - size)/2;
-        const sy = (img.height - size)/2;
+        const size=Math.min(img.width,img.height);
+        const sx=(img.width-size)/2;
+        const sy=(img.height-size)/2;
 
-        ctx.drawImage(img, sx, sy, size, size, 0, 0, 256, 256);
-        resolve(canvas.toDataURL("image/png"));
+        ctx.drawImage(img,sx,sy,size,size,0,0,256,256);
+        resolve(c.toDataURL());
       };
-      img.src = e.target.result;
+      img.src=e.target.result;
     };
-    reader.readAsDataURL(file);
+    r.readAsDataURL(file);
   });
 }
 
 // UPLOAD PIC
-document.getElementById("uploadPicBtn").onclick = async ()=>{
-  const file = document.getElementById("profilePic").files[0];
-  if(!file){ showModal("Select file"); return; }
+document.getElementById("uploadPicBtn").onclick=async ()=>{
+  const file=document.getElementById("profilePic").files[0];
+  if(!file) return showModal("Select file");
 
-  const base64 = await resizeImage(file);
+  const img=await resizeImage(file);
 
-  await setDoc(doc(db,"users",username),{
-    profilePic: base64
-  },{merge:true});
-
-  showModal("Uploaded!");
+  await setDoc(doc(db,"users",username),{profilePic:img},{merge:true});
+  showModal("Uploaded");
   loadProfile();
 };
 
-// DELETE FUNCTIONS
-window.deletePost = async function(postId){
-  await deleteDoc(doc(db,"posts",postId));
+// DELETE
+window.deletePost=async id=>{
+  await deleteDoc(doc(db,"posts",id));
+  loadUserPosts();
+};
+window.deleteReply=async id=>{
+  await deleteDoc(doc(db,"replies",id));
   loadUserPosts();
 };
 
-window.deleteReply = async function(replyId){
-  await deleteDoc(doc(db,"replies",replyId));
-  loadUserPosts();
-};
-
-// LOAD POSTS
+// LOAD POSTS (FIXED)
 async function loadUserPosts(){
-  const div = document.getElementById("userPosts");
-  div.innerHTML = "Loading...";
+  const div=document.getElementById("userPosts");
 
-  let html = "";
+  const postsSnap = await getDocs(query(collection(db,"posts"),where("author","==",username)));
+  const repliesSnap = await getDocs(query(collection(db,"replies"),where("author","==",username)));
 
-  const posts = await getDocs(query(collection(db,"posts"), where("author","==",username), orderBy("time","desc")));
-  posts.forEach(docSnap=>{
-    const p = docSnap.data();
-    html += `<div class="post">
-      <b>${p.author}:</b> ${p.content}
-      <br><button class="deleteBtn" onclick="deletePost('${docSnap.id}')">Delete</button>
-    </div>`;
+  let items = [];
+
+  postsSnap.forEach(d=>{
+    items.push({type:"post", id:d.id, ...d.data()});
   });
 
-  const replies = await getDocs(query(collection(db,"replies"), where("author","==",username), orderBy("time","desc")));
-  replies.forEach(docSnap=>{
-    const r = docSnap.data();
-    html += `<div class="post">
-      <b>${r.author} (reply):</b> ${r.content}
-      <br><button class="deleteBtn" onclick="deleteReply('${docSnap.id}')">Delete</button>
+  repliesSnap.forEach(d=>{
+    items.push({type:"reply", id:d.id, ...d.data()});
+  });
+
+  // ✅ FORCE SORT FIX
+  items.sort((a,b)=>b.time-a.time);
+
+  let html="";
+
+  items.forEach(item=>{
+    html+=`
+    <div class="post">
+      <b>${item.author}${item.type==="reply"?" (reply)":""}:</b>
+      ${item.content || ""}
+      ${item.image ? `<img src="${item.image}">` : ""}
+      <br>
+      <button class="deleteBtn" onclick="${item.type==="post"?"deletePost":"deleteReply"}('${item.id}')">Delete</button>
     </div>`;
   });
 
   if(html==="") html="<p>No posts</p>";
-  div.innerHTML = html;
+  div.innerHTML=html;
 }
 
-loadProfile();
-loadUserPosts();
-</script>
-
-<script>
-const accountLink = document.getElementById("accountLink");
-const logoutBtn = document.getElementById("logoutBtn");
-
-const currentUser = localStorage.getItem("currentUser");
-if(currentUser){
-  accountLink.innerText = "Profile";
-  logoutBtn.style.display = "inline";
-} else {
-  logoutBtn.style.display = "none";
-}
-
-logoutBtn.onclick = function() {
-  localStorage.removeItem("currentUser");
-  window.location.href = "index.html";
-};
 </script>
 
 </body>
