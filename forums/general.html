@@ -8,59 +8,76 @@ nav a { color: rgb(91,46,97); margin-right:10px; text-decoration:none; }
 button { margin-top:5px; padding:5px 10px; cursor:pointer; background: rgb(232,224,207); color: rgb(91,46,97); border: 1px solid rgb(91,46,97); }
 textarea { width:100%; height:80px; background: rgb(232,224,207); color: rgb(91,46,97); border:1px solid rgb(91,46,97); padding:5px; }
 
-.post { border:1px solid rgb(91,46,97); padding:10px; margin:10px 0; display:flex; gap:10px; }
-.profile-thumb { width:40px; height:40px; object-fit:cover; border:1px solid rgb(91,46,97); }
-
-.post-content {
-    word-wrap: break-word;
-    white-space: pre-wrap;
+.post {
+  border:1px solid rgb(91,46,97);
+  padding:10px;
+  margin:10px 0;
+  display:flex;
+  gap:10px;
 }
 
-.post-img { max-width:256px; max-height:256px; margin-top:5px; cursor:pointer; border:1px solid rgb(91,46,97); }
+.profile-thumb {
+  width:40px;
+  height:40px;
+  object-fit:cover;
+  border:1px solid rgb(91,46,97);
+}
 
-.button-row { margin-top:5px; display:flex; gap:10px; }
+.post-content {
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
+
+.post-img {
+  max-width:256px;
+  max-height:256px;
+  margin-top:5px;
+  cursor:pointer;
+  border:1px solid rgb(91,46,97);
+}
+
+.button-row {
+  margin-top:5px;
+  display:flex;
+  gap:10px;
+}
 
 .time {
-    font-size:12px;
-    margin-top:3px;
+  font-size:12px;
+  margin-top:3px;
 }
 
 /* IMAGE MODAL */
 #imgModal {
-    display:none;
-    position:fixed;
-    top:0; left:0;
-    width:100%; height:100%;
-    background: rgba(0,0,0,0.8);
-    justify-content:center;
-    align-items:center;
-    z-index:2000;
+  display:none;
+  position:fixed;
+  top:0; left:0;
+  width:100%; height:100%;
+  background: rgba(0,0,0,0.8);
+  justify-content:center;
+  align-items:center;
 }
 #imgModal img {
-    max-width:90%;
-    max-height:90%;
+  max-width:90%;
+  max-height:90%;
 }
 
 /* DELETE MODAL */
 .modal-bg {
-    display: none;
-    position: fixed;
-    top:0; left:0; width:100%; height:100%;
-    background: rgba(232,224,207,0.8);
-    justify-content: center; 
-    align-items: center;
-    z-index: 1000;
+  display:none;
+  position:fixed;
+  top:0; left:0;
+  width:100%; height:100%;
+  background: rgba(232,224,207,0.8);
+  justify-content:center;
+  align-items:center;
 }
 .modal-content {
-    background: rgb(232,224,207);
-    padding: 20px;
-    border: 2px solid rgb(91,46,97);
-    width: 300px;
-    text-align: center;
+  background: rgb(232,224,207);
+  padding:20px;
+  border:2px solid rgb(91,46,97);
 }
-.modal-btn { padding:5px 15px; margin:0 10px; cursor:pointer; }
-.modal-btn.confirm { background: rgb(91,46,97); color: rgb(232,224,207); }
-.modal-btn.cancel { border:1px solid rgb(91,46,97); }
 </style>
 </head>
 <body>
@@ -76,13 +93,12 @@ textarea { width:100%; height:80px; background: rgb(232,224,207); color: rgb(91,
 </nav>
 
 <h1>General Forum</h1>
-<p>This is the general discussion forum. (placeholder description11111)</p>
+<p>This is the general discussion forum. (placeholder description)</p>
 
 <h3>Create Post</h3>
-<textarea id="postText" maxlength="8000" placeholder="Write your post..."></textarea><br>
+<textarea id="postText" maxlength="8000"></textarea><br>
 <input type="file" id="postImage" accept="image/*"><br>
 <button id="postButton">Post</button>
-<p id="cooldownText"></p>
 
 <h3>Posts</h3>
 <div id="posts">Loading...</div>
@@ -95,8 +111,8 @@ textarea { width:100%; height:80px; background: rgb(232,224,207); color: rgb(91,
 <div id="deleteModal" class="modal-bg">
   <div class="modal-content">
     <p>Delete this post?</p>
-    <button id="confirmDeleteBtn" class="modal-btn confirm">Delete</button>
-    <button id="cancelDeleteBtn" class="modal-btn cancel">Cancel</button>
+    <button id="confirmDeleteBtn">Delete</button>
+    <button id="cancelDeleteBtn">Cancel</button>
   </div>
 </div>
 
@@ -118,204 +134,196 @@ const app = getApps().length===0 ? initializeApp(firebaseConfig) : getApps()[0];
 const db = getFirestore(app);
 const auth = getAuth(app);
 
+// ELEMENTS
+const postButton = document.getElementById("postButton");
+const postText = document.getElementById("postText");
+const postImage = document.getElementById("postImage");
+const postsDiv = document.getElementById("posts");
+const loadMoreBtn = document.getElementById("loadMoreBtn");
+
 let currentUser = null;
 let lastVisible = null;
 let isPosting = false;
 let lastPostTime = 0;
 let postToDelete = null;
 
-const accountLink = document.getElementById("accountLink");
-const logoutBtn = document.getElementById("logoutBtn");
-
-onAuthStateChanged(auth, (user)=>{
-    if(user){
-        currentUser = user.email.replace("@fake.com","");
-        accountLink.innerText = "Profile";
-        accountLink.href = "../profile.html";
-        logoutBtn.style.display = "inline";
-    } else {
-        currentUser = null;
-        accountLink.innerText = "Sign In / Sign Up";
-        accountLink.href = "../signin.html";
-        logoutBtn.style.display = "none";
-    }
+// AUTH
+onAuthStateChanged(auth,(user)=>{
+  currentUser = user ? user.email.replace("@fake.com","") : null;
 });
 
-logoutBtn.onclick = async ()=>{
-    await signOut(auth);
-    window.location.href = "../index.html";
-};
-
+// IMAGE RESIZE
 function resizeImage(file){
-    return new Promise(resolve=>{
-        const reader = new FileReader();
-        reader.onload = e=>{
-            const img = new Image();
-            img.onload = ()=>{
-                const canvas = document.createElement("canvas");
-                canvas.width=256; canvas.height=256;
-                const ctx = canvas.getContext("2d");
+  return new Promise(resolve=>{
+    const reader = new FileReader();
+    reader.onload = e=>{
+      const img = new Image();
+      img.onload = ()=>{
+        const canvas=document.createElement("canvas");
+        canvas.width=256; canvas.height=256;
+        const ctx=canvas.getContext("2d");
 
-                const size = Math.min(img.width, img.height);
-                const sx = (img.width-size)/2;
-                const sy = (img.height-size)/2;
+        const size=Math.min(img.width,img.height);
+        const sx=(img.width-size)/2;
+        const sy=(img.height-size)/2;
 
-                ctx.drawImage(img,sx,sy,size,size,0,0,256,256);
-                resolve(canvas.toDataURL("image/png"));
-            };
-            img.src = e.target.result;
-        };
-        reader.readAsDataURL(file);
-    });
+        ctx.drawImage(img,sx,sy,size,size,0,0,256,256);
+        resolve(canvas.toDataURL("image/png"));
+      };
+      img.src=e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
 }
 
+// CREATE POST
 postButton.onclick = async ()=>{
-    if(isPosting) return;
+  if(isPosting) return;
 
-    const now = Date.now();
-    if(now-lastPostTime<10000){ alert("Wait before posting"); return; }
+  const now=Date.now();
+  if(now-lastPostTime<10000){
+    alert("Wait 10 seconds");
+    return;
+  }
 
-    const text = postText.value.trim();
-    const file = postImage.files[0];
+  const text=postText.value.trim();
+  const file=postImage.files[0];
 
-    if(text.length > 8000){
-        alert("Post too long");
-        return;
-    }
+  if(text.length>8000){ alert("Too long"); return; }
+  if(!text && !file){ alert("Add content"); return; }
 
-    if(!text && !file){ alert("Add text or image"); return; }
+  isPosting=true;
+  postButton.disabled=true;
 
-    isPosting=true;
-    postButton.disabled=true;
+  let image=null;
+  if(file) image=await resizeImage(file);
 
-    let imageData=null;
-    if(file){ imageData = await resizeImage(file); }
+  await addDoc(collection(db,"posts"),{
+    subforum:"general",
+    author: currentUser || "Anonymous",
+    content:text,
+    image:image,
+    time:Date.now()
+  });
 
-    await addDoc(collection(db,"posts"),{
-        subforum:"general",
-        author: currentUser || "Anonymous",
-        content:text,
-        image:imageData,
-        time:Date.now()
-    });
+  lastPostTime=Date.now();
+  postText.value="";
+  postImage.value="";
+  isPosting=false;
+  postButton.disabled=false;
 
-    lastPostTime=Date.now();
-
-    postText.value="";
-    postImage.value="";
-    isPosting=false;
-    postButton.disabled=false;
-
-    posts.innerHTML="";
-    lastVisible=null;
-    loadPosts();
+  postsDiv.innerHTML="";
+  lastVisible=null;
+  loadPosts();
 };
 
-function truncateText(text){
-    if(text.length <= 400) return text;
-    return text.substring(0,400) + "... <span class='read-more' style='cursor:pointer;text-decoration:underline;'>Read more</span>";
-}
-
+// LOAD POSTS
 async function loadPosts(){
-    const postsDiv = document.getElementById("posts");
+  let q=query(
+    collection(db,"posts"),
+    where("subforum","==","general"),
+    orderBy("time","desc"),
+    limit(10)
+  );
 
-    if(!lastVisible) postsDiv.innerHTML="";
-
-    let q = query(
-        collection(db,"posts"),
-        where("subforum","==","general"),
-        orderBy("time","desc"),
-        limit(10)
+  if(lastVisible){
+    q=query(
+      collection(db,"posts"),
+      where("subforum","==","general"),
+      orderBy("time","desc"),
+      startAfter(lastVisible),
+      limit(10)
     );
+  }
 
-    if(lastVisible){
-        q = query(
-            collection(db,"posts"),
-            where("subforum","==","general"),
-            orderBy("time","desc"),
-            startAfter(lastVisible),
-            limit(10)
-        );
+  const snap=await getDocs(q);
+  if(snap.empty) return;
+
+  lastVisible=snap.docs[snap.docs.length-1];
+
+  for(const docSnap of snap.docs){
+    const post=docSnap.data();
+    const date=new Date(post.time).toLocaleString();
+
+    let profilePic="";
+    if(post.author!=="Anonymous"){
+      const userSnap=await getDoc(doc(db,"users",post.author));
+      if(userSnap.exists() && userSnap.data().profilePic){
+        profilePic=`<img class="profile-thumb" src="${userSnap.data().profilePic}">`;
+      }
     }
 
-    const snap = await getDocs(q);
-    if(snap.empty) return;
+    const div=document.createElement("div");
+    div.className="post";
 
-    lastVisible = snap.docs[snap.docs.length-1];
+    const shortText = post.content.length > 400
+      ? post.content.slice(0,400)
+      : post.content;
 
-    for(const docSnap of snap.docs){
-        const post = docSnap.data();
-        const date = new Date(post.time).toLocaleString();
+    const needsMore = post.content.length > 400;
 
-        let pic="";
-        if(post.author!=="Anonymous"){
-            const u = await getDoc(doc(db,"users",post.author));
-            if(u.exists() && u.data().profilePic){
-                pic = `<img class="profile-thumb" src="${u.data().profilePic}">`;
-            }
-        }
+    div.innerHTML=`
+      ${profilePic}
+      <div>
+        <b>${post.author}:</b>
+        <div class="post-content">${shortText}</div>
+        ${needsMore ? `<button class="readMoreBtn">Read More</button>` : ""}
+        ${post.image ? `<img class="post-img" src="${post.image}">` : ""}
+        <div class="time">${date}</div>
+        <div class="button-row">
+          <button onclick="location.href='../post.html?id=${docSnap.id}'">Replies</button>
+        </div>
+      </div>
+    `;
 
-        const div=document.createElement("div");
-        div.className="post";
-
-        const truncated = truncateText(post.content || "");
-
-        div.innerHTML=`
-        ${pic}
-        <div>
-            <b><a href="../profile.html?user=${post.author}">${post.author}</a>:</b>
-            <div class="post-content">${truncated}</div>
-            ${post.image ? `<img class="post-img" src="${post.image}">` : ""}
-            <div class="time">${date}</div>
-            <div class="button-row">
-                <button onclick="location.href='../post.html?id=${docSnap.id}'">Replies</button>
-            </div>
-        </div>`;
-
-        // READ MORE LOGIC
-        const contentDiv = div.querySelector(".post-content");
-        if(post.content && post.content.length > 400){
-            contentDiv.querySelector(".read-more").onclick = ()=>{
-                contentDiv.innerText = post.content;
-            };
-        }
-
-        if(currentUser===post.author){
-            const btn=document.createElement("button");
-            btn.innerText="Delete";
-            btn.onclick=()=>showDeleteModal(docSnap.id);
-            div.querySelector(".button-row").appendChild(btn);
-        }
-
-        postsDiv.appendChild(div);
+    // READ MORE FIX
+    if(needsMore){
+      div.querySelector(".readMoreBtn").onclick=()=>{
+        div.querySelector(".post-content").innerText = post.content;
+        div.querySelector(".readMoreBtn").remove();
+      };
     }
 
-    document.querySelectorAll(".post-img").forEach(img=>{
-        img.onclick=()=>{
-            modalImg.src=img.src;
-            imgModal.style.display="flex";
-        };
-    });
+    // DELETE
+    if(currentUser===post.author){
+      const btn=document.createElement("button");
+      btn.innerText="Delete";
+      btn.onclick=()=>showDeleteModal(docSnap.id);
+      div.querySelector(".button-row").appendChild(btn);
+    }
+
+    postsDiv.appendChild(div);
+  }
+
+  // IMAGE CLICK
+  document.querySelectorAll(".post-img").forEach(img=>{
+    img.onclick=()=>{
+      document.getElementById("modalImg").src=img.src;
+      document.getElementById("imgModal").style.display="flex";
+    };
+  });
 }
 
-loadMoreBtn.onclick = loadPosts;
-imgModal.onclick=()=> imgModal.style.display="none";
+loadMoreBtn.onclick=loadPosts;
+document.getElementById("imgModal").onclick=()=> imgModal.style.display="none";
 
-window.showDeleteModal = id=>{
-    postToDelete=id;
-    deleteModal.style.display="flex";
+// DELETE MODAL
+window.showDeleteModal=id=>{
+  postToDelete=id;
+  deleteModal.style.display="flex";
 };
 
-confirmDeleteBtn.onclick = async ()=>{
-    await deleteDoc(doc(db,"posts",postToDelete));
-    deleteModal.style.display="none";
-    posts.innerHTML="";
-    lastVisible=null;
-    loadPosts();
+confirmDeleteBtn.onclick=async ()=>{
+  await deleteDoc(doc(db,"posts",postToDelete));
+  deleteModal.style.display="none";
+  postsDiv.innerHTML="";
+  lastVisible=null;
+  loadPosts();
 };
 
-cancelDeleteBtn.onclick = ()=> deleteModal.style.display="none";
+cancelDeleteBtn.onclick=()=> deleteModal.style.display="none";
 
+// INITIAL LOAD
 loadPosts();
 </script>
 
