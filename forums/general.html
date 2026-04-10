@@ -11,13 +11,7 @@ textarea { width:100%; height:80px; background: rgb(232,224,207); color: rgb(91,
 .post { border:1px solid rgb(91,46,97); padding:10px; margin:10px 0; display:flex; gap:10px; }
 .profile-thumb { width:40px; height:40px; object-fit:cover; border:1px solid rgb(91,46,97); }
 
-.post-img {
-    max-width:256px;
-    max-height:256px;
-    margin-top:5px;
-    cursor:pointer;
-    border:1px solid rgb(91,46,97);
-}
+.post-img { max-width:256px; max-height:256px; margin-top:5px; cursor:pointer; border:1px solid rgb(91,46,97); }
 
 .button-row { margin-top:5px; display:flex; gap:10px; }
 
@@ -57,7 +51,6 @@ textarea { width:100%; height:80px; background: rgb(232,224,207); color: rgb(91,
 .modal-btn { padding:5px 15px; margin:0 10px; cursor:pointer; }
 .modal-btn.confirm { background: rgb(91,46,97); color: rgb(232,224,207); }
 .modal-btn.cancel { border:1px solid rgb(91,46,97); }
-
 </style>
 </head>
 <body>
@@ -102,7 +95,14 @@ import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.7.
 import { getFirestore, collection, addDoc, getDocs, query, where, orderBy, deleteDoc, doc, getDoc, limit, startAfter } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
-const firebaseConfig = { apiKey:"AIzaSy...", authDomain:"probatismm.firebaseapp.com", projectId:"probatismm" };
+const firebaseConfig = {
+  apiKey: "AIzaSyAZXfEl3Q68vfJtaLJqODtnQBSVEzWBmc0",
+  authDomain: "probatismm.firebaseapp.com",
+  projectId: "probatismm",
+  storageBucket: "probatismm.firebasestorage.app",
+  messagingSenderId: "746935651152",
+  appId: "1:746935651152:web:82491ddac346bc654a3a55"
+};
 
 const app = getApps().length===0 ? initializeApp(firebaseConfig) : getApps()[0];
 const db = getFirestore(app);
@@ -114,13 +114,30 @@ let isPosting = false;
 let lastPostTime = 0;
 let postToDelete = null;
 
-// AUTH
-onAuthStateChanged(auth, user=>{
-    currentUser = user ? user.email.replace("@fake.com","") : null;
+// NAV ELEMENTS
+const accountLink = document.getElementById("accountLink");
+const logoutBtn = document.getElementById("logoutBtn");
+
+// AUTH FIXED
+onAuthStateChanged(auth, (user)=>{
+    if(user){
+        currentUser = user.email.replace("@fake.com","");
+        accountLink.innerText = "Profile";
+        accountLink.href = "../profile.html";
+        logoutBtn.style.display = "inline";
+    } else {
+        currentUser = null;
+        accountLink.innerText = "Sign In / Sign Up";
+        accountLink.href = "../signin.html";
+        logoutBtn.style.display = "none";
+    }
 });
 
 // LOGOUT
-logoutBtn.onclick = async ()=>{ await signOut(auth); location.href="../index.html"; };
+logoutBtn.onclick = async ()=>{
+    await signOut(auth);
+    window.location.href = "../index.html";
+};
 
 // IMAGE RESIZE
 function resizeImage(file){
@@ -147,17 +164,22 @@ function resizeImage(file){
 }
 
 // POST
-postButton.onclick = async ()=>{
+document.getElementById("postButton").onclick = async ()=>{
     if(isPosting) return;
+
     const now = Date.now();
-    if(now-lastPostTime<10000){ alert("Wait before posting"); return; }
+    if(now-lastPostTime<10000){
+        alert("Wait before posting");
+        return;
+    }
 
     const text = postText.value.trim();
     const file = postImage.files[0];
 
     if(!text && !file){ alert("Add text or image"); return; }
 
-    isPosting=true; postButton.disabled=true;
+    isPosting=true;
+    postButton.disabled=true;
 
     let imageData=null;
     if(file){ imageData = await resizeImage(file); }
@@ -171,16 +193,29 @@ postButton.onclick = async ()=>{
     });
 
     lastPostTime=Date.now();
-    postText.value=""; postImage.value="";
-    isPosting=false; postButton.disabled=false;
 
-    document.getElementById("posts").innerHTML="";
+    postText.value="";
+    postImage.value="";
+
+    isPosting=false;
+    postButton.disabled=false;
+
+    // RESET POSTS (FIXES LOADING TEXT BUG)
+    const postsDiv = document.getElementById("posts");
+    postsDiv.innerHTML="";
     lastVisible=null;
+
     loadPosts();
 };
 
-// LOAD POSTS (PAGINATED)
+// LOAD POSTS
 async function loadPosts(){
+    const postsDiv = document.getElementById("posts");
+
+    if(!lastVisible){
+        postsDiv.innerHTML=""; // 🔥 FIX LOADING TEXT
+    }
+
     let q = query(
         collection(db,"posts"),
         where("subforum","==","general"),
@@ -234,7 +269,7 @@ async function loadPosts(){
             div.querySelector(".button-row").appendChild(btn);
         }
 
-        posts.appendChild(div);
+        postsDiv.appendChild(div);
     }
 
     // IMAGE CLICK
@@ -261,6 +296,7 @@ window.showDeleteModal = id=>{
 confirmDeleteBtn.onclick = async ()=>{
     await deleteDoc(doc(db,"posts",postToDelete));
     deleteModal.style.display="none";
+
     posts.innerHTML="";
     lastVisible=null;
     loadPosts();
