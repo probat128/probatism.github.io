@@ -16,6 +16,13 @@ textarea { width:100%; height:80px; background: rgb(232,224,207); color: rgb(91,
     border:1px solid rgb(91,46,97);
 }
 
+.button-row {
+    margin-top:5px;
+    display:flex;
+    gap:10px;
+    flex-wrap:wrap;
+}
+
 /* CUSTOM DELETE MODAL */
 .modal-bg {
     display: none;
@@ -102,6 +109,7 @@ const logoutBtn = document.getElementById("logoutBtn");
 let currentUser = null;
 let postToDelete = null;
 let lastPostTime = 0;
+let isPosting = false;
 
 // AUTH
 onAuthStateChanged(auth, (user) => {
@@ -136,8 +144,9 @@ function canPost(){
     return true;
 }
 
-// CREATE POST
+// CREATE POST (ANTI-SPAM FIXED)
 document.getElementById("postButton").addEventListener("click", async () => {
+    if(isPosting) return; // HARD LOCK
     if(!canPost()) return;
 
     const text = document.getElementById("postText").value.trim();
@@ -145,16 +154,29 @@ document.getElementById("postButton").addEventListener("click", async () => {
 
     const username = currentUser ? currentUser : "Anonymous";
 
-    await addDoc(collection(db, "posts"), {
-        subforum, author: username, content: text, time: Date.now()
-    });
+    isPosting = true;
+    const btn = document.getElementById("postButton");
+    btn.disabled = true;
+    btn.innerText = "Posting...";
 
-    lastPostTime = Date.now();
-    document.getElementById("postText").value = "";
-    loadPosts();
+    try {
+        await addDoc(collection(db, "posts"), {
+            subforum, author: username, content: text, time: Date.now()
+        });
+
+        lastPostTime = Date.now();
+        document.getElementById("postText").value = "";
+        loadPosts();
+    } catch(err){
+        alert("Failed to post.");
+    }
+
+    isPosting = false;
+    btn.disabled = false;
+    btn.innerText = "Post";
 });
 
-// LOAD POSTS WITH PROFILE PICTURES
+// LOAD POSTS
 async function loadPosts() {
     const postsDiv = document.getElementById("posts");
     postsDiv.innerHTML = "Loading...";
@@ -200,15 +222,18 @@ async function loadPosts() {
                     </a>:</b> ${post.content}
                 </div>
                 <div style="font-size:12px;">${date}</div>
-                <button onclick="window.location.href='../post.html?id=${postId}'">Read Replies</button>
+                <div class="button-row">
+                    <button onclick="window.location.href='../post.html?id=${postId}'">Read Replies</button>
+                </div>
             </div>
         `;
 
         if(currentUser === post.author){
+            const btnRow = div.querySelector(".button-row");
             const delBtn = document.createElement("button");
             delBtn.innerText = "Delete Post";
             delBtn.onclick = () => showDeleteModal(postId);
-            div.appendChild(delBtn);
+            btnRow.appendChild(delBtn);
         }
 
         postsDiv.appendChild(div);
