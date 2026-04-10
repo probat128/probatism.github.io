@@ -7,7 +7,14 @@ body { font-family: Arial; background: rgb(232,224,207); color: rgb(91,46,97); p
 nav a { color: rgb(91,46,97); margin-right:10px; text-decoration:none; }
 button { margin-top:5px; padding:5px 10px; cursor:pointer; background: rgb(232,224,207); color: rgb(91,46,97); border: 1px solid rgb(91,46,97); border-radius:0; }
 textarea { width:100%; height:80px; background: rgb(232,224,207); color: rgb(91,46,97); border:1px solid rgb(91,46,97); padding:5px; border-radius:0; }
-.post { border:1px solid rgb(91,46,97); padding:10px; margin:10px 0; }
+.post { border:1px solid rgb(91,46,97); padding:10px; margin:10px 0; display:flex; gap:10px; }
+
+.profile-thumb {
+    width:40px;
+    height:40px;
+    object-fit:cover;
+    border:1px solid rgb(91,46,97);
+}
 
 /* CUSTOM DELETE MODAL */
 .modal-bg {
@@ -39,6 +46,7 @@ textarea { width:100%; height:80px; background: rgb(232,224,207); color: rgb(91,
 </style>
 </head>
 <body>
+
 <nav>
 <a href="../index.html">Home</a>
 <a href="../doctrine.html">Doctrine</a>
@@ -55,6 +63,7 @@ textarea { width:100%; height:80px; background: rgb(232,224,207); color: rgb(91,
 <h3>Create Post</h3>
 <textarea id="postText" placeholder="Write your post..."></textarea> <br>
 <button id="postButton" type="button">Post</button>
+<p id="cooldownText"></p>
 
 <h3>Posts</h3>
 <div id="posts">Loading...</div>
@@ -70,10 +79,9 @@ textarea { width:100%; height:80px; background: rgb(232,224,207); color: rgb(91,
 
 <script type="module">
 import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getFirestore, collection, addDoc, getDocs, query, where, orderBy, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { getFirestore, collection, addDoc, getDocs, query, where, orderBy, deleteDoc, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
-// FIREBASE CONFIG
 const firebaseConfig = {
     apiKey: "AIzaSyAZXfEl3Q68vfJtaLJqODtnQBSVEzWBmc0",
     authDomain: "probatismm.firebaseapp.com",
@@ -83,7 +91,6 @@ const firebaseConfig = {
     appId: "1:746935651152:web:82491ddac346bc654a3a55"
 };
 
-// INITIALIZE FIREBASE APP
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
 const db = getFirestore(app);
 const auth = getAuth(app);
@@ -91,10 +98,12 @@ const auth = getAuth(app);
 const subforum = "general";
 const accountLink = document.getElementById("accountLink");
 const logoutBtn = document.getElementById("logoutBtn");
+
 let currentUser = null;
 let postToDelete = null;
+let lastPostTime = 0;
 
-// AUTH STATE
+// AUTH
 onAuthStateChanged(auth, (user) => {
     if (user) {
         currentUser = user.email.replace("@fake.com", "");
@@ -111,84 +120,107 @@ onAuthStateChanged(auth, (user) => {
 
 // LOGOUT
 logoutBtn.onclick = async () => {
-    try {
-        await signOut(auth);
-        currentUser = null;
-        alert("Logged out");
-        window.location.href = "../index.html";
-    } catch(e) {
-        alert("Error logging out.");
-    }
+    await signOut(auth);
+    window.location.href = "../index.html";
 };
+
+// POST COOLDOWN
+function canPost(){
+    const now = Date.now();
+    if(now - lastPostTime < 10000){
+        const remaining = Math.ceil((10000 - (now - lastPostTime)) / 1000);
+        document.getElementById("cooldownText").innerText = "Wait " + remaining + "s before posting again.";
+        return false;
+    }
+    document.getElementById("cooldownText").innerText = "";
+    return true;
+}
 
 // CREATE POST
 document.getElementById("postButton").addEventListener("click", async () => {
+    if(!canPost()) return;
+
     const text = document.getElementById("postText").value.trim();
     if (!text) { alert("Enter text"); return; }
+
     const username = currentUser ? currentUser : "Anonymous";
-    try {
-        await addDoc(collection(db, "posts"), {
-            subforum, author: username, content: text, time: Date.now()
-        });
-        document.getElementById("postText").value = "";
-        loadPosts();
-    } catch(err) {
-        if(err.code === "permission-denied"){
-            alert("You don’t have permission to post.");
-        } else {
-            alert("Something went wrong. Try again.");
-        }
-    }
+
+    await addDoc(collection(db, "posts"), {
+        subforum, author: username, content: text, time: Date.now()
+    });
+
+    lastPostTime = Date.now();
+    document.getElementById("postText").value = "";
+    loadPosts();
 });
 
-// LOAD POSTS
+// LOAD POSTS WITH PROFILE PICTURES
 async function loadPosts() {
     const postsDiv = document.getElementById("posts");
     postsDiv.innerHTML = "Loading...";
-    try {
-        const q = query(
-            collection(db, "posts"),
-            where("subforum", "==", subforum),
-            orderBy("time", "desc")
-        );
-        const snapshot = await getDocs(q);
-        if(snapshot.empty){ postsDiv.innerHTML = "<p>No posts yet.</p>"; return; }
-        postsDiv.innerHTML = "";
 
-        snapshot.forEach(docSnap => {
-            const post = docSnap.data();
-            const postId = docSnap.id;
-            const div = document.createElement("div");
-            div.className = "post";
-            const date = new Date(post.time).toLocaleString();
+    const q = query(
+        collection(db, "posts"),
+        where("subforum", "==", subforum),
+        orderBy("time", "desc")
+    );
 
-            div.innerHTML = `
-                <div><b>${post.author}:</b> ${post.content}</div>
-                <div style="font-size:12px;color: rgb(91,46,97);">${date}</div>
-                <button onclick="window.location.href='../post.html?id=${postId}'">Read Replies</button>
-            `;
+    const snapshot = await getDocs(q);
 
-            if(currentUser === post.author){
-                const delBtn = document.createElement("button");
-                delBtn.innerText = "Delete Post";
-                delBtn.onclick = () => showDeleteModal(postId);
-                div.appendChild(delBtn);
+    if(snapshot.empty){
+        postsDiv.innerHTML = "<p>No posts yet.</p>";
+        return;
+    }
+
+    postsDiv.innerHTML = "";
+
+    for (const docSnap of snapshot.docs) {
+        const post = docSnap.data();
+        const postId = docSnap.id;
+        const date = new Date(post.time).toLocaleString();
+
+        let profilePicHTML = "";
+
+        if(post.author !== "Anonymous"){
+            const userSnap = await getDoc(doc(db, "users", post.author));
+            if(userSnap.exists() && userSnap.data().profilePic){
+                profilePicHTML = `<img class="profile-thumb" src="${userSnap.data().profilePic}">`;
             }
+        }
 
-            postsDiv.appendChild(div);
-        });
-    } catch(err){
-        postsDiv.innerHTML = "Error loading posts.";
+        const div = document.createElement("div");
+        div.className = "post";
+
+        div.innerHTML = `
+            ${profilePicHTML}
+            <div>
+                <div>
+                    <b><a href="../profile.html?user=${post.author}" style="color:inherit;text-decoration:underline;">
+                        ${post.author}
+                    </a>:</b> ${post.content}
+                </div>
+                <div style="font-size:12px;">${date}</div>
+                <button onclick="window.location.href='../post.html?id=${postId}'">Read Replies</button>
+            </div>
+        `;
+
+        if(currentUser === post.author){
+            const delBtn = document.createElement("button");
+            delBtn.innerText = "Delete Post";
+            delBtn.onclick = () => showDeleteModal(postId);
+            div.appendChild(delBtn);
+        }
+
+        postsDiv.appendChild(div);
     }
 }
+
 loadPosts();
 
-// CUSTOM DELETE MODAL FUNCTIONS
+// DELETE MODAL
 window.showDeleteModal = function(postId){
     postToDelete = postId;
-    const modal = document.getElementById("deleteModal");
-    modal.style.display = "flex";
-    modal.style.opacity = "1";
+    document.getElementById("deleteModal").style.display = "flex";
 };
 
 document.getElementById("cancelDeleteBtn").onclick = () => {
@@ -198,16 +230,13 @@ document.getElementById("cancelDeleteBtn").onclick = () => {
 
 document.getElementById("confirmDeleteBtn").onclick = async () => {
     if(postToDelete){
-        try{
-            await deleteDoc(doc(db, "posts", postToDelete));
-            postToDelete = null;
-            document.getElementById("deleteModal").style.display = "none";
-            loadPosts();
-        } catch(err){
-            alert("Failed to delete post.");
-        }
+        await deleteDoc(doc(db, "posts", postToDelete));
+        postToDelete = null;
+        document.getElementById("deleteModal").style.display = "none";
+        loadPosts();
     }
 };
 </script>
+
 </body>
 </html>
