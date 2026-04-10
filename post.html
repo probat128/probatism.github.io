@@ -159,10 +159,20 @@ button {
   margin-top:10px;
 }
 
-/* 🔥 FIX: thread layout container ensures correct stacking */
-.threadContainer {
+/* =========================
+   🔥 FIX: THREAD LAYOUT WRAPPER
+========================= */
+
+.threadLayout {
   display:flex;
   flex-direction:column;
+}
+
+/* makes reply section visually attached */
+.replyComposer {
+  margin-top:20px;
+  padding-top:10px;
+  border-top:1px solid rgb(91,46,97);
 }
 
 </style>
@@ -186,22 +196,25 @@ button {
 <h2>Post</h2>
 <div id="post"></div>
 
-<!-- 🔥 FIXED THREAD WRAPPER -->
-<div class="threadContainer">
+<!-- THREAD WRAPPER FIX -->
+<div class="threadLayout">
 
-  <h3>Replies</h3>
-  <div id="replies"></div>
+<h3>Replies</h3>
+<div id="replies"></div>
+<button id="loadMoreReplies" class="loadMoreBtn">Load More Replies</button>
 
-  <button id="loadMoreReplies" class="loadMoreBtn">Load More Replies</button>
+<!-- FIXED POSITIONING SECTION -->
+<div class="replyComposer">
 
-  <h3>Add Reply</h3>
+<h3>Add Reply</h3>
 
-  <textarea id="replyText" placeholder="Write reply (8000 max)"></textarea>
-  <br>
-  <input type="file" id="replyImg">
-  <br>
-  <button id="sendReply">Reply</button>
+<textarea id="replyText" placeholder="Write reply (8000 max)"></textarea>
+<br>
+<input type="file" id="replyImg">
+<br>
+<button id="sendReply">Reply</button>
 
+</div>
 </div>
 
 <!-- IMAGE MODAL -->
@@ -249,6 +262,7 @@ const auth = getAuth(app);
 
 const postId = new URLSearchParams(location.search).get("id");
 
+/* STATE */
 let currentUser=null;
 let deleteTarget=null;
 let replyList=[];
@@ -261,9 +275,7 @@ currentUser=user.email.replace("@fake.com","");
 document.getElementById("accountLink").innerText="Profile";
 document.getElementById("accountLink").href="profile.html";
 }
-else{
-currentUser=null;
-}
+else currentUser=null;
 });
 
 document.getElementById("logoutBtn").onclick=async()=>{
@@ -282,7 +294,7 @@ overlay.style.display="flex";
 
 overlay.onclick=()=>overlay.style.display="none";
 
-/* READ MORE (UNCHANGED FIXED SYNTAX) */
+/* READ MORE */
 function readMore(text){
 if(!text) return "";
 if(text.length<=400) return text;
@@ -302,23 +314,13 @@ this.style.display='none';
 `;
 }
 
-/* AVATAR */
-async function getAvatar(username){
-if(!username || username==="Anonymous") return null;
-const snap = await getDoc(doc(db,"users",username));
-if(!snap.exists()) return null;
-return snap.data().profilePic || null;
-}
-
-/* POST */
+/* LOAD POST */
 async function loadPost(){
 const snap=await getDoc(doc(db,"posts",postId));
 const p=snap.data();
-const avatar = await getAvatar(p.author);
 
 document.getElementById("post").innerHTML=`
 <div class="postBox">
-${avatar?`<img class="avatar" src="${avatar}">`:``}
 <b>${p.author}</b><br>
 ${readMore(p.content)}
 ${p.image?`<br><img class="imgThumb" src="${p.image}" onclick="showImg(this.src)">`:``}
@@ -329,8 +331,10 @@ ${p.image?`<br><img class="imgThumb" src="${p.image}" onclick="showImg(this.src)
 /* REPLIES */
 async function fetchReplies(){
 const q=await getDocs(query(collection(db,"replies"),where("postId","==",postId)));
+
 replyList=q.docs.map(d=>({id:d.id,...d.data()}));
 replyList.sort((a,b)=>b.time-a.time);
+
 renderReplies(true);
 }
 
@@ -346,14 +350,12 @@ replyIndex=0;
 const chunk=replyList.slice(replyIndex,replyIndex+10);
 
 for(const r of chunk){
-const avatar = await getAvatar(r.author);
 
 const el=document.createElement("div");
 el.className="replyBox";
 
 el.innerHTML=`
-${avatar?`<img class="avatar" src="${avatar}">`:``}
-
+${r.avatar?`<img class="avatar" src="${r.avatar}">`:``}
 <div class="contentWrap">
 <b>${r.author}</b><br>
 ${readMore(r.content)}
