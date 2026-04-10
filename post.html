@@ -8,134 +8,126 @@
       font-family: Arial;
       background: rgb(232,224,207);
       color: rgb(91,46,97);
-      padding: 20px;
+      padding:20px;
     }
 
     nav a {
       color: rgb(91,46,97);
-      margin-right: 10px;
-      text-decoration: none;
+      margin-right:10px;
+      text-decoration:none;
     }
 
     textarea {
-      width: 100%;
-      height: 80px;
+      width:100%;
+      height:80px;
       background: rgb(232,224,207);
       color: rgb(91,46,97);
-      border: 1px solid rgb(91,46,97);
-      padding: 5px;
+      border:1px solid rgb(91,46,97);
+      padding:5px;
     }
 
     button {
-      margin-top: 5px;
-      padding: 5px 10px;
-      cursor: pointer;
+      margin-top:5px;
+      padding:5px 10px;
+      cursor:pointer;
       background: rgb(232,224,207);
       color: rgb(91,46,97);
-      border: 1px solid rgb(91,46,97);
+      border:1px solid rgb(91,46,97);
     }
 
-    .post, .reply {
-      border: 1px solid rgb(91,46,97);
-      padding: 10px;
-      margin: 10px 0;
-      word-wrap: break-word;
-      overflow-wrap: break-word;
+    .postBox {
+      border:1px solid rgb(91,46,97);
+      padding:10px;
+      margin:10px 0;
     }
 
-    .meta {
-      font-size: 12px;
-      opacity: 0.75;
-      margin-top: 5px;
+    .replyBox {
+      border:1px solid rgb(91,46,97);
+      padding:8px;
+      margin:8px 0;
+      display:flex;
+      gap:10px;
+      align-items:flex-start;
     }
 
-    .img {
-      max-width: 256px;
-      max-height: 256px;
-      margin-top: 8px;
-      cursor: pointer;
-      border: 1px solid rgb(91,46,97);
-      display: block;
+    .avatar {
+      width:32px;
+      height:32px;
+      object-fit:cover;
+      border:1px solid rgb(91,46,97);
+      flex-shrink:0;
     }
 
-    .pfp {
-      width: 28px;
-      height: 28px;
-      object-fit: cover;
-      display: inline-block;
-      margin-right: 6px;
-      border: 1px solid rgb(91,46,97);
-      vertical-align: middle;
+    .contentWrap {
+      flex:1;
+      min-width:0;
     }
 
-    .smallBtn {
-      padding: 3px 6px;
-      font-size: 12px;
-      margin-left: 5px;
-      margin-top: 5px;
+    .time {
+      font-size:11px;
+      opacity:0.7;
+      margin-top:4px;
     }
 
-    /* READ MORE */
     .readMore {
-      font-size: 12px;
-      cursor: pointer;
-      text-decoration: underline;
-      margin-top: 3px;
+      cursor:pointer;
+      font-size:12px;
+      text-decoration:underline;
     }
 
-    /* IMAGE MODAL */
-    #imgModal {
-      display: none;
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: rgba(0,0,0,0.85);
-      justify-content: center;
-      align-items: center;
-      z-index: 9999;
+    .deleteBtn {
+      font-size:12px;
+      margin-left:5px;
+      padding:2px 6px;
     }
 
-    #imgModal img {
-      max-width: 90%;
-      max-height: 90%;
+    .imgThumb {
+      max-width:256px;
+      max-height:256px;
+      cursor:pointer;
+      border:1px solid rgb(91,46,97);
+      margin-top:5px;
     }
 
-    /* ✅ CUSTOM DELETE MODAL (MATCHES general.html) */
-    #deleteModal {
-      display: none;
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: rgba(232,224,207,0.85);
-      justify-content: center;
-      align-items: center;
-      z-index: 10000;
+    /* FULLSCREEN IMAGE */
+    .imgOverlay {
+      display:none;
+      position:fixed;
+      top:0;
+      left:0;
+      width:100%;
+      height:100%;
+      background:rgba(0,0,0,0.8);
+      justify-content:center;
+      align-items:center;
+      z-index:9999;
     }
 
-    .modalBox {
-      background: rgb(232,224,207);
-      border: 2px solid rgb(91,46,97);
-      padding: 20px;
-      text-align: center;
-      width: 300px;
+    .imgOverlay img {
+      max-width:90%;
+      max-height:90%;
     }
 
-    .modalBtn {
-      margin: 5px;
-      padding: 5px 12px;
-      cursor: pointer;
-      border: 1px solid rgb(91,46,97);
-      background: rgb(232,224,207);
-      color: rgb(91,46,97);
+    /* MODAL */
+    .modal-bg {
+      display:none;
+      position:fixed;
+      top:0;
+      left:0;
+      width:100%;
+      height:100%;
+      background:rgba(232,224,207,0.8);
+      justify-content:center;
+      align-items:center;
+      z-index:10000;
     }
 
-    .confirmBtn {
-      background: rgb(91,46,97);
-      color: rgb(232,224,207);
+    .modal-content {
+      background:rgb(232,224,207);
+      border:2px solid rgb(91,46,97);
+      padding:20px;
+      width:300px;
+      text-align:center;
     }
   </style>
 </head>
@@ -159,24 +151,26 @@
 <div id="post">Loading...</div>
 
 <h3>Replies</h3>
-<div id="repliesContainer">Loading replies...</div>
+<div id="repliesContainer">Loading...</div>
 
 <h3>Add Reply</h3>
-<textarea id="replyInput" maxlength="8000"></textarea>
+<textarea id="replyInput" placeholder="Write reply... (8000 max)"></textarea>
+<br>
+<input type="file" id="replyImg" accept="image/*">
 <br>
 <button id="replyButton">Reply</button>
 
-<!-- IMAGE MODAL -->
-<div id="imgModal" onclick="closeImg()">
-  <img id="modalImg">
+<!-- IMAGE VIEWER -->
+<div class="imgOverlay" id="imgOverlay">
+  <img id="fullImg">
 </div>
 
-<!-- DELETE MODAL (NEW UI FIX) -->
-<div id="deleteModal">
-  <div class="modalBox">
-    <p>Are you sure you want to delete this reply?</p>
-    <button class="modalBtn confirmBtn" id="confirmDelete">Delete</button>
-    <button class="modalBtn" id="cancelDelete">Cancel</button>
+<!-- DELETE MODAL -->
+<div class="modal-bg" id="deleteModal">
+  <div class="modal-content">
+    <p id="deleteText"></p>
+    <button id="confirmDelete">Delete</button>
+    <button id="cancelDelete">Cancel</button>
   </div>
 </div>
 
@@ -184,8 +178,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import {
   getFirestore,
-  doc,
-  getDoc,
+  doc, getDoc,
   collection,
   addDoc,
   getDocs,
@@ -216,178 +209,157 @@ const auth = getAuth(app);
 const postId = new URLSearchParams(window.location.search).get("id");
 
 let currentUser = null;
-let currentAdmin = false;
-let pendingDeleteId = null;
+let deleteTarget = null;
 
 const accountLink = document.getElementById("accountLink");
 const logoutBtn = document.getElementById("logoutBtn");
 
 /* AUTH */
-onAuthStateChanged(auth, (user) => {
-  if (user) {
-    currentUser = user.email.replace("@fake.com", "");
-    currentAdmin = user.admin || false;
-
-    accountLink.innerText = "Profile";
-    accountLink.href = "profile.html";
-    logoutBtn.style.display = "inline";
+onAuthStateChanged(auth,(user)=>{
+  if(user){
+    currentUser = user.email.replace("@fake.com","");
+    accountLink.innerText="Profile";
+    accountLink.href="profile.html";
   } else {
     currentUser = null;
-    currentAdmin = false;
-
-    accountLink.innerText = "Sign In / Sign Up";
-    accountLink.href = "signin.html";
-    logoutBtn.style.display = "none";
+    accountLink.innerText="Sign In / Sign Up";
+    accountLink.href="signin.html";
   }
 });
 
-logoutBtn.onclick = async () => {
+/* LOGOUT */
+logoutBtn.onclick = async ()=>{
   await signOut(auth);
-  window.location.href = "index.html";
+  window.location.href="index.html";
 };
 
-/* IMAGE MODAL */
-window.openImg = (src) => {
-  document.getElementById("modalImg").src = src;
-  document.getElementById("imgModal").style.display = "flex";
+/* IMAGE VIEWER */
+const overlay = document.getElementById("imgOverlay");
+const fullImg = document.getElementById("fullImg");
+
+window.showImg = (src)=>{
+  fullImg.src = src;
+  overlay.style.display="flex";
 };
 
-window.closeImg = () => {
-  document.getElementById("imgModal").style.display = "none";
-};
+overlay.onclick=()=> overlay.style.display="none";
 
-/* READ MORE FIX (DISAPPEARS AFTER CLICK) */
-function formatText(text, id){
+/* READ MORE (FIXED) */
+function makeText(text){
+  const limit = 400;
   if(!text) return "";
 
-  if(text.length <= 400) return text;
+  if(text.length <= limit) return text;
+
+  const id = Math.random().toString(36).slice(2);
 
   return `
-    <span id="short-${id}">${text.slice(0,400)}...</span>
-    <span id="full-${id}" style="display:none;">${text}</span>
-    <div class="readMore" id="rm-${id}" onclick="toggleReadMore('${id}')">Read more</div>
+    <span id="t_${id}">
+      ${text.slice(0,limit)}...
+      <span class="readMore" onclick="
+        document.getElementById('full_${id}').style.display='inline';
+        document.getElementById('t_${id}').style.display='none';
+      ">read more</span>
+    </span>
+    <span id="full_${id}" style="display:none">${text}</span>
   `;
-}
-
-window.toggleReadMore = (id) => {
-  document.getElementById(`short-${id}`).style.display = "none";
-  document.getElementById(`full-${id}`).style.display = "inline";
-  document.getElementById(`rm-${id}`).style.display = "none";
-};
-
-/* GET USER */
-async function getUser(name){
-  const snap = await getDoc(doc(db,"users",name));
-  return snap.exists() ? snap.data() : null;
 }
 
 /* LOAD POST */
 async function loadPost(){
-  const box = document.getElementById("post");
-
   const snap = await getDoc(doc(db,"posts",postId));
-  const p = snap.data();
+  const post = snap.data();
 
-  const user = await getUser(p.author);
-
-  const pfp = user?.profilePic
-    ? `<img class="pfp" src="${user.profilePic}">`
-    : "";
-
-  const img = p.image
-    ? `<img class="img" src="${p.image}" onclick="openImg('${p.image}')">`
-    : "";
-
-  const date = new Date(p.time).toLocaleString();
-
-  box.innerHTML = `
-    <div class="post">
-      ${pfp}<b>${p.author}</b><br>
-      ${formatText(p.content,"post")}
-      ${img}
-      <div class="meta">${date}</div>
-      ${(currentUser===p.author||currentAdmin)
-        ? `<button class="smallBtn" onclick="deletePost('${postId}')">Delete</button>` : ""}
+  document.getElementById("post").innerHTML = `
+    <div class="postBox">
+      <b>${post.author}</b><br>
+      ${makeText(post.content || "")}
+      ${post.image ? `<br><img class="imgThumb" src="${post.image}" onclick="showImg(this.src)">` : ""}
     </div>
   `;
 }
 
-window.deletePost = async (id) => {
-  if(!confirm("Delete this post?")) return;
-  await deleteDoc(doc(db,"posts",id));
-  window.location.href="forums/general.html";
-};
-
 /* LOAD REPLIES */
 async function loadReplies(){
-  const box = document.getElementById("repliesContainer");
-
   const snap = await getDocs(query(collection(db,"replies"), where("postId","==",postId)));
 
-  const replies = snap.docs.map(d=>({id:d.id,...d.data()}));
-  replies.sort((a,b)=>b.time-a.time);
+  const div = document.getElementById("repliesContainer");
+  div.innerHTML="";
 
-  box.innerHTML = "";
+  snap.forEach(d=>{
+    const r = d.data();
 
-  for(const r of replies){
-    const user = await getUser(r.author);
+    const el = document.createElement("div");
+    el.className="replyBox";
 
-    const pfp = user?.profilePic
-      ? `<img class="pfp" src="${user.profilePic}">`
-      : "";
+    const canDelete = currentUser === r.author;
 
-    const img = r.image
-      ? `<img class="img" src="${r.image}" onclick="openImg('${r.image}')">`
-      : "";
-
-    const date = new Date(r.time).toLocaleString();
-
-    const div = document.createElement("div");
-    div.className="reply";
-
-    div.innerHTML = `
-      ${pfp}<b>${r.author}</b><br>
-      ${formatText(r.content,r.id)}
-      ${img}
-      <div class="meta">${date}</div>
-
-      ${(currentUser===r.author||currentAdmin)
-        ? `<button class="smallBtn" onclick="showDelete('${r.id}')">Delete</button>` : ""}
+    el.innerHTML = `
+      <div class="contentWrap">
+        <b>${r.author}</b><br>
+        ${makeText(r.content || "")}
+        ${r.image ? `<br><img class="imgThumb" src="${r.image}" onclick="showImg(this.src)">` : ""}
+        <div class="time">${new Date(r.time).toLocaleString()}</div>
+        ${canDelete ? `<button class="deleteBtn" onclick="openDelete('${d.id}')">Delete</button>` : ""}
+      </div>
     `;
 
-    box.appendChild(div);
-  }
+    div.appendChild(el);
+  });
 }
 
-/* CUSTOM DELETE MODAL LOGIC */
-window.showDelete = (id) => {
-  pendingDeleteId = id;
-  document.getElementById("deleteModal").style.display = "flex";
+/* DELETE MODAL */
+const modal = document.getElementById("deleteModal");
+const deleteText = document.getElementById("deleteText");
+
+window.openDelete = (id)=>{
+  deleteTarget = id;
+  deleteText.innerText="Are you sure you want to delete this reply?";
+  modal.style.display="flex";
 };
 
-document.getElementById("cancelDelete").onclick = () => {
-  pendingDeleteId = null;
-  document.getElementById("deleteModal").style.display = "none";
+document.getElementById("cancelDelete").onclick=()=>{
+  modal.style.display="none";
+  deleteTarget=null;
 };
 
-document.getElementById("confirmDelete").onclick = async () => {
-  if(pendingDeleteId){
-    await deleteDoc(doc(db,"replies",pendingDeleteId));
-    pendingDeleteId = null;
-    document.getElementById("deleteModal").style.display = "none";
+document.getElementById("confirmDelete").onclick=async()=>{
+  if(deleteTarget){
+    await deleteDoc(doc(db,"replies",deleteTarget));
+    deleteTarget=null;
+    modal.style.display="none";
     loadReplies();
   }
 };
 
-/* REPLY POST */
-document.getElementById("replyButton").onclick = async () => {
-  const text = document.getElementById("replyInput").value.trim();
-  if(!text) return alert("Enter reply");
+/* IMAGE TO BASE64 */
+function toBase64(file){
+  return new Promise(res=>{
+    const r=new FileReader();
+    r.onload=()=>res(r.result);
+    r.readAsDataURL(file);
+  });
+}
+
+/* POST REPLY (FULL RESTORE) */
+document.getElementById("replyButton").onclick=async()=>{
+  const text=document.getElementById("replyInput").value.trim();
+  const file=document.getElementById("replyImg").files[0];
+
+  if(!text && !file){ alert("Empty reply"); return; }
+
+  if(text.length > 8000){
+    alert("Reply too long (8000 max)");
+    return;
+  }
+
+  const img = file ? await toBase64(file) : null;
 
   await addDoc(collection(db,"replies"),{
     postId,
     author: currentUser || "Anonymous",
     content:text,
+    image:img,
     time:Date.now()
   });
 
