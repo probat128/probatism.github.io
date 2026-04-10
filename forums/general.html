@@ -58,8 +58,8 @@ textarea { width:100%; height:80px; background: rgb(232,224,207); color: rgb(91,
   align-items:center;
 }
 #imgModal img {
-  max-width:90%;
-  max-height:90%;
+  max-width:95%;
+  max-height:95%;
 }
 
 /* DELETE MODAL */
@@ -148,7 +148,7 @@ let isPosting = false;
 let lastPostTime = 0;
 let postToDelete = null;
 
-// ✅ FIXED AUTH UI
+// AUTH
 onAuthStateChanged(auth,(user)=>{
   if(user){
     currentUser = user.email.replace("@fake.com","");
@@ -169,7 +169,7 @@ logoutBtn.onclick = async ()=>{
   window.location.href = "../index.html";
 };
 
-// IMAGE RESIZE
+// RESIZE IMAGE
 function resizeImage(file){
   return new Promise(resolve=>{
     const reader = new FileReader();
@@ -189,6 +189,15 @@ function resizeImage(file){
       };
       img.src=e.target.result;
     };
+    reader.readAsDataURL(file);
+  });
+}
+
+// GET FULL IMAGE (no resize)
+function getFullImage(file){
+  return new Promise(resolve=>{
+    const reader = new FileReader();
+    reader.onload = e=> resolve(e.target.result);
     reader.readAsDataURL(file);
   });
 }
@@ -213,13 +222,19 @@ postButton.onclick = async ()=>{
   postButton.disabled=true;
 
   let image=null;
-  if(file) image=await resizeImage(file);
+  let fullImage=null;
+
+  if(file){
+    image = await resizeImage(file);
+    fullImage = await getFullImage(file);
+  }
 
   await addDoc(collection(db,"posts"),{
     subforum:"general",
     author: currentUser || "Anonymous",
     content:text,
     image:image,
+    fullImage:fullImage,
     time:Date.now()
   });
 
@@ -256,7 +271,6 @@ async function loadPosts(){
 
   const snap=await getDocs(q);
 
-  // ✅ FIX: remove "Loading..." ONLY once
   if(postsDiv.innerHTML === "Loading..."){
     postsDiv.innerHTML = "";
   }
@@ -292,7 +306,7 @@ async function loadPosts(){
         <b>${post.author}:</b>
         <div class="post-content">${shortText}</div>
         ${needsMore ? `<button class="readMoreBtn">Read More</button>` : ""}
-        ${post.image ? `<img class="post-img" src="${post.image}">` : ""}
+        ${post.image ? `<img class="post-img" src="${post.image}" data-full="${post.fullImage || post.image}">` : ""}
         <div class="time">${date}</div>
         <div class="button-row">
           <button onclick="location.href='../post.html?id=${docSnap.id}'">Replies</button>
@@ -317,9 +331,10 @@ async function loadPosts(){
     postsDiv.appendChild(div);
   }
 
+  // CLICK FULL IMAGE
   document.querySelectorAll(".post-img").forEach(img=>{
     img.onclick=()=>{
-      document.getElementById("modalImg").src=img.src;
+      document.getElementById("modalImg").src = img.dataset.full;
       document.getElementById("imgModal").style.display="flex";
     };
   });
