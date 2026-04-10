@@ -1,461 +1,443 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>Post Thread</title>
+  <title>Post Thread</title>
 
-<style>
+  <style>
+    body {
+      font-family: Arial;
+      background: rgb(232,224,207);
+      color: rgb(91,46,97);
+      padding: 20px;
+    }
 
-/* =========================
-   BASE UI (MATCH GENERAL.HTML)
-========================= */
+    nav a {
+      color: rgb(91,46,97);
+      margin-right: 10px;
+      text-decoration: none;
+    }
 
-body {
-  font-family: Arial;
-  background: rgb(232,224,207);
-  color: rgb(91,46,97);
-  padding:20px;
-  line-height:1.4;
-}
+    button {
+      margin-top: 5px;
+      padding: 5px 10px;
+      cursor: pointer;
+      background: rgb(232,224,207);
+      color: rgb(91,46,97);
+      border: 1px solid rgb(91,46,97);
+    }
 
-/* NAV */
-nav a {
-  color: rgb(91,46,97);
-  margin-right:10px;
-  text-decoration:none;
-}
+    textarea {
+      width: 100%;
+      height: 80px;
+      background: rgb(232,224,207);
+      color: rgb(91,46,97);
+      border: 1px solid rgb(91,46,97);
+      padding: 5px;
+      resize: vertical;
+    }
 
-/* TEXT FIX (IMPORTANT) */
-.postBox, .replyBox {
-  word-break: break-word;
-  overflow-wrap: break-word;
-}
+    /* POSTS + REPLIES */
+    .postBox {
+      border: 1px solid rgb(91,46,97);
+      padding: 10px;
+      margin: 10px 0;
+      overflow-wrap: break-word;
+      word-break: break-word;
+    }
 
-/* TEXTAREA */
-textarea {
-  width:100%;
-  height:80px;
-  background: rgb(232,224,207);
-  color: rgb(91,46,97);
-  border:1px solid rgb(91,46,97);
-  padding:5px;
-}
+    .replyBox {
+      border: 1px solid rgb(91,46,97);
+      padding: 10px;
+      margin: 10px 0;
+      margin-left: 20px;
+      overflow-wrap: break-word;
+      word-break: break-word;
+    }
 
-/* BUTTONS */
-button {
-  margin-top:5px;
-  padding:5px 10px;
-  cursor:pointer;
-  background: rgb(232,224,207);
-  color: rgb(91,46,97);
-  border:1px solid rgb(91,46,97);
-}
+    .meta {
+      font-size: 12px;
+      opacity: 0.8;
+    }
 
-/* POST BOX */
-.postBox {
-  border:1px solid rgb(91,46,97);
-  padding:10px;
-  margin:10px 0;
-}
+    /* PROFILE PIC (SQUARE ONLY) */
+    .pfp {
+      width: 32px;
+      height: 32px;
+      object-fit: cover;
+      border: 1px solid rgb(91,46,97);
+      margin-right: 8px;
+      vertical-align: middle;
+    }
 
-/* REPLY BOX */
-.replyBox {
-  border:1px solid rgb(91,46,97);
-  padding:8px;
-  margin:8px 0;
-  display:flex;
-  gap:10px;
-  align-items:flex-start;
-}
+    /* IMAGES */
+    .postImage {
+      max-width: 256px;
+      max-height: 256px;
+      cursor: pointer;
+      display: block;
+      margin-top: 5px;
+      border: 1px solid rgb(91,46,97);
+    }
 
-/* PROFILE PIC (FIXED SQUARE) */
-.avatar {
-  width:32px;
-  height:32px;
-  object-fit:cover;
-  border:1px solid rgb(91,46,97);
-}
+    /* FULLSCREEN IMAGE VIEWER */
+    #imgModal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.85);
+      justify-content: center;
+      align-items: center;
+      z-index: 9999;
+    }
 
-/* CONTENT */
-.contentWrap {
-  flex:1;
-}
+    #imgModal img {
+      max-width: 90%;
+      max-height: 90%;
+      border: 2px solid white;
+    }
 
-/* TIME */
-.time {
-  font-size:11px;
-  opacity:0.7;
-  margin-top:3px;
-}
+    /* CUSTOM MODAL (NO BROWSER UI) */
+    #modalBg {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(232,224,207,0.9);
+      justify-content: center;
+      align-items: center;
+      z-index: 9998;
+    }
 
-/* READ MORE */
-.readMore {
-  cursor:pointer;
-  font-size:12px;
-  text-decoration:underline;
-}
+    #modalBox {
+      background: rgb(232,224,207);
+      border: 2px solid rgb(91,46,97);
+      padding: 20px;
+      width: 300px;
+      text-align: center;
+    }
 
-/* DELETE BUTTON */
-.deleteBtn {
-  font-size:12px;
-  padding:3px 6px;
-  margin-top:5px;
-}
+    .modalBtn {
+      margin: 5px;
+      padding: 5px 10px;
+      border: 1px solid rgb(91,46,97);
+      cursor: pointer;
+      background: rgb(232,224,207);
+      color: rgb(91,46,97);
+    }
 
-/* IMAGE THUMB */
-.imgThumb {
-  max-width:256px;
-  max-height:256px;
-  cursor:pointer;
-  border:1px solid rgb(91,46,97);
-  margin-top:5px;
-}
+    .danger {
+      background: rgb(91,46,97);
+      color: rgb(232,224,207);
+    }
 
-/* FULL IMAGE */
-.imgOverlay {
-  display:none;
-  position:fixed;
-  top:0;
-  left:0;
-  width:100%;
-  height:100%;
-  background:rgba(0,0,0,0.85);
-  justify-content:center;
-  align-items:center;
-  z-index:9999;
-}
+    /* READ MORE */
+    .readMore {
+      cursor: pointer;
+      font-size: 12px;
+      text-decoration: underline;
+      display: inline-block;
+      margin-top: 5px;
+    }
 
-.imgOverlay img {
-  max-width:90%;
-  max-height:90%;
-}
+    /* LOAD MORE */
+    #loadMoreBtn {
+      margin-top: 10px;
+    }
 
-/* MODAL (NO BROWSER UI) */
-.modal-bg {
-  display:none;
-  position:fixed;
-  top:0;
-  left:0;
-  width:100%;
-  height:100%;
-  background:rgba(232,224,207,0.8);
-  justify-content:center;
-  align-items:center;
-  z-index:10000;
-}
-
-.modal-content {
-  background:rgb(232,224,207);
-  border:2px solid rgb(91,46,97);
-  padding:20px;
-  width:320px;
-  text-align:center;
-}
-
-/* LOAD MORE BUTTON */
-.loadMoreBtn {
-  width:100%;
-  margin-top:10px;
-}
-
-</style>
+  </style>
 </head>
 
 <body>
 
 <nav>
-<a href="index.html">Home</a>
-<a href="doctrine.html">Doctrine</a>
-<a href="forums.html">Forums</a>
-<a href="news.html">News</a>
-<a href="quiz.html">Quiz</a>
-<a href="signin.html" id="accountLink">Sign In / Sign Up</a>
-<button id="logoutBtn">Logout</button>
+  <a href="index.html">Home</a>
+  <a href="doctrine.html">Doctrine</a>
+  <a href="forums.html">Forums</a>
+  <a href="news.html">News</a>
+  <a href="quiz.html">Quiz</a>
+  <a href="signin.html" id="accountLink">Sign In / Sign Up</a>
+  <button id="logoutBtn">Logout</button>
 </nav>
 
 <br>
 <a href="forums/general.html">← Back</a>
 
 <h2>Post</h2>
-<div id="post"></div>
+<div id="post">Loading...</div>
 
 <h3>Replies</h3>
 <div id="replies"></div>
-<button id="loadMoreReplies" class="loadMoreBtn">Load More Replies</button>
+
+<button id="loadMoreRepliesBtn">Load More Replies</button>
 
 <h3>Add Reply</h3>
 
-<textarea id="replyText" placeholder="Write reply (8000 max)"></textarea>
-<br>
-<input type="file" id="replyImg">
-<br>
-<button id="sendReply">Reply</button>
+<input type="file" id="replyImage" accept="image/*">
+<br><br>
 
-<!-- IMAGE MODAL -->
-<div class="imgOverlay" id="imgOverlay">
-<img id="fullImg">
+<textarea id="replyInput" placeholder="Write reply..."></textarea>
+<br>
+<button id="replyButton">Reply</button>
+
+<!-- IMAGE VIEWER -->
+<div id="imgModal" onclick="closeImg()">
+  <img id="fullImg">
 </div>
 
-<!-- DELETE MODAL -->
-<div class="modal-bg" id="modal">
-<div class="modal-content">
-<p id="modalText"></p>
-<button id="confirmBtn">Confirm</button>
-<button id="cancelBtn">Cancel</button>
-</div>
+<!-- CUSTOM MODAL -->
+<div id="modalBg">
+  <div id="modalBox">
+    <div id="modalText"></div>
+    <button class="modalBtn danger" id="modalYes">Yes</button>
+    <button class="modalBtn" id="modalNo">No</button>
+  </div>
 </div>
 
 <script type="module">
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import {
-getFirestore,
-doc, getDoc,
-collection, addDoc, getDocs,
-query, where, orderBy, deleteDoc
+  getFirestore,
+  doc,
+  getDoc,
+  collection,
+  addDoc,
+  getDocs,
+  query,
+  where,
+  deleteDoc,
+  orderBy
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 import {
-getAuth,
-onAuthStateChanged,
-signOut
+  getAuth,
+  onAuthStateChanged,
+  signOut
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
+/* ================= FIREBASE ================= */
+
 const firebaseConfig = {
-apiKey: "AIzaSyAZXfEl3Q68vfJtaLJqODtnQBSVEzWBmc0",
-authDomain: "probatismm.firebaseapp.com",
-projectId: "probatismm",
-storageBucket: "probatismm.firebasestorage.app",
-messagingSenderId: "746935651152",
-appId: "1:746935651152:web:82491ddac346bc654a3a55"
+  apiKey: "AIzaSyAZXfEl3Q68vfJtaLJqODtnQBSVEzWBmc0",
+  authDomain: "probatismm.firebaseapp.com",
+  projectId: "probatismm",
+  storageBucket: "probatismm.firebasestorage.app",
+  messagingSenderId: "746935651152",
+  appId: "1:746935651152:web:82491ddac346bc654a3a55"
 };
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
 
+/* ================= STATE ================= */
+
 const postId = new URLSearchParams(location.search).get("id");
 
-/* =========================
-   STATE
-========================= */
+let currentUser = null;
+let deleteTarget = null;
+let deleteType = null;
 
-let currentUser=null;
-let deleteTarget=null;
-let replyList=[];
-let replyIndex=0;
+let replyLimit = 10;
 
-/* =========================
-   AUTH
-========================= */
+/* ================= UI ================= */
 
-onAuthStateChanged(auth,(user)=>{
-if(user){
-currentUser=user.email.replace("@fake.com","");
-document.getElementById("accountLink").innerText="Profile";
-document.getElementById("accountLink").href="profile.html";
+const modalBg = document.getElementById("modalBg");
+const modalText = document.getElementById("modalText");
+
+function showModal(text, yesCb) {
+  modalText.innerText = text;
+  modalBg.style.display = "flex";
+
+  document.getElementById("modalYes").onclick = () => {
+    modalBg.style.display = "none";
+    yesCb();
+  };
+
+  document.getElementById("modalNo").onclick = () => {
+    modalBg.style.display = "none";
+  };
 }
-else{
-currentUser=null;
-}
+
+/* IMAGE MODAL */
+window.openImg = function(src){
+  document.getElementById("imgModal").style.display = "flex";
+  document.getElementById("fullImg").src = src;
+};
+
+window.closeImg = function(){
+  document.getElementById("imgModal").style.display = "none";
+};
+
+/* ================= AUTH ================= */
+
+onAuthStateChanged(auth, (user) => {
+  if(user){
+    currentUser = user.email.replace("@fake.com","");
+    document.getElementById("accountLink").innerText = "Profile";
+    document.getElementById("accountLink").href = "profile.html";
+  } else {
+    currentUser = null;
+  }
 });
 
-document.getElementById("logoutBtn").onclick=async()=>{
-await signOut(auth);
-location.href="index.html";
-};
-
-/* =========================
-   IMAGE VIEW
-========================= */
-
-const overlay=document.getElementById("imgOverlay");
-const fullImg=document.getElementById("fullImg");
-
-window.showImg=(src)=>{
-fullImg.src=src;
-overlay.style.display="flex";
-};
-
-overlay.onclick=()=>overlay.style.display="none";
-
-/* =========================
-   READ MORE
-========================= */
-
-function readMore(text){
-if(!text) return "";
-if(text.length<=400) return text;
-
-const id=Math.random().toString(36).slice(2);
-
-return `
-<span id="t_${id}">
-${text.slice(0,400)}...
-<span class="readMore" onclick="
-document.getElementById('full_${id}').style.display='inline';
-document.getElementById('t_${id}').style.display='none';
-this.style.display='none';
-">read more</span>
-</span>
-<span id="full_${id}" style="display:none">${text}</span>
-`;
-}
-
-/* =========================
-   LOAD POST
-========================= */
+/* ================= LOAD POST ================= */
 
 async function loadPost(){
-const snap=await getDoc(doc(db,"posts",postId));
-const p=snap.data();
+  const div = document.getElementById("post");
 
-document.getElementById("post").innerHTML=`
-<div class="postBox">
-<b>${p.author}</b><br>
-${readMore(p.content)}
-${p.image?`<br><img class="imgThumb" src="${p.image}" onclick="showImg(this.src)">`:``}
-</div>
-`;
+  const snap = await getDoc(doc(db,"posts",postId));
+  if(!snap.exists()){
+    div.innerHTML = "Post not found";
+    return;
+  }
+
+  const p = snap.data();
+
+  let img = p.image
+    ? `<img class="postImage" onclick="openImg('${p.image}')" src="${p.image}">`
+    : "";
+
+  div.innerHTML = `
+    <div class="postBox">
+      <b>${p.author}</b><br>
+      <div>${formatText(p.content || "")}</div>
+      ${img}
+    </div>
+  `;
 }
 
-/* =========================
-   LOAD REPLIES (FIXED ORDER)
-========================= */
+/* ================= LOAD REPLIES ================= */
 
-async function fetchReplies(){
-const q=query(collection(db,"replies"),where("postId","==",postId));
-const snap=await getDocs(q);
+async function loadReplies(){
+  const div = document.getElementById("replies");
 
-replyList=snap.docs.map(d=>({id:d.id,...d.data()}));
+  const q = query(collection(db,"replies"), where("postId","==",postId));
+  const snap = await getDocs(q);
 
-replyList.sort((a,b)=>b.time-a.time); // NEWEST FIRST
+  let replies = snap.docs.map(d => ({id:d.id,...d.data()}));
 
-renderReplies(true);
+  replies.sort((a,b)=>b.time - a.time);
+
+  replies = replies.slice(0, replyLimit);
+
+  div.innerHTML = "";
+
+  replies.forEach(r => {
+
+    let img = r.image
+      ? `<img class="postImage" onclick="openImg('${r.image}')" src="${r.image}">`
+      : "";
+
+    let pfp = r.pfp
+      ? `<img class="pfp" src="${r.pfp}">`
+      : "";
+
+    let box = document.createElement("div");
+    box.className = "replyBox";
+
+    box.innerHTML = `
+      ${pfp}<b>${r.author}</b><br>
+      <div>${formatText(r.content || "")}</div>
+      ${img}
+      <div class="meta">${new Date(r.time).toLocaleString()}</div>
+    `;
+
+    if(currentUser === r.author){
+      let btn = document.createElement("button");
+      btn.innerText = "Delete";
+      btn.onclick = () => {
+        showModal("Delete this reply?", async () => {
+          await deleteDoc(doc(db,"replies",r.id));
+          loadReplies();
+        });
+      };
+      box.appendChild(btn);
+    }
+
+    div.appendChild(box);
+  });
 }
 
-/* =========================
-   RENDER REPLIES + LOAD MORE
-========================= */
+/* ================= LOAD MORE ================= */
 
-function renderReplies(reset=false){
-const container=document.getElementById("replies");
+document.getElementById("loadMoreRepliesBtn").onclick = () => {
+  replyLimit += 10;
+  loadReplies();
+};
 
-if(reset){
-container.innerHTML="";
-replyIndex=0;
+/* ================= POST REPLY ================= */
+
+document.getElementById("replyButton").onclick = async () => {
+
+  const text = document.getElementById("replyInput").value.trim();
+  const file = document.getElementById("replyImage").files[0];
+
+  if(!text && !file) return;
+
+  let image = null;
+
+  if(file){
+    image = await toBase64(file);
+  }
+
+  await addDoc(collection(db,"replies"),{
+    postId,
+    author: currentUser || "Anonymous",
+    content: text,
+    image,
+    time: Date.now()
+  });
+
+  document.getElementById("replyInput").value = "";
+  document.getElementById("replyImage").value = "";
+
+  loadReplies();
+};
+
+/* ================= TEXT FORMAT + READ MORE ================= */
+
+function formatText(text){
+
+  if(text.length <= 400){
+    return `<div style="white-space:pre-wrap">${text}</div>`;
+  }
+
+  const short = text.slice(0,400);
+
+  const id = Math.random().toString(36);
+
+  return `
+    <div>
+      <div id="t-${id}" style="white-space:pre-wrap">${short}...</div>
+      <span class="readMore" onclick="
+        document.getElementById('t-${id}').innerText = \`${text.replaceAll('`','')}\`;
+        this.style.display='none';
+      ">Read more</span>
+    </div>
+  `;
 }
 
-const chunk=replyList.slice(replyIndex,replyIndex+10);
-
-chunk.forEach(r=>{
-
-const el=document.createElement("div");
-el.className="replyBox";
-
-el.innerHTML=`
-<div class="avatarWrap">
-${r.avatar?`<img class="avatar" src="${r.avatar}">`:``}
-</div>
-
-<div class="contentWrap">
-<b>${r.author}</b><br>
-${readMore(r.content)}
-${r.image?`<br><img class="imgThumb" src="${r.image}" onclick="showImg(this.src)">`:``}
-<div class="time">${new Date(r.time).toLocaleString()}</div>
-
-${r.author===currentUser?`<button class="deleteBtn" onclick="openDelete('${r.id}')">Delete</button>`:``}
-</div>
-`;
-
-container.appendChild(el);
-});
-
-replyIndex+=10;
-
-document.getElementById("loadMoreReplies").style.display=
-replyIndex>=replyList.length?"none":"block";
-}
-
-/* =========================
-   LOAD MORE BUTTON
-========================= */
-
-document.getElementById("loadMoreReplies").onclick=()=>{
-renderReplies(false);
-};
-
-/* =========================
-   DELETE MODAL (NO BROWSER UI)
-========================= */
-
-const modal=document.getElementById("modal");
-const modalText=document.getElementById("modalText");
-
-window.openDelete=(id)=>{
-deleteTarget=id;
-modalText.innerText="Are you sure you want to delete this reply?";
-modal.style.display="flex";
-};
-
-document.getElementById("cancelBtn").onclick=()=>{
-modal.style.display="none";
-deleteTarget=null;
-};
-
-document.getElementById("confirmBtn").onclick=async()=>{
-await deleteDoc(doc(db,"replies",deleteTarget));
-modal.style.display="none";
-fetchReplies();
-};
-
-/* =========================
-   BASE64 IMAGE
-========================= */
+/* ================= BASE64 ================= */
 
 function toBase64(file){
-return new Promise(res=>{
-const r=new FileReader();
-r.onload=()=>res(r.result);
-r.readAsDataURL(file);
-});
+  return new Promise(res=>{
+    const r = new FileReader();
+    r.onload = e => res(e.target.result);
+    r.readAsDataURL(file);
+  });
 }
 
-/* =========================
-   SEND REPLY
-========================= */
+/* ================= INIT ================= */
 
-document.getElementById("sendReply").onclick=async()=>{
-
-const text=document.getElementById("replyText").value.trim();
-const file=document.getElementById("replyImg").files[0];
-
-if(!text && !file) return;
-
-if(text.length>8000){
-alert("Too long");
-return;
-}
-
-const img=file?await toBase64(file):null;
-
-await addDoc(collection(db,"replies"),{
-postId,
-author:currentUser||"Anonymous",
-content:text,
-image:img,
-time:Date.now(),
-avatar:null
-});
-
-document.getElementById("replyText").value="";
-fetchReplies();
-};
-
-/* INIT */
 loadPost();
-fetchReplies();
+loadReplies();
 
 </script>
-
 </body>
 </html>
