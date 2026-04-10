@@ -418,7 +418,67 @@ fetchReplies();
 };
 
 /* SEND */
-document.getElementById("sendReply").onclick=async()=>{
+let lastReplyTime = 0;
+let sendingReply = false;
+
+document.getElementById("sendReply").onclick = async () => {
+
+  const now = Date.now();
+
+  // PREVENT SPAM CLICKING WHILE REQUEST IS STILL SENDING
+  if (sendingReply) return;
+
+  // 10 SECOND COOLDOWN
+  if (now - lastReplyTime < 10000) {
+    modalText.innerText = "Please wait 10 seconds before replying again.";
+    modal.style.display = "flex";
+    return;
+  }
+
+  const text = document.getElementById("replyText").value.trim();
+  const fileInput = document.getElementById("replyImg");
+  const file = fileInput.files[0];
+
+  if (!text && !file) return;
+
+  if (text.length > 8000) {
+    modalText.innerText = "Reply is too long (max 8000 characters).";
+    modal.style.display = "flex";
+    return;
+  }
+
+  sendingReply = true;
+
+  const img = file ? await new Promise(res => {
+    const r = new FileReader();
+    r.onload = () => res(r.result);
+    r.readAsDataURL(file);
+  }) : null;
+
+  try {
+    await addDoc(collection(db, "replies"), {
+      postId,
+      author: currentUser || "Anonymous",
+      content: text,
+      image: img,
+      time: Date.now()
+    });
+
+    // RESET INPUTS
+    document.getElementById("replyText").value = "";
+    fileInput.value = ""; // ✅ clears "Choose File"
+
+    lastReplyTime = Date.now();
+
+    fetchReplies();
+
+  } catch (e) {
+    modalText.innerText = "Failed to send reply.";
+    modal.style.display = "flex";
+  }
+
+  sendingReply = false;
+};
 
 const text=document.getElementById("replyText").value.trim();
 const file=document.getElementById("replyImg").files[0];
