@@ -35,12 +35,14 @@
       border: 1px solid rgb(91,46,97);
     }
 
+    /* FIXED BOX SIZING */
     .post, .reply {
       border: 1px solid rgb(91,46,97);
       padding: 10px;
       margin: 10px 0;
-      white-space: pre-wrap;
+      max-width: 800px;
       word-wrap: break-word;
+      white-space: pre-wrap;
     }
 
     .meta {
@@ -54,6 +56,22 @@
       margin-top: 8px;
       cursor: pointer;
       border: 1px solid rgb(91,46,97);
+    }
+
+    .pfp {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      object-fit: cover;
+      vertical-align: middle;
+      margin-right: 6px;
+      border: 1px solid rgb(91,46,97);
+    }
+
+    .usernameRow {
+      display: flex;
+      align-items: center;
+      gap: 6px;
     }
 
     .smallBtn {
@@ -80,6 +98,13 @@
       max-width: 90%;
       max-height: 90%;
     }
+
+    .readMore {
+      color: rgb(91,46,97);
+      cursor: pointer;
+      font-size: 12px;
+      text-decoration: underline;
+    }
   </style>
 </head>
 
@@ -105,7 +130,7 @@
 <div id="repliesContainer">Loading replies...</div>
 
 <h3>Add Reply</h3>
-<textarea id="replyInput" placeholder="Write your reply..."></textarea>
+<textarea id="replyInput" maxlength="8000" placeholder="Write your reply..."></textarea>
 <br>
 <button id="replyButton">Reply</button>
 
@@ -134,7 +159,6 @@ import {
   signOut
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
-/* CONFIG */
 const firebaseConfig = {
   apiKey: "AIzaSyAZXfEl3Q68vfJtaLJqODtnQBSVEzWBmc0",
   authDomain: "probatismm.firebaseapp.com",
@@ -153,10 +177,10 @@ const postId = new URLSearchParams(window.location.search).get("id");
 let currentUser = null;
 let currentAdmin = false;
 
-/* AUTH */
 const accountLink = document.getElementById("accountLink");
 const logoutBtn = document.getElementById("logoutBtn");
 
+/* AUTH */
 onAuthStateChanged(auth, (user) => {
   if (user) {
     currentUser = user.email.replace("@fake.com", "");
@@ -175,104 +199,143 @@ onAuthStateChanged(auth, (user) => {
   }
 });
 
-/* LOGOUT */
 logoutBtn.onclick = async () => {
   await signOut(auth);
   window.location.href = "index.html";
 };
 
-/* OPEN IMAGE */
-window.openImg = function(src){
+/* IMAGE MODAL */
+window.openImg = (src) => {
   document.getElementById("modalImg").src = src;
   document.getElementById("imgModal").style.display = "flex";
 };
 
-window.closeImg = function(){
+window.closeImg = () => {
   document.getElementById("imgModal").style.display = "none";
 };
+
+/* READ MORE */
+function formatText(text, id){
+  if(!text) return "";
+
+  if(text.length <= 400){
+    return text;
+  }
+
+  const short = text.slice(0,400);
+
+  return `
+    <span id="short-${id}">${short}...</span>
+    <span id="full-${id}" style="display:none;">${text}</span>
+    <div class="readMore" onclick="toggleReadMore('${id}')">Read more</div>
+  `;
+}
+
+window.toggleReadMore = (id) => {
+  document.getElementById(`short-${id}`).style.display = "none";
+  document.getElementById(`full-${id}`).style.display = "inline";
+};
+
+/* LOAD USER PROFILE (for PFP) */
+async function getUserProfile(name){
+  const snap = await getDoc(doc(db,"users",name));
+  return snap.exists() ? snap.data() : null;
+}
 
 /* LOAD POST */
 async function loadPost(){
   const postDiv = document.getElementById("post");
-  if(!postId){ postDiv.innerHTML = "No post ID provided."; return; }
 
   const snap = await getDoc(doc(db,"posts",postId));
-  if(!snap.exists()){ postDiv.innerHTML = "Post not found."; return; }
+  if(!snap.exists()){
+    postDiv.innerHTML = "Post not found.";
+    return;
+  }
 
   const p = snap.data();
-  const date = new Date(p.time).toLocaleString();
+  const user = await getUserProfile(p.author);
+
+  const pfp = user?.profilePic
+    ? `<img class="pfp" src="${user.profilePic}">`
+    : "";
 
   const img = p.image
     ? `<img class="img" src="${p.image}" onclick="openImg('${p.image}')">`
     : "";
 
-  const del = (currentUser === p.author || currentAdmin)
-    ? `<button class="smallBtn" onclick="deletePost('${postId}')">Delete</button>`
-    : "";
+  const date = new Date(p.time).toLocaleString();
 
   postDiv.innerHTML = `
     <div class="post">
-      <b>${p.author}</b><br>
-      ${p.content || ""}
+      <div class="usernameRow">
+        ${pfp}
+        <b>${p.author}</b>
+      </div>
+      <div>${formatText(p.content, "post")}</div>
       ${img}
       <div class="meta">${date}</div>
-      ${del}
+      ${(currentUser===p.author||currentAdmin)
+        ? `<button class="smallBtn" onclick="deletePost('${postId}')">Delete</button>` : ""}
     </div>
   `;
 }
 
 /* DELETE POST */
-window.deletePost = async function(id){
+window.deletePost = async (id) => {
   if(!confirm("Delete this post?")) return;
   await deleteDoc(doc(db,"posts",id));
-  window.location.href = "forums/general.html";
+  window.location.href="forums/general.html";
 };
 
 /* LOAD REPLIES */
 async function loadReplies(){
   const box = document.getElementById("repliesContainer");
-  box.innerHTML = "Loading replies...";
 
   const snap = await getDocs(query(collection(db,"replies"), where("postId","==",postId)));
 
-  if(snap.empty){
-    box.innerHTML = "<p>No replies yet.</p>";
-    return;
-  }
-
-  const replies = snap.docs.map(d => ({id:d.id,...d.data()}));
+  const replies = snap.docs.map(d=>({id:d.id,...d.data()}));
   replies.sort((a,b)=>b.time-a.time);
 
   box.innerHTML = "";
 
-  replies.forEach(r=>{
-    const date = new Date(r.time).toLocaleString();
+  for(const r of replies){
+    const user = await getUserProfile(r.author);
+
+    const pfp = user?.profilePic
+      ? `<img class="pfp" src="${user.profilePic}">`
+      : "";
 
     const img = r.image
       ? `<img class="img" src="${r.image}" onclick="openImg('${r.image}')">`
       : "";
 
-    const del = (currentUser === r.author || currentAdmin)
-      ? `<button class="smallBtn" onclick="deleteReply('${r.id}')">Delete</button>`
-      : "";
+    const date = new Date(r.time).toLocaleString();
 
     const div = document.createElement("div");
-    div.className = "reply";
+    div.className="reply";
 
     div.innerHTML = `
-      <b>${r.author}</b><br>
-      ${r.content || ""}
+      <div class="usernameRow">
+        ${pfp}
+        <b>${r.author}</b>
+      </div>
+
+      <div>${formatText(r.content, r.id)}</div>
+
       ${img}
+
       <div class="meta">${date}</div>
-      ${del}
+
+      ${(currentUser===r.author||currentAdmin)
+        ? `<button class="smallBtn" onclick="deleteReply('${r.id}')">Delete</button>` : ""}
     `;
 
     box.appendChild(div);
-  });
+  }
 }
 
-/* DELETE REPLY (FIXED + CONFIRM) */
-window.deleteReply = async function(id){
+/* DELETE REPLY */
+window.deleteReply = async (id) => {
   if(!confirm("Are you sure you want to delete this reply?")) return;
   await deleteDoc(doc(db,"replies",id));
   loadReplies();
@@ -283,16 +346,14 @@ document.getElementById("replyButton").onclick = async () => {
   const text = document.getElementById("replyInput").value.trim();
   if(!text) return alert("Enter reply");
 
-  const name = currentUser || "Anonymous";
-
   await addDoc(collection(db,"replies"),{
     postId,
-    author:name,
+    author: currentUser || "Anonymous",
     content:text,
     time:Date.now()
   });
 
-  document.getElementById("replyInput").value = "";
+  document.getElementById("replyInput").value="";
   loadReplies();
 };
 
