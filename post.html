@@ -57,17 +57,32 @@ button {
   margin:10px 0;
 }
 
+/* =========================
+   FIX: THREAD LAYOUT WRAPPER
+========================= */
+.threadWrapper{
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+}
+
+/* REPLIES AREA */
+#replies {
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+}
+
 /* REPLY BOX */
 .replyBox {
   border:1px solid rgb(91,46,97);
   padding:8px;
-  margin:8px 0;
   display:flex;
   gap:10px;
   align-items:flex-start;
 }
 
-/* PROFILE PIC (SQUARE FIXED) */
+/* PROFILE PIC */
 .avatar {
   width:32px;
   height:32px;
@@ -96,14 +111,14 @@ button {
   text-decoration:underline;
 }
 
-/* DELETE BUTTON */
+/* DELETE */
 .deleteBtn {
   font-size:12px;
   padding:3px 6px;
   margin-top:5px;
 }
 
-/* IMAGE THUMB */
+/* IMAGE */
 .imgThumb {
   max-width:256px;
   max-height:256px;
@@ -112,7 +127,7 @@ button {
   margin-top:5px;
 }
 
-/* FULL IMAGE OVERLAY */
+/* FULL IMAGE */
 .imgOverlay {
   display:none;
   position:fixed;
@@ -181,16 +196,23 @@ button {
 <div id="post"></div>
 
 <h3>Replies</h3>
-<div id="replies"></div>
-<button id="loadMoreReplies" class="loadMoreBtn">Load More Replies</button>
 
-<h3>Add Reply</h3>
+<!-- ✅ FIX: LOCK LAYOUT ORDER -->
+<div class="threadWrapper">
 
-<textarea id="replyText" placeholder="Write reply (8000 max)"></textarea>
-<br>
-<input type="file" id="replyImg">
-<br>
-<button id="sendReply">Reply</button>
+  <div id="replies"></div>
+
+  <button id="loadMoreReplies" class="loadMoreBtn">Load More Replies</button>
+
+  <h3>Add Reply</h3>
+
+  <textarea id="replyText" placeholder="Write reply (8000 max)"></textarea>
+  <br>
+  <input type="file" id="replyImg">
+  <br>
+  <button id="sendReply">Reply</button>
+
+</div>
 
 <!-- IMAGE MODAL -->
 <div class="imgOverlay" id="imgOverlay">
@@ -250,9 +272,7 @@ currentUser=user.email.replace("@fake.com","");
 document.getElementById("accountLink").innerText="Profile";
 document.getElementById("accountLink").href="profile.html";
 }
-else{
-currentUser=null;
-}
+else currentUser=null;
 });
 
 document.getElementById("logoutBtn").onclick=async()=>{
@@ -291,24 +311,13 @@ this.style.display='none';
 `;
 }
 
-/* LOAD USER AVATAR (FIX ADDED HERE) */
-async function getAvatar(username){
-if(!username || username==="Anonymous") return null;
-const snap = await getDoc(doc(db,"users",username));
-if(!snap.exists()) return null;
-return snap.data().profilePic || null;
-}
-
 /* LOAD POST */
 async function loadPost(){
 const snap=await getDoc(doc(db,"posts",postId));
 const p=snap.data();
 
-const avatar = await getAvatar(p.author);
-
 document.getElementById("post").innerHTML=`
 <div class="postBox">
-${avatar?`<img class="avatar" src="${avatar}">`:``}
 <b>${p.author}</b><br>
 ${readMore(p.content)}
 ${p.image?`<br><img class="imgThumb" src="${p.image}" onclick="showImg(this.src)">`:``}
@@ -316,7 +325,7 @@ ${p.image?`<br><img class="imgThumb" src="${p.image}" onclick="showImg(this.src)
 `;
 }
 
-/* REPLIES */
+/* LOAD REPLIES */
 async function fetchReplies(){
 const q=await getDocs(query(collection(db,"replies"),where("postId","==",postId)));
 
@@ -327,7 +336,8 @@ renderReplies(true);
 }
 
 /* RENDER */
-async function renderReplies(reset=false){
+function renderReplies(reset=false){
+
 const container=document.getElementById("replies");
 
 if(reset){
@@ -337,15 +347,13 @@ replyIndex=0;
 
 const chunk=replyList.slice(replyIndex,replyIndex+10);
 
-for(const r of chunk){
-
-const avatar = await getAvatar(r.author);
+chunk.forEach(r=>{
 
 const el=document.createElement("div");
 el.className="replyBox";
 
 el.innerHTML=`
-${avatar?`<img class="avatar" src="${avatar}">`:``}
+${r.avatar?`<img class="avatar" src="${r.avatar}">`:``}
 
 <div class="contentWrap">
 <b>${r.author}</b><br>
@@ -358,7 +366,7 @@ ${r.author===currentUser?`<button class="deleteBtn" onclick="openDelete('${r.id}
 `;
 
 container.appendChild(el);
-}
+});
 
 replyIndex+=10;
 
