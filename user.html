@@ -33,13 +33,12 @@ button {
   height:128px;
   object-fit:cover;
   border:2px solid #5b2e61;
+  margin-top:10px;
 }
 
-/* FIX TEXT WRAP (IMPORTANT) */
-#profileInfo, #profileInfo p {
-  word-break: break-word;
-  overflow-wrap: break-word;
-  white-space: pre-wrap;
+/* CLEAN LAYOUT FIX */
+.section {
+  margin-top:20px;
 }
 
 /* POSTS */
@@ -47,6 +46,10 @@ button {
   border:1px solid #5b2e61;
   padding:10px;
   margin:10px 0;
+}
+
+/* TEXT FIX (WITHOUT BREAKING LAYOUT) */
+.post, #profileInfo p {
   word-break: break-word;
   overflow-wrap: break-word;
   white-space: pre-wrap;
@@ -96,12 +99,14 @@ button {
 
 <div id="profileInfo">Loading...</div>
 
+<div class="section">
 <h2>Posts & Replies</h2>
 <div id="userPosts">Loading...</div>
 <button id="loadMoreBtn">Load More</button>
+</div>
 
 <script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import {
 getFirestore, doc, getDoc, setDoc,
 collection, getDocs, query, where, orderBy, limit, startAfter
@@ -112,12 +117,14 @@ getAuth, onAuthStateChanged, signOut
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
 const firebaseConfig = {
-  apiKey: "AIzaSy...",
+  apiKey: "AIzaSyAZXfEl3Q68vfJtaLJqODtnQBSVEzWBmc0",
   authDomain: "probatismm.firebaseapp.com",
   projectId: "probatismm"
 };
 
-const app = initializeApp(firebaseConfig);
+/* 🔥 FIX: PREVENT LOGOUT */
+const app = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
+
 const db = getFirestore(app);
 const auth = getAuth(app);
 
@@ -168,7 +175,7 @@ function readMore(text){
   `;
 }
 
-/* LOAD PROFILE */
+/* PROFILE */
 async function loadProfile(){
   const snap = await getDoc(doc(db,"users",username));
   if(!snap.exists()) return;
@@ -176,7 +183,6 @@ async function loadProfile(){
   const data = snap.data();
   const joinDate = new Date(data.joinDate).toLocaleDateString();
 
-  // FIX TITLE
   document.getElementById("pageTitle").innerText = data.username;
 
   document.getElementById("profileInfo").innerHTML = `
@@ -195,7 +201,7 @@ async function loadProfile(){
   loadReputation();
 }
 
-/* REPUTATION */
+/* REPUTATION (FIXED PROPERLY) */
 async function loadReputation(){
 
   const votesSnap = await getDocs(
@@ -231,8 +237,13 @@ async function loadReputation(){
     return;
   }
 
-  upBtn.onclick = ()=>vote(1);
-  downBtn.onclick = ()=>vote(-1);
+  upBtn.onclick = async ()=>{
+    await vote(1);
+  };
+
+  downBtn.onclick = async ()=>{
+    await vote(-1);
+  };
 }
 
 async function vote(value){
@@ -251,10 +262,13 @@ async function vote(value){
   loadReputation();
 }
 
-/* LOAD POSTS */
+/* LOAD POSTS + REPLIES CLEANLY */
 async function loadPosts(){
 
-  let q = query(
+  const container = document.getElementById("userPosts");
+
+  /* POSTS */
+  let postQuery = query(
     collection(db,"posts"),
     where("author","==",username),
     orderBy("time","desc"),
@@ -262,7 +276,7 @@ async function loadPosts(){
   );
 
   if(lastVisiblePost){
-    q = query(
+    postQuery = query(
       collection(db,"posts"),
       where("author","==",username),
       orderBy("time","desc"),
@@ -271,15 +285,16 @@ async function loadPosts(){
     );
   }
 
-  const snap = await getDocs(q);
-  if(!snap.empty){
-    lastVisiblePost = snap.docs[snap.docs.length-1];
+  const postSnap = await getDocs(postQuery);
 
-    snap.forEach(docSnap=>{
+  if(!postSnap.empty){
+    lastVisiblePost = postSnap.docs[postSnap.docs.length-1];
+
+    postSnap.forEach(docSnap=>{
       const p = docSnap.data();
       const date = new Date(p.time).toLocaleString();
 
-      document.getElementById("userPosts").innerHTML += `
+      container.innerHTML += `
         <div class="post">
           <b>${p.author}</b><br>
           ${readMore(p.content)}
@@ -291,8 +306,8 @@ async function loadPosts(){
     });
   }
 
-  /* LOAD REPLIES TOO */
-  let rq = query(
+  /* REPLIES */
+  let replyQuery = query(
     collection(db,"replies"),
     where("author","==",username),
     orderBy("time","desc"),
@@ -300,7 +315,7 @@ async function loadPosts(){
   );
 
   if(lastVisibleReply){
-    rq = query(
+    replyQuery = query(
       collection(db,"replies"),
       where("author","==",username),
       orderBy("time","desc"),
@@ -309,15 +324,16 @@ async function loadPosts(){
     );
   }
 
-  const rsnap = await getDocs(rq);
-  if(!rsnap.empty){
-    lastVisibleReply = rsnap.docs[rsnap.docs.length-1];
+  const replySnap = await getDocs(replyQuery);
 
-    rsnap.forEach(docSnap=>{
+  if(!replySnap.empty){
+    lastVisibleReply = replySnap.docs[replySnap.docs.length-1];
+
+    replySnap.forEach(docSnap=>{
       const r = docSnap.data();
       const date = new Date(r.time).toLocaleString();
 
-      document.getElementById("userPosts").innerHTML += `
+      container.innerHTML += `
         <div class="post">
           <b>${r.author} (reply)</b><br>
           ${readMore(r.content)}
