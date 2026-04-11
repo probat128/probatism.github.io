@@ -22,9 +22,9 @@ button {
   margin-top:5px;
   padding:5px 10px;
   cursor:pointer;
-  border:1px solid #5b2e61;
-  background:#e8e0cf;
-  color:#5b2e61;
+  border:2px solid #5b2e61;
+  background:#5b2e61;
+  color:#e8e0cf;
 }
 
 /* PROFILE */
@@ -33,40 +33,20 @@ button {
   height:128px;
   object-fit:cover;
   border:2px solid #5b2e61;
-  margin-top:10px;
 }
 
-/* POSTS / REPLIES */
+/* POSTS */
 .post {
   border:1px solid #5b2e61;
   padding:10px;
   margin:10px 0;
-  display:flex;
-  gap:10px;
-}
-
-.contentWrap {
-  flex:1;
 }
 
 /* TEXT FIX */
-.post, .post div {
+.post {
+  white-space: pre-wrap;
   word-break: break-word;
   overflow-wrap: break-word;
-  white-space: pre-wrap;
-}
-
-/* TIME */
-.time {
-  font-size:12px;
-  margin-top:5px;
-}
-
-/* IMAGE */
-.post img {
-  max-width:200px;
-  margin-top:5px;
-  border:1px solid #5b2e61;
 }
 
 /* READ MORE */
@@ -109,7 +89,7 @@ button {
 <button id="logoutBtn" style="display:none;">Logout</button>
 </nav>
 
-<h1 id="pageTitle">Profile</h1>
+<h1 id="profileTitle">Profile</h1>
 
 <div id="profileInfo">Loading...</div>
 
@@ -121,7 +101,7 @@ button {
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import {
 getFirestore, doc, getDoc, setDoc,
-collection, getDocs, query, where, orderBy, limit, startAfter
+collection, getDocs, query, where
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 import {
@@ -142,8 +122,9 @@ const urlParams = new URLSearchParams(window.location.search);
 const username = urlParams.get("user");
 
 let currentUser = null;
-let lastVisible = null;
-let combinedList = [];
+
+/* PAGINATION STATE */
+let allItems = [];
 let index = 0;
 
 /* AUTH */
@@ -192,11 +173,13 @@ async function loadProfile(){
   if(!snap.exists()) return;
 
   const data = snap.data();
+  const joinDate = new Date(data.joinDate).toLocaleDateString();
 
-  document.getElementById("pageTitle").innerText = data.username;
+  document.getElementById("profileTitle").innerText = data.username;
 
   document.getElementById("profileInfo").innerHTML = `
-    <p><b>Joined:</b> ${new Date(data.joinDate).toLocaleDateString()}</p>
+    <p><b>Username:</b> ${data.username}</p>
+    <p><b>Joined:</b> ${joinDate}</p>
     ${data.profilePic ? `<img class="profile-pic" src="${data.profilePic}">` : ""}
     <p>${data.description || ""}</p>
 
@@ -222,7 +205,10 @@ async function loadReputation(){
   votesSnap.forEach(docSnap=>{
     const v = docSnap.data();
     total += v.value;
-    if(v.from === currentUser) myVote = v.value;
+
+    if(v.from === currentUser){
+      myVote = v.value;
+    }
   });
 
   document.getElementById("repValue").innerText = total;
@@ -258,70 +244,60 @@ async function vote(value, currentVote){
   loadReputation();
 }
 
-/* LOAD POSTS + REPLIES (FIXED ORDER) */
+/* LOAD ALL POSTS + REPLIES */
 async function loadAllContent(){
 
   const postsSnap = await getDocs(
-    query(collection(db,"posts"),
-    where("author","==",username),
-    orderBy("time","desc"))
+    query(collection(db,"posts"), where("author","==",username))
   );
 
   const repliesSnap = await getDocs(
-    query(collection(db,"replies"),
-    where("author","==",username),
-    orderBy("time","desc"))
+    query(collection(db,"replies"), where("author","==",username))
   );
 
-  combinedList = [];
+  allItems = [];
 
   postsSnap.forEach(docSnap=>{
-    combinedList.push({
-      type:"post",
-      id:docSnap.id,
-      ...docSnap.data()
-    });
+    allItems.push({ id:docSnap.id, type:"post", ...docSnap.data() });
   });
 
   repliesSnap.forEach(docSnap=>{
-    combinedList.push({
-      type:"reply",
-      id:docSnap.id,
-      ...docSnap.data()
-    });
+    allItems.push({ id:docSnap.id, type:"reply", ...docSnap.data() });
   });
 
-  // 🔥 FINAL SORT FIX
-  combinedList.sort((a,b)=>b.time - a.time);
+  // 🔥 FIX: SORT NEWEST FIRST
+  allItems.sort((a,b)=>b.time - a.time);
 
-  renderMore(true);
+  renderItems(true);
 }
 
 /* RENDER */
-function renderMore(reset=false){
+function renderItems(reset=false){
+
   const div = document.getElementById("userPosts");
 
   if(reset){
-    div.innerHTML="";
-    index=0;
+    div.innerHTML = "";
+    index = 0;
   }
 
-  const chunk = combinedList.slice(index,index+10);
+  const chunk = allItems.slice(index, index+10);
 
   chunk.forEach(item=>{
     const date = new Date(item.time).toLocaleString();
 
     div.innerHTML += `
       <div class="post">
-        <div class="contentWrap">
-          <b>${item.author} ${item.type==="reply"?"(reply)":""}</b><br>
-          ${readMore(item.content)}
-          ${item.image ? `<br><img src="${item.image}">` : ""}
-          <div class="time">${date}</div>
-          ${item.type==="post"
-            ? `<button onclick="location.href='post.html?id=${item.id}'">View Post</button>`
-            : ""}
-        </div>
+        <b>${item.author} (${item.type})</b><br>
+        ${readMore(item.content)}
+        ${item.image ? `<br><img src="${item.image}" style="max-width:200px;">` : ""}
+        <div>${date}</div>
+
+        ${
+          item.type === "post"
+          ? `<button onclick="location.href='post.html?id=${item.id}'">View Post</button>`
+          : ""
+        }
       </div>
     `;
   });
@@ -329,10 +305,10 @@ function renderMore(reset=false){
   index += 10;
 
   document.getElementById("loadMoreBtn").style.display =
-    index >= combinedList.length ? "none" : "block";
+    index >= allItems.length ? "none" : "block";
 }
 
-document.getElementById("loadMoreBtn").onclick = ()=>renderMore(false);
+document.getElementById("loadMoreBtn").onclick = ()=>renderItems(false);
 
 loadProfile();
 loadAllContent();
