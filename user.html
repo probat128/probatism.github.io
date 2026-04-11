@@ -45,30 +45,19 @@ button {
 
 /* POSTS (WIDER + CLEAN) */
 .post, .reply {
-  border:1px solid #5b2e61;
-  padding:10px;
-  margin:10px 0;
+  border: 1px solid #5b2e61;
+  padding: 10px;
+  margin: 10px 0;
 
-  /* ✅ FIX WIDTH PROPERLY */
-  width: fit-content;
-  max-width: 600px;
+  /* ✅ ALL BOXES SAME WIDTH */
+  width: 100%;
+  max-width: 700px;
 
-  /* keeps boxes from stretching full page */
-  display: block;
-
-  /* clean sizing */
+  /* keeps alignment clean */
   box-sizing: border-box;
-}
 
-/* ✅ TEXT WRAPPING (FIXED PROPERLY) */
-.post,
-.reply,
-.post div,
-.reply div,
-#profileInfo p {
-  word-break: break-word;
-  overflow-wrap: anywhere;
-  white-space: pre-wrap;
+  /* layout inside stays stable */
+  display: block;
 }
 
 /* READ MORE */
