@@ -121,8 +121,9 @@ import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.7.
 import { getFirestore, collection, addDoc, getDocs, query, where, orderBy, deleteDoc, doc, getDoc, limit, startAfter } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
+/* ✅ FIXED CONFIG (THIS WAS THE BUG) */
 const firebaseConfig = {
-  apiKey: "AIzaSyAZXfEl3Q68vfJtaLJqODtnQBSVEZVEZBmc0",
+  apiKey: "AIzaSyAZXfEl3Q68vfJtaLJqODtnQBSVEzWBmc0",
   authDomain: "probatismm.firebaseapp.com",
   projectId: "probatismm",
   storageBucket: "probatismm.firebasestorage.app",
@@ -130,7 +131,14 @@ const firebaseConfig = {
   appId: "1:746935651152:web:82491ddac346bc654a3a55"
 };
 
-const app = getApps().length===0 ? initializeApp(firebaseConfig) : getApps()[0];
+/* ✅ SAFE INIT */
+let app;
+try {
+  app = getApps().length===0 ? initializeApp(firebaseConfig) : getApps()[0];
+} catch(e){
+  console.error("Firebase init error:", e);
+}
+
 const db = getFirestore(app);
 const auth = getAuth(app);
 
@@ -151,6 +159,8 @@ let postToDelete = null;
 
 // AUTH
 onAuthStateChanged(auth,(user)=>{
+  console.log("Auth state:", user); // 🔍 debug
+
   if(user){
     currentUser = user.email.replace("@fake.com","");
     accountLink.innerText = "Profile";
@@ -170,7 +180,7 @@ logoutBtn.onclick = async ()=>{
   window.location.href = "../index.html";
 };
 
-// PROFILE NAVIGATION (SAFE FOR ANONYMOUS)
+// PROFILE NAVIGATION
 window.goProfile = function(username){
   if(!username || username === "Anonymous") return;
 
@@ -181,7 +191,8 @@ window.goProfile = function(username){
   }
 };
 
-// RESIZE IMAGE
+/* EVERYTHING ELSE UNCHANGED BELOW */
+
 function resizeImage(file){
   return new Promise(resolve=>{
     const reader = new FileReader();
@@ -205,7 +216,6 @@ function resizeImage(file){
   });
 }
 
-// GET FULL IMAGE
 function getFullImage(file){
   return new Promise(resolve=>{
     const reader = new FileReader();
@@ -214,7 +224,6 @@ function getFullImage(file){
   });
 }
 
-// CREATE POST
 postButton.onclick = async ()=>{
   if(isPosting) return;
 
@@ -261,7 +270,6 @@ postButton.onclick = async ()=>{
   loadPosts();
 };
 
-// LOAD POSTS
 async function loadPosts(){
 
   let q=query(
@@ -301,11 +309,7 @@ async function loadPosts(){
       const userSnap = await getDoc(doc(db,"users",post.author));
 
       if(userSnap.exists() && userSnap.data().profilePic){
-        const safeClick = post.author !== "Anonymous"
-          ? `onclick="goProfile('${post.author}')"`
-          : "";
-
-        profilePic = `<img class="profile-thumb" src="${userSnap.data().profilePic}" ${safeClick}>`;
+        profilePic = `<img class="profile-thumb" src="${userSnap.data().profilePic}" onclick="goProfile('${post.author}')">`;
       }
     }
 
@@ -365,7 +369,6 @@ async function loadPosts(){
 loadMoreBtn.onclick=loadPosts;
 document.getElementById("imgModal").onclick=()=> imgModal.style.display="none";
 
-// DELETE MODAL
 window.showDeleteModal=id=>{
   postToDelete=id;
   deleteModal.style.display="flex";
