@@ -49,16 +49,12 @@ button {
 .arrow {
   font-size:24px;
   cursor:pointer;
-  user-select:none;
   opacity:0.3;
+  user-select:none;
 }
 
 .arrow.active {
   opacity:1;
-}
-
-.arrow:hover {
-  opacity:0.7;
 }
 
 .reputation {
@@ -104,7 +100,7 @@ button {
 </div>
 
 <h2>Posts</h2>
-<div id="posts">Loading...</div>
+<div id="posts"></div>
 <button id="loadMore">Load More</button>
 
 <script type="module">
@@ -140,21 +136,26 @@ const username = new URLSearchParams(location.search).get("user");
 let currentUser = null;
 let currentVote = null;
 let lastVisible = null;
+let authReady = false;
 
-// --------------------
-// AUTH
-// --------------------
+// =====================
+// AUTH (FIXED)
+// =====================
 onAuthStateChanged(auth,(user)=>{
   if(user){
     currentUser = user.email.replace("@fake.com","");
   } else {
     currentUser = null;
   }
+
+  authReady = true;
+
+  loadVote(); // safe now
 });
 
-// --------------------
-// LOAD PROFILE
-// --------------------
+// =====================
+// PROFILE
+// =====================
 async function loadProfile(){
   const snap = await getDoc(doc(db,"users",username));
   if(!snap.exists()) return;
@@ -169,37 +170,35 @@ async function loadProfile(){
     </div>
   `;
 
-  const join = data.joinDate ? new Date(data.joinDate).toLocaleDateString() : "Unknown";
-  document.getElementById("joinDate").innerText = join;
+  document.getElementById("joinDate").innerText =
+    data.joinDate ? new Date(data.joinDate).toLocaleDateString() : "Unknown";
 }
 
-// --------------------
+// =====================
 // REPUTATION
-// --------------------
+// =====================
 async function loadRep(){
   const snap = await getDoc(doc(db,"users",username));
-  const rep = snap.exists() ? (snap.data().reputation || 0) : 0;
-  document.getElementById("rep").innerText = rep;
+  document.getElementById("rep").innerText =
+    snap.exists() ? (snap.data().reputation || 0) : 0;
 }
 
-// --------------------
-// LOAD VOTE STATE
-// --------------------
+// =====================
+// VOTE STATE
+// =====================
 async function loadVote(){
-  if(!currentUser) return;
+  if(!authReady || !currentUser) return;
 
   const id = currentUser + "_" + username;
   const snap = await getDoc(doc(db,"reputationVotes",id));
 
-  if(snap.exists()){
-    currentVote = snap.data().value;
-    updateUI();
-  }
+  currentVote = snap.exists() ? snap.data().value : null;
+  updateUI();
 }
 
-// --------------------
-// UI STATE
-// --------------------
+// =====================
+// UI UPDATE
+// =====================
 function updateUI(){
   document.getElementById("upvote").classList.remove("active");
   document.getElementById("downvote").classList.remove("active");
@@ -212,11 +211,11 @@ function updateUI(){
   }
 }
 
-// --------------------
-// VOTE SYSTEM
-// --------------------
+// =====================
+// VOTING (FIXED)
+// =====================
 async function vote(value){
-  if(!currentUser || currentUser === username) return;
+  if(!authReady || !currentUser || currentUser === username) return;
 
   const id = currentUser + "_" + username;
 
@@ -230,7 +229,7 @@ async function vote(value){
   if(currentVote === 1) rep -= 1;
   if(currentVote === -1) rep += 1;
 
-  // toggle off if same vote
+  // toggle off
   if(currentVote === value){
     currentVote = null;
     await deleteDoc(voteRef);
@@ -253,13 +252,19 @@ async function vote(value){
   loadRep();
 }
 
-// --------------------
-// POSTS (10 + LOAD MORE)
-// --------------------
+// =====================
+// POSTS (FIXED PAGINATION)
+// =====================
 async function loadPosts(first=false){
+
+  if(first){
+    lastVisible = null;
+    document.getElementById("posts").innerHTML = "";
+  }
+
   let q;
 
-  if(first || !lastVisible){
+  if(!lastVisible){
     q = query(
       collection(db,"posts"),
       where("author","==",username),
@@ -278,8 +283,6 @@ async function loadPosts(first=false){
 
   const snap = await getDocs(q);
 
-  if(first) document.getElementById("posts").innerHTML = "";
-
   if(snap.empty) return;
 
   lastVisible = snap.docs[snap.docs.length-1];
@@ -287,14 +290,12 @@ async function loadPosts(first=false){
   snap.forEach(d=>{
     const p = d.data();
 
-    const date = new Date(p.time).toLocaleString();
-
     const div = document.createElement("div");
     div.className = "post";
 
     div.innerHTML = `
       <b>${p.author}</b>
-      <div class="time">${date}</div>
+      <div class="time">${new Date(p.time).toLocaleString()}</div>
       <div>${p.content || ""}</div>
       ${p.image ? `<img src="${p.image}" style="max-width:200px;">` : ""}
     `;
@@ -303,19 +304,18 @@ async function loadPosts(first=false){
   });
 }
 
-// --------------------
+// =====================
 // EVENTS
-// --------------------
+// =====================
 document.getElementById("upvote").onclick = ()=>vote(1);
 document.getElementById("downvote").onclick = ()=>vote(-1);
 document.getElementById("loadMore").onclick = ()=>loadPosts(false);
 
-// --------------------
+// =====================
 // INIT
-// --------------------
+// =====================
 loadProfile();
 loadRep();
-loadVote();
 loadPosts(true);
 
 </script>
