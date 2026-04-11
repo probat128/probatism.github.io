@@ -44,17 +44,30 @@ button {
 }
 
 /* POSTS (WIDER + CLEAN) */
-.post {
+.post, .reply {
   border:1px solid #5b2e61;
   padding:10px;
   margin:10px 0;
-  max-width:750px; /* 🔥 increased width */
+
+  /* ✅ FIX WIDTH PROPERLY */
+  width: fit-content;
+  max-width: 600px;
+
+  /* keeps boxes from stretching full page */
+  display: block;
+
+  /* clean sizing */
+  box-sizing: border-box;
 }
 
-/* TEXT FIX */
-.post, .post div {
+/* ✅ TEXT WRAPPING (FIXED PROPERLY) */
+.post,
+.reply,
+.post div,
+.reply div,
+#profileInfo p {
   word-break: break-word;
-  overflow-wrap: break-word;
+  overflow-wrap: anywhere;
   white-space: pre-wrap;
 }
 
