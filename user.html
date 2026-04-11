@@ -22,9 +22,9 @@ button {
   margin-top:5px;
   padding:5px 10px;
   cursor:pointer;
-  border:2px solid #5b2e61;
-  background:#5b2e61;
-  color:#e8e0cf;
+  border:1px solid #5b2e61;
+  background:#e8e0cf;
+  color:#5b2e61;
 }
 
 /* PROFILE */
@@ -33,14 +33,20 @@ button {
   height:128px;
   object-fit:cover;
   border:2px solid #5b2e61;
+  margin-top:10px;
 }
 
-/* POSTS / REPLIES (UNIFIED STYLE) */
+/* POSTS / REPLIES */
 .post {
   border:1px solid #5b2e61;
   padding:10px;
   margin:10px 0;
-  background:#e8e0cf;
+  display:flex;
+  gap:10px;
+}
+
+.contentWrap {
+  flex:1;
 }
 
 /* TEXT FIX */
@@ -50,17 +56,17 @@ button {
   white-space: pre-wrap;
 }
 
+/* TIME */
+.time {
+  font-size:12px;
+  margin-top:5px;
+}
+
 /* IMAGE */
 .post img {
   max-width:200px;
   margin-top:5px;
   border:1px solid #5b2e61;
-}
-
-/* META */
-.meta {
-  font-size:12px;
-  margin-top:5px;
 }
 
 /* READ MORE */
@@ -115,7 +121,7 @@ button {
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import {
 getFirestore, doc, getDoc, setDoc,
-collection, getDocs, query, where
+collection, getDocs, query, where, orderBy, limit, startAfter
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 import {
@@ -136,6 +142,7 @@ const urlParams = new URLSearchParams(window.location.search);
 const username = urlParams.get("user");
 
 let currentUser = null;
+let lastVisible = null;
 let combinedList = [];
 let index = 0;
 
@@ -188,11 +195,8 @@ async function loadProfile(){
 
   document.getElementById("pageTitle").innerText = data.username;
 
-  const joinDate = new Date(data.joinDate).toLocaleDateString();
-
   document.getElementById("profileInfo").innerHTML = `
-    <p><b>Username:</b> ${data.username}</p>
-    <p><b>Joined:</b> ${joinDate}</p>
+    <p><b>Joined:</b> ${new Date(data.joinDate).toLocaleDateString()}</p>
     ${data.profilePic ? `<img class="profile-pic" src="${data.profilePic}">` : ""}
     <p>${data.description || ""}</p>
 
@@ -218,10 +222,7 @@ async function loadReputation(){
   votesSnap.forEach(docSnap=>{
     const v = docSnap.data();
     total += v.value;
-
-    if(v.from === currentUser){
-      myVote = v.value;
-    }
+    if(v.from === currentUser) myVote = v.value;
   });
 
   document.getElementById("repValue").innerText = total;
@@ -261,11 +262,15 @@ async function vote(value, currentVote){
 async function loadAllContent(){
 
   const postsSnap = await getDocs(
-    query(collection(db,"posts"), where("author","==",username))
+    query(collection(db,"posts"),
+    where("author","==",username),
+    orderBy("time","desc"))
   );
 
   const repliesSnap = await getDocs(
-    query(collection(db,"replies"), where("author","==",username))
+    query(collection(db,"replies"),
+    where("author","==",username),
+    orderBy("time","desc"))
   );
 
   combinedList = [];
@@ -286,7 +291,7 @@ async function loadAllContent(){
     });
   });
 
-  // ✅ SORT NEWEST FIRST
+  // 🔥 FINAL SORT FIX
   combinedList.sort((a,b)=>b.time - a.time);
 
   renderMore(true);
@@ -297,25 +302,26 @@ function renderMore(reset=false){
   const div = document.getElementById("userPosts");
 
   if(reset){
-    div.innerHTML = "";
-    index = 0;
+    div.innerHTML="";
+    index=0;
   }
 
-  const chunk = combinedList.slice(index, index+10);
+  const chunk = combinedList.slice(index,index+10);
 
   chunk.forEach(item=>{
     const date = new Date(item.time).toLocaleString();
 
     div.innerHTML += `
       <div class="post">
-        <b>${item.author}</b> ${item.type==="reply"?"(reply)":""}<br>
-        ${readMore(item.content)}
-        ${item.image ? `<br><img src="${item.image}">` : ""}
-        <div class="meta">${date}</div>
-        ${item.type==="post"
-          ? `<button onclick="location.href='post.html?id=${item.id}'">View Post</button>`
-          : ""
-        }
+        <div class="contentWrap">
+          <b>${item.author} ${item.type==="reply"?"(reply)":""}</b><br>
+          ${readMore(item.content)}
+          ${item.image ? `<br><img src="${item.image}">` : ""}
+          <div class="time">${date}</div>
+          ${item.type==="post"
+            ? `<button onclick="location.href='post.html?id=${item.id}'">View Post</button>`
+            : ""}
+        </div>
       </div>
     `;
   });
@@ -328,7 +334,6 @@ function renderMore(reset=false){
 
 document.getElementById("loadMoreBtn").onclick = ()=>renderMore(false);
 
-/* INIT */
 loadProfile();
 loadAllContent();
 
