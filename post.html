@@ -16,27 +16,32 @@ body {
   padding:20px;
   line-height:1.4;
 
+  /* FIX: prevent weird layout shifting */
   display:flex;
   flex-direction:column;
 }
 
+/* NAV */
 nav a {
   color: rgb(91,46,97);
   margin-right:10px;
   text-decoration:none;
 }
 
+/* FIX: MAIN WRAPPER STRUCTURE */
 #pageWrapper{
   display:flex;
   flex-direction:column;
   width:100%;
 }
 
+/* TEXT FIX */
 .postBox, .replyBox {
   word-break: break-word;
   overflow-wrap: break-word;
 }
 
+/* TEXTAREA */
 textarea {
   width:100%;
   height:80px;
@@ -46,6 +51,7 @@ textarea {
   padding:5px;
 }
 
+/* BUTTONS */
 button {
   margin-top:5px;
   padding:5px 10px;
@@ -55,12 +61,14 @@ button {
   border:1px solid rgb(91,46,97);
 }
 
+/* POST BOX */
 .postBox {
   border:1px solid rgb(91,46,97);
   padding:10px;
   margin:10px 0;
 }
 
+/* REPLY BOX */
 .replyBox {
   border:1px solid rgb(91,46,97);
   padding:8px;
@@ -70,6 +78,7 @@ button {
   align-items:flex-start;
 }
 
+/* PROFILE PIC (SQUARE FIXED) */
 .avatar {
   width:32px;
   height:32px;
@@ -78,29 +87,34 @@ button {
   flex-shrink:0;
 }
 
+/* CONTENT */
 .contentWrap {
   flex:1;
   min-width:0;
 }
 
+/* TIME */
 .time {
   font-size:11px;
   opacity:0.7;
   margin-top:3px;
 }
 
+/* READ MORE */
 .readMore {
   cursor:pointer;
   font-size:12px;
   text-decoration:underline;
 }
 
+/* DELETE BUTTON */
 .deleteBtn {
   font-size:12px;
   padding:3px 6px;
   margin-top:5px;
 }
 
+/* IMAGE THUMB */
 .imgThumb {
   max-width:256px;
   max-height:256px;
@@ -109,6 +123,7 @@ button {
   margin-top:5px;
 }
 
+/* FULL IMAGE OVERLAY */
 .imgOverlay {
   display:none;
   position:fixed;
@@ -127,6 +142,7 @@ button {
   max-height:90%;
 }
 
+/* MODAL */
 .modal-bg {
   display:none;
   position:fixed;
@@ -148,10 +164,15 @@ button {
   text-align:center;
 }
 
+/* LOAD MORE */
 .loadMoreBtn {
   width:100%;
   margin-top:10px;
 }
+
+/* =========================
+   FIX: REPLY INPUT POSITION
+========================= */
 
 #replySection{
   margin-top:20px;
@@ -159,6 +180,7 @@ button {
   border-top:1px solid rgb(91,46,97);
 }
 
+/* FIX: ensure replies don't push input away visually */
 #replies{
   display:flex;
   flex-direction:column;
@@ -198,10 +220,12 @@ button {
 <div id="replies"></div>
 <button id="loadMoreReplies" class="loadMoreBtn">Load More Replies</button>
 
+<!-- IMAGE MODAL -->
 <div class="imgOverlay" id="imgOverlay">
 <img id="fullImg">
 </div>
 
+<!-- DELETE MODAL -->
 <div class="modal-bg" id="modal">
 <div class="modal-content">
 <p id="modalText"></p>
@@ -212,7 +236,7 @@ button {
 
 <script type="module">
 
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import {
 getFirestore,
 doc, getDoc,
@@ -227,7 +251,7 @@ signOut
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
 const firebaseConfig = {
-apiKey: "AIzaSyAZXfEl3Q68vfJtaLJqODtnQBSVEZWBmc0",
+apiKey: "AIzaSyAZXfEl3Q68vfJtaLJqODtnQBSVEzWBmc0",
 authDomain: "probatismm.firebaseapp.com",
 projectId: "probatismm",
 storageBucket: "probatismm.firebasestorage.app",
@@ -235,12 +259,15 @@ messagingSenderId: "746935651152",
 appId: "1:746935651152:web:82491ddac346bc654a3a55"
 };
 
-const app = initializeApp(firebaseConfig);
+/* ✅ FIX: prevent multiple Firebase app instances (THIS was causing auth reset/logouts) */
+const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
+
 const db = getFirestore(app);
 const auth = getAuth(app);
 
 const postId = new URLSearchParams(location.search).get("id");
 
+/* STATE */
 let currentUser=null;
 let deleteTarget=null;
 let replyList=[];
@@ -249,29 +276,20 @@ let replyIndex=0;
 /* AUTH */
 onAuthStateChanged(auth,(user)=>{
 if(user){
-currentUser=user.email.replace("@fake.com","");
-document.getElementById("accountLink").innerText="Profile";
-document.getElementById("accountLink").href="profile.html";
-}
-else{
-currentUser=null;
+  currentUser=user.email.replace("@fake.com","");
+  document.getElementById("accountLink").innerText="Profile";
+  document.getElementById("accountLink").href="profile.html";
+} else {
+  currentUser=null;
+  document.getElementById("accountLink").innerText="Sign In / Sign Up";
+  document.getElementById("accountLink").href="signin.html";
 }
 });
 
+/* LOGOUT */
 document.getElementById("logoutBtn").onclick=async()=>{
 await signOut(auth);
 location.href="index.html";
-};
-
-/* 🔥 PROFILE NAVIGATION */
-window.goProfile = function(username){
-  if(!username) return;
-
-  if(username === currentUser){
-    location.href = "profile.html";
-  } else {
-    location.href = "user.html?user=" + username;
-  }
 };
 
 /* IMAGE VIEW */
@@ -322,8 +340,8 @@ const avatar = await getAvatar(p.author);
 
 document.getElementById("post").innerHTML=`
 <div class="postBox">
-${avatar?`<img class="avatar" src="${avatar}" onclick="goProfile('${p.author}')" style="cursor:pointer;">`:``}
-<b style="cursor:pointer;" onclick="goProfile('${p.author}')">${p.author}</b><br>
+${avatar?`<img class="avatar" src="${avatar}">`:``}
+<b>${p.author}</b><br>
 ${readMore(p.content)}
 ${p.image?`<br><img class="imgThumb" src="${p.image}" onclick="showImg(this.src)">`:``}
 </div>
@@ -359,10 +377,10 @@ const el=document.createElement("div");
 el.className="replyBox";
 
 el.innerHTML=`
-${avatar?`<img class="avatar" src="${avatar}" onclick="goProfile('${r.author}')" style="cursor:pointer;">`:``}
+${avatar?`<img class="avatar" src="${avatar}">`:``}
 
 <div class="contentWrap">
-<b style="cursor:pointer;" onclick="goProfile('${r.author}')">${r.author}</b><br>
+<b>${r.author}</b><br>
 ${readMore(r.content)}
 ${r.image?`<br><img class="imgThumb" src="${r.image}" onclick="showImg(this.src)">`:``}
 <div class="time">${new Date(r.time).toLocaleString()}</div>
