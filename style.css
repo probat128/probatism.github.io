@@ -9,4 +9,10 @@ nav a {
   margin: 10px;
   color: #423452;
   text-decoration: none;
+
+  .post p,
+.reply p,
+#profileInfo p {
+  margin: 4px 0;
+}
 }
