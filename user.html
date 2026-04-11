@@ -35,17 +35,21 @@ button {
   border:2px solid #5b2e61;
 }
 
+/* FIX TEXT WRAP (IMPORTANT) */
+#profileInfo, #profileInfo p {
+  word-break: break-word;
+  overflow-wrap: break-word;
+  white-space: pre-wrap;
+}
+
 /* POSTS */
 .post {
   border:1px solid #5b2e61;
   padding:10px;
   margin:10px 0;
-}
-
-/* TEXT FIX */
-.post, .post div {
   word-break: break-word;
   overflow-wrap: break-word;
+  white-space: pre-wrap;
 }
 
 /* READ MORE */
@@ -88,11 +92,11 @@ button {
 <button id="logoutBtn" style="display:none;">Logout</button>
 </nav>
 
-<h1>Profile</h1>
+<h1 id="pageTitle">Profile</h1>
 
 <div id="profileInfo">Loading...</div>
 
-<h2>Posts</h2>
+<h2>Posts & Replies</h2>
 <div id="userPosts">Loading...</div>
 <button id="loadMoreBtn">Load More</button>
 
@@ -121,7 +125,8 @@ const urlParams = new URLSearchParams(window.location.search);
 const username = urlParams.get("user");
 
 let currentUser = null;
-let lastVisible = null;
+let lastVisiblePost = null;
+let lastVisibleReply = null;
 
 /* AUTH */
 onAuthStateChanged(auth,(user)=>{
@@ -171,6 +176,9 @@ async function loadProfile(){
   const data = snap.data();
   const joinDate = new Date(data.joinDate).toLocaleDateString();
 
+  // FIX TITLE
+  document.getElementById("pageTitle").innerText = data.username;
+
   document.getElementById("profileInfo").innerHTML = `
     <h2>${data.username}</h2>
     <p>Joined: ${joinDate}</p>
@@ -187,8 +195,9 @@ async function loadProfile(){
   loadReputation();
 }
 
-/* REPUTATION SYSTEM */
+/* REPUTATION */
 async function loadReputation(){
+
   const votesSnap = await getDocs(
     query(collection(db,"reputationVotes"), where("target","==",username))
   );
@@ -210,6 +219,9 @@ async function loadReputation(){
   const upBtn = document.getElementById("upvote");
   const downBtn = document.getElementById("downvote");
 
+  upBtn.classList.remove("active");
+  downBtn.classList.remove("active");
+
   if(myVote === 1) upBtn.classList.add("active");
   if(myVote === -1) downBtn.classList.add("active");
 
@@ -219,15 +231,19 @@ async function loadReputation(){
     return;
   }
 
-  upBtn.onclick = ()=>vote(1, myVote);
-  downBtn.onclick = ()=>vote(-1, myVote);
+  upBtn.onclick = ()=>vote(1);
+  downBtn.onclick = ()=>vote(-1);
 }
 
-async function vote(value, currentVote){
+async function vote(value){
   const voteRef = doc(db,"reputationVotes", currentUser + "_" + username);
+  const snap = await getDoc(voteRef);
 
-  if(currentVote === value){
-    await setDoc(voteRef, { value: 0, from: currentUser, target: username });
+  let current = 0;
+  if(snap.exists()) current = snap.data().value;
+
+  if(current === value){
+    await setDoc(voteRef, { value:0, from:currentUser, target:username });
   } else {
     await setDoc(voteRef, { value:value, from:currentUser, target:username });
   }
@@ -245,38 +261,73 @@ async function loadPosts(){
     limit(10)
   );
 
-  if(lastVisible){
+  if(lastVisiblePost){
     q = query(
       collection(db,"posts"),
       where("author","==",username),
       orderBy("time","desc"),
-      startAfter(lastVisible),
+      startAfter(lastVisiblePost),
       limit(10)
     );
   }
 
   const snap = await getDocs(q);
+  if(!snap.empty){
+    lastVisiblePost = snap.docs[snap.docs.length-1];
 
-  if(snap.empty) return;
+    snap.forEach(docSnap=>{
+      const p = docSnap.data();
+      const date = new Date(p.time).toLocaleString();
 
-  lastVisible = snap.docs[snap.docs.length-1];
+      document.getElementById("userPosts").innerHTML += `
+        <div class="post">
+          <b>${p.author}</b><br>
+          ${readMore(p.content)}
+          ${p.image ? `<br><img src="${p.image}" style="max-width:200px;">` : ""}
+          <div>${date}</div>
+          <button onclick="location.href='post.html?id=${docSnap.id}'">View Post</button>
+        </div>
+      `;
+    });
+  }
 
-  const div = document.getElementById("userPosts");
+  /* LOAD REPLIES TOO */
+  let rq = query(
+    collection(db,"replies"),
+    where("author","==",username),
+    orderBy("time","desc"),
+    limit(10)
+  );
 
-  snap.forEach(docSnap=>{
-    const p = docSnap.data();
-    const date = new Date(p.time).toLocaleString();
+  if(lastVisibleReply){
+    rq = query(
+      collection(db,"replies"),
+      where("author","==",username),
+      orderBy("time","desc"),
+      startAfter(lastVisibleReply),
+      limit(10)
+    );
+  }
 
-    div.innerHTML += `
-      <div class="post">
-        <b>${p.author}</b><br>
-        ${readMore(p.content)}
-        ${p.image ? `<br><img src="${p.image}" style="max-width:200px;">` : ""}
-        <div>${date}</div>
-        <button onclick="location.href='post.html?id=${docSnap.id}'">View Post</button>
-      </div>
-    `;
-  });
+  const rsnap = await getDocs(rq);
+  if(!rsnap.empty){
+    lastVisibleReply = rsnap.docs[rsnap.docs.length-1];
+
+    rsnap.forEach(docSnap=>{
+      const r = docSnap.data();
+      const date = new Date(r.time).toLocaleString();
+
+      document.getElementById("userPosts").innerHTML += `
+        <div class="post">
+          <b>${r.author} (reply)</b><br>
+          ${readMore(r.content)}
+          ${r.image ? `<br><img src="${r.image}" style="max-width:200px;">` : ""}
+          <div>${date}</div>
+          <button onclick="location.href='post.html?id=${r.postId}'">View Thread</button>
+        </div>
+      `;
+    });
+  }
 }
 
 document.getElementById("loadMoreBtn").onclick = loadPosts;
