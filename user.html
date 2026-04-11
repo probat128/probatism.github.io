@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>User Profile</title>
+<title>Public Profile</title>
 
 <style>
 body {
@@ -11,66 +11,67 @@ body {
   padding:20px;
 }
 
+/* NAV */
 nav a {
   color:#5b2e61;
   margin-right:10px;
   text-decoration:none;
 }
 
-.profile-box {
-  border:2px solid #5b2e61;
-  padding:15px;
-  margin-top:10px;
-}
-
-.profile-pic {
-  width:200px;
-  height:200px;
-  object-fit:cover;
-  border:2px solid #5b2e61;
-}
-
 button {
   margin-top:5px;
-  padding:6px 10px;
+  padding:5px 10px;
   cursor:pointer;
   border:2px solid #5b2e61;
   background:#5b2e61;
   color:#e8e0cf;
 }
 
-.vote-box {
-  display:flex;
-  align-items:center;
-  gap:10px;
-  margin-top:10px;
+/* PROFILE */
+.profile-pic {
+  width:128px;
+  height:128px;
+  object-fit:cover;
+  border:2px solid #5b2e61;
 }
 
-.arrow {
-  font-size:24px;
-  cursor:pointer;
-  opacity:0.3;
-  user-select:none;
-}
-
-.arrow.active {
-  opacity:1;
-}
-
-.reputation {
-  font-size:18px;
-  font-weight:bold;
-}
-
+/* POSTS */
 .post {
   border:1px solid #5b2e61;
   padding:10px;
+  margin:10px 0;
+}
+
+/* TEXT FIX */
+.post, .post div {
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
+
+/* READ MORE */
+.readMore {
+  cursor:pointer;
+  font-size:12px;
+  text-decoration:underline;
+}
+
+/* REPUTATION */
+.repBox {
   margin-top:10px;
 }
 
-.time {
-  font-size:12px;
-  opacity:0.7;
+.voteBtn {
+  font-size:20px;
+  cursor:pointer;
+  padding:5px;
+  border:1px solid #5b2e61;
+  background:none;
+  color:#5b2e61;
+}
+
+.voteBtn.active {
+  background:#5b2e61;
+  color:#e8e0cf;
 }
 </style>
 </head>
@@ -78,200 +79,173 @@ button {
 <body>
 
 <nav>
-  <a href="index.html">Home</a>
-  <a href="forums.html">Forums</a>
-  <a href="news.html">News</a>
-  <a href="quiz.html">Quiz</a>
-  <a href="profile.html">My Profile</a>
+<a href="index.html">Home</a>
+<a href="doctrine.html">Doctrine</a>
+<a href="forums.html">Forums</a>
+<a href="news.html">News</a>
+<a href="quiz.html">Quiz</a>
+<a href="signin.html" id="accountLink">Sign In / Sign Up</a>
+<button id="logoutBtn" style="display:none;">Logout</button>
 </nav>
 
-<h1>User Profile</h1>
+<h1>Profile</h1>
 
-<div id="profile">Loading...</div>
-
-<h3>Joined</h3>
-<div id="joinDate">Loading...</div>
-
-<h2>Reputation</h2>
-<div class="vote-box">
-  <div class="arrow" id="upvote">▲</div>
-  <div class="reputation" id="rep">0</div>
-  <div class="arrow" id="downvote">▼</div>
-</div>
+<div id="profileInfo">Loading...</div>
 
 <h2>Posts</h2>
-<div id="posts"></div>
-<button id="loadMore">Load More</button>
+<div id="userPosts">Loading...</div>
+<button id="loadMoreBtn">Load More</button>
 
 <script type="module">
-
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import {
-  getFirestore,
-  doc, getDoc,
-  collection, query, where, getDocs,
-  setDoc, deleteDoc, orderBy, limit, startAfter
+getFirestore, doc, getDoc, setDoc,
+collection, getDocs, query, where, orderBy, limit, startAfter
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 import {
-  getAuth,
-  onAuthStateChanged
+getAuth, onAuthStateChanged, signOut
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyAZXfEl3Q68vfJtaLJqODtnQBSVEZWBmc0",
+  apiKey: "AIzaSy...",
   authDomain: "probatismm.firebaseapp.com",
-  projectId: "probatismm",
-  storageBucket: "probatismm.firebasestorage.app",
-  messagingSenderId: "746935651152",
-  appId: "1:746935651152:web:82491ddac346bc654a3a55"
+  projectId: "probatismm"
 };
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
 
-const username = new URLSearchParams(location.search).get("user");
+const urlParams = new URLSearchParams(window.location.search);
+const username = urlParams.get("user");
 
 let currentUser = null;
-let currentVote = null;
 let lastVisible = null;
-let authReady = false;
 
-// =====================
-// AUTH (FIXED)
-// =====================
+/* AUTH */
 onAuthStateChanged(auth,(user)=>{
+  const accountLink = document.getElementById("accountLink");
+  const logoutBtn = document.getElementById("logoutBtn");
+
   if(user){
     currentUser = user.email.replace("@fake.com","");
+    accountLink.innerText = "Profile";
+    accountLink.href = "profile.html";
+    logoutBtn.style.display = "inline";
   } else {
     currentUser = null;
+    logoutBtn.style.display = "none";
   }
-
-  authReady = true;
-
-  loadVote(); // safe now
 });
 
-// =====================
-// PROFILE
-// =====================
+logoutBtn.onclick = async ()=>{
+  await signOut(auth);
+  location.href = "index.html";
+};
+
+/* READ MORE */
+function readMore(text){
+  if(!text) return "";
+  if(text.length <= 400) return text;
+
+  const id = Math.random().toString(36).slice(2);
+
+  return `
+  <span id="t_${id}">
+    ${text.slice(0,400)}...
+    <span class="readMore" onclick="
+      document.getElementById('full_${id}').style.display='inline';
+      document.getElementById('t_${id}').style.display='none';
+    ">read more</span>
+  </span>
+  <span id="full_${id}" style="display:none">${text}</span>
+  `;
+}
+
+/* LOAD PROFILE */
 async function loadProfile(){
   const snap = await getDoc(doc(db,"users",username));
   if(!snap.exists()) return;
 
   const data = snap.data();
+  const joinDate = new Date(data.joinDate).toLocaleDateString();
 
-  document.getElementById("profile").innerHTML = `
-    <div class="profile-box">
-      <h2>${data.username}</h2>
-      ${data.profilePic ? `<img class="profile-pic" src="${data.profilePic}">` : ""}
-      <p>${data.description || ""}</p>
+  document.getElementById("profileInfo").innerHTML = `
+    <h2>${data.username}</h2>
+    <p>Joined: ${joinDate}</p>
+    ${data.profilePic ? `<img class="profile-pic" src="${data.profilePic}">` : ""}
+    <p>${data.description || ""}</p>
+
+    <div class="repBox">
+      <button id="upvote" class="voteBtn">▲</button>
+      <span id="repValue">0</span>
+      <button id="downvote" class="voteBtn">▼</button>
     </div>
   `;
 
-  document.getElementById("joinDate").innerText =
-    data.joinDate ? new Date(data.joinDate).toLocaleDateString() : "Unknown";
+  loadReputation();
 }
 
-// =====================
-// REPUTATION
-// =====================
-async function loadRep(){
-  const snap = await getDoc(doc(db,"users",username));
-  document.getElementById("rep").innerText =
-    snap.exists() ? (snap.data().reputation || 0) : 0;
-}
+/* REPUTATION SYSTEM */
+async function loadReputation(){
+  const votesSnap = await getDocs(
+    query(collection(db,"reputationVotes"), where("target","==",username))
+  );
 
-// =====================
-// VOTE STATE
-// =====================
-async function loadVote(){
-  if(!authReady || !currentUser) return;
+  let total = 0;
+  let myVote = 0;
 
-  const id = currentUser + "_" + username;
-  const snap = await getDoc(doc(db,"reputationVotes",id));
+  votesSnap.forEach(docSnap=>{
+    const v = docSnap.data();
+    total += v.value;
 
-  currentVote = snap.exists() ? snap.data().value : null;
-  updateUI();
-}
+    if(v.from === currentUser){
+      myVote = v.value;
+    }
+  });
 
-// =====================
-// UI UPDATE
-// =====================
-function updateUI(){
-  document.getElementById("upvote").classList.remove("active");
-  document.getElementById("downvote").classList.remove("active");
+  document.getElementById("repValue").innerText = total;
 
-  if(currentVote === 1){
-    document.getElementById("upvote").classList.add("active");
+  const upBtn = document.getElementById("upvote");
+  const downBtn = document.getElementById("downvote");
+
+  if(myVote === 1) upBtn.classList.add("active");
+  if(myVote === -1) downBtn.classList.add("active");
+
+  if(!currentUser){
+    upBtn.disabled = true;
+    downBtn.disabled = true;
+    return;
   }
-  if(currentVote === -1){
-    document.getElementById("downvote").classList.add("active");
-  }
+
+  upBtn.onclick = ()=>vote(1, myVote);
+  downBtn.onclick = ()=>vote(-1, myVote);
 }
 
-// =====================
-// VOTING (FIXED)
-// =====================
-async function vote(value){
-  if(!authReady || !currentUser || currentUser === username) return;
+async function vote(value, currentVote){
+  const voteRef = doc(db,"reputationVotes", currentUser + "_" + username);
 
-  const id = currentUser + "_" + username;
-
-  const userRef = doc(db,"users",username);
-  const voteRef = doc(db,"reputationVotes",id);
-
-  const snap = await getDoc(userRef);
-  let rep = snap.exists() ? (snap.data().reputation || 0) : 0;
-
-  // remove old vote
-  if(currentVote === 1) rep -= 1;
-  if(currentVote === -1) rep += 1;
-
-  // toggle off
   if(currentVote === value){
-    currentVote = null;
-    await deleteDoc(voteRef);
+    await setDoc(voteRef, { value: 0, from: currentUser, target: username });
   } else {
-    currentVote = value;
-    rep += value;
-
-    await setDoc(voteRef,{
-      voter: currentUser,
-      target: username,
-      value
-    });
+    await setDoc(voteRef, { value:value, from:currentUser, target:username });
   }
 
-  await setDoc(userRef,{
-    reputation: rep
-  },{merge:true});
-
-  updateUI();
-  loadRep();
+  loadReputation();
 }
 
-// =====================
-// POSTS (FIXED PAGINATION)
-// =====================
-async function loadPosts(first=false){
+/* LOAD POSTS */
+async function loadPosts(){
 
-  if(first){
-    lastVisible = null;
-    document.getElementById("posts").innerHTML = "";
-  }
+  let q = query(
+    collection(db,"posts"),
+    where("author","==",username),
+    orderBy("time","desc"),
+    limit(10)
+  );
 
-  let q;
-
-  if(!lastVisible){
-    q = query(
-      collection(db,"posts"),
-      where("author","==",username),
-      orderBy("time","desc"),
-      limit(10)
-    );
-  } else {
+  if(lastVisible){
     q = query(
       collection(db,"posts"),
       where("author","==",username),
@@ -287,36 +261,28 @@ async function loadPosts(first=false){
 
   lastVisible = snap.docs[snap.docs.length-1];
 
-  snap.forEach(d=>{
-    const p = d.data();
+  const div = document.getElementById("userPosts");
 
-    const div = document.createElement("div");
-    div.className = "post";
+  snap.forEach(docSnap=>{
+    const p = docSnap.data();
+    const date = new Date(p.time).toLocaleString();
 
-    div.innerHTML = `
-      <b>${p.author}</b>
-      <div class="time">${new Date(p.time).toLocaleString()}</div>
-      <div>${p.content || ""}</div>
-      ${p.image ? `<img src="${p.image}" style="max-width:200px;">` : ""}
+    div.innerHTML += `
+      <div class="post">
+        <b>${p.author}</b><br>
+        ${readMore(p.content)}
+        ${p.image ? `<br><img src="${p.image}" style="max-width:200px;">` : ""}
+        <div>${date}</div>
+        <button onclick="location.href='post.html?id=${docSnap.id}'">View Post</button>
+      </div>
     `;
-
-    document.getElementById("posts").appendChild(div);
   });
 }
 
-// =====================
-// EVENTS
-// =====================
-document.getElementById("upvote").onclick = ()=>vote(1);
-document.getElementById("downvote").onclick = ()=>vote(-1);
-document.getElementById("loadMore").onclick = ()=>loadPosts(false);
+document.getElementById("loadMoreBtn").onclick = loadPosts;
 
-// =====================
-// INIT
-// =====================
 loadProfile();
-loadRep();
-loadPosts(true);
+loadPosts();
 
 </script>
 
