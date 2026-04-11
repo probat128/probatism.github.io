@@ -35,16 +35,16 @@ button {
   border:2px solid #5b2e61;
 }
 
-/* POSTS */
+/* POSTS (FIXED SIZE + CLEAN LOOK) */
 .post {
   border:1px solid #5b2e61;
-  padding:10px;
-  margin:10px 0;
+  padding:8px;              /* smaller padding */
+  margin:8px 0;
+  max-width:600px;          /* prevents huge stretching */
 }
 
 /* TEXT FIX */
-.post {
-  white-space: pre-wrap;
+.post, .post div {
   word-break: break-word;
   overflow-wrap: break-word;
 }
@@ -54,6 +54,20 @@ button {
   cursor:pointer;
   font-size:12px;
   text-decoration:underline;
+}
+
+/* IMAGE */
+.post img {
+  max-width:200px;
+  margin-top:5px;
+  border:1px solid #5b2e61;
+}
+
+/* TIME */
+.time {
+  font-size:12px;
+  opacity:0.7;
+  margin-top:3px;
 }
 
 /* REPUTATION */
@@ -89,7 +103,7 @@ button {
 <button id="logoutBtn" style="display:none;">Logout</button>
 </nav>
 
-<h1 id="profileTitle">Profile</h1>
+<h1 id="pageTitle">Profile</h1>
 
 <div id="profileInfo">Loading...</div>
 
@@ -123,9 +137,9 @@ const username = urlParams.get("user");
 
 let currentUser = null;
 
-/* PAGINATION STATE */
-let allItems = [];
-let index = 0;
+/* 🔥 COMBINED LIST */
+let combinedList = [];
+let currentIndex = 0;
 
 /* AUTH */
 onAuthStateChanged(auth,(user)=>{
@@ -175,10 +189,9 @@ async function loadProfile(){
   const data = snap.data();
   const joinDate = new Date(data.joinDate).toLocaleDateString();
 
-  document.getElementById("profileTitle").innerText = data.username;
+  document.getElementById("pageTitle").innerText = data.username;
 
   document.getElementById("profileInfo").innerHTML = `
-    <p><b>Username:</b> ${data.username}</p>
     <p><b>Joined:</b> ${joinDate}</p>
     ${data.profilePic ? `<img class="profile-pic" src="${data.profilePic}">` : ""}
     <p>${data.description || ""}</p>
@@ -193,7 +206,7 @@ async function loadProfile(){
   loadReputation();
 }
 
-/* REPUTATION */
+/* REPUTATION (FIXED LIVE UPDATE) */
 async function loadReputation(){
   const votesSnap = await getDocs(
     query(collection(db,"reputationVotes"), where("target","==",username))
@@ -244,7 +257,7 @@ async function vote(value, currentVote){
   loadReputation();
 }
 
-/* LOAD ALL POSTS + REPLIES */
+/* 🔥 LOAD POSTS + REPLIES TOGETHER */
 async function loadAllContent(){
 
   const postsSnap = await getDocs(
@@ -255,46 +268,43 @@ async function loadAllContent(){
     query(collection(db,"replies"), where("author","==",username))
   );
 
-  allItems = [];
+  combinedList = [];
 
-  postsSnap.forEach(docSnap=>{
-    allItems.push({ id:docSnap.id, type:"post", ...docSnap.data() });
+  postsSnap.forEach(d=>{
+    combinedList.push({ id:d.id, type:"post", ...d.data() });
   });
 
-  repliesSnap.forEach(docSnap=>{
-    allItems.push({ id:docSnap.id, type:"reply", ...docSnap.data() });
+  repliesSnap.forEach(d=>{
+    combinedList.push({ id:d.id, type:"reply", ...d.data() });
   });
 
-  // 🔥 FIX: SORT NEWEST FIRST
-  allItems.sort((a,b)=>b.time - a.time);
+  /* 🔥 SORT NEWEST FIRST */
+  combinedList.sort((a,b)=>b.time - a.time);
 
-  renderItems(true);
+  renderContent(true);
 }
 
 /* RENDER */
-function renderItems(reset=false){
-
+function renderContent(reset=false){
   const div = document.getElementById("userPosts");
 
   if(reset){
-    div.innerHTML = "";
-    index = 0;
+    div.innerHTML="";
+    currentIndex = 0;
   }
 
-  const chunk = allItems.slice(index, index+10);
+  const chunk = combinedList.slice(currentIndex, currentIndex+10);
 
   chunk.forEach(item=>{
     const date = new Date(item.time).toLocaleString();
 
     div.innerHTML += `
       <div class="post">
-        <b>${item.author} (${item.type})</b><br>
+        <b>${item.author} ${item.type==="reply"?"(reply)":""}</b><br>
         ${readMore(item.content)}
-        ${item.image ? `<br><img src="${item.image}" style="max-width:200px;">` : ""}
-        <div>${date}</div>
-
-        ${
-          item.type === "post"
+        ${item.image ? `<br><img src="${item.image}">` : ""}
+        <div class="time">${date}</div>
+        ${item.type==="post"
           ? `<button onclick="location.href='post.html?id=${item.id}'">View Post</button>`
           : ""
         }
@@ -302,14 +312,15 @@ function renderItems(reset=false){
     `;
   });
 
-  index += 10;
+  currentIndex += 10;
 
   document.getElementById("loadMoreBtn").style.display =
-    index >= allItems.length ? "none" : "block";
+    currentIndex >= combinedList.length ? "none" : "block";
 }
 
-document.getElementById("loadMoreBtn").onclick = ()=>renderItems(false);
+document.getElementById("loadMoreBtn").onclick = ()=>renderContent(false);
 
+/* INIT */
 loadProfile();
 loadAllContent();
 
