@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>User Profile</title>
+
+<style>
+body {
+  font-family: Arial;
+  background:#e8e0cf;
+  color:#5b2e61;
+  padding:20px;
+}
+
+nav a {
+  color:#5b2e61;
+  margin-right:10px;
+  text-decoration:none;
+}
+
+.profile-box {
+  border:2px solid #5b2e61;
+  padding:15px;
+  margin-top:10px;
+}
+
+.profile-pic {
+  width:200px;
+  height:200px;
+  object-fit:cover;
+  border:2px solid #5b2e61;
+}
+
+button {
+  margin-top:5px;
+  padding:6px 10px;
+  cursor:pointer;
+  border:2px solid #5b2e61;
+  background:#5b2e61;
+  color:#e8e0cf;
+}
+
+.vote-box {
+  display:flex;
+  align-items:center;
+  gap:10px;
+  margin-top:10px;
+}
+
+.arrow {
+  font-size:20px;
+  cursor:pointer;
+  user-select:none;
+}
+
+.arrow:hover {
+  opacity:0.7;
+}
+
+.reputation {
+  font-size:18px;
+  font-weight:bold;
+}
+
+.post {
+  border:1px solid #5b2e61;
+  padding:10px;
+  margin-top:10px;
+}
+</style>
+</head>
+
+<body>
+
+<nav>
+  <a href="index.html">Home</a>
+  <a href="forums.html">Forums</a>
+  <a href="news.html">News</a>
+  <a href="quiz.html">Quiz</a>
+  <a href="profile.html" id="myProfileLink">My Profile</a>
+</nav>
+
+<h1>User Profile</h1>
+
+<div id="profile">Loading...</div>
+
+<h2>Reputation</h2>
+<div class="vote-box">
+  <div class="arrow" id="upvote">▲</div>
+  <div class="reputation" id="rep">0</div>
+  <div class="arrow" id="downvote">▼</div>
+</div>
+
+<h2>Posts</h2>
+<div id="posts">Loading...</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import {
+  getFirestore,
+  doc, getDoc,
+  collection, query, where, getDocs,
+  setDoc, deleteDoc
+} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+import {
+  getAuth,
+  onAuthStateChanged
+} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAZXfEl3Q68vfJtaLJqODtnQBSVEzWBmc0",
+  authDomain: "probatismm.firebaseapp.com",
+  projectId: "probatismm",
+  storageBucket: "probatismm.firebasestorage.app",
+  messagingSenderId: "746935651152",
+  appId: "1:746935651152:web:82491ddac346bc654a3a55"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const auth = getAuth(app);
+
+const username = new URLSearchParams(location.search).get("user");
+
+let currentUser = null;
+let currentVote = null;
+
+// AUTH
+onAuthStateChanged(auth,(user)=>{
+  if(user){
+    currentUser = user.email.replace("@fake.com","");
+  }
+});
+
+// LOAD PROFILE
+async function loadProfile(){
+  const snap = await getDoc(doc(db,"users",username));
+
+  if(!snap.exists()){
+    document.getElementById("profile").innerHTML = "User not found";
+    return;
+  }
+
+  const data = snap.data();
+
+  document.getElementById("profile").innerHTML = `
+    <div class="profile-box">
+      <h2>${data.username}</h2>
+      ${data.profilePic ? `<img class="profile-pic" src="${data.profilePic}">` : ""}
+      <p>${data.description || ""}</p>
+    </div>
+  `;
+}
+
+// LOAD POSTS
+async function loadPosts(){
+  const q = await getDocs(query(
+    collection(db,"posts"),
+    where("author","==",username)
+  ));
+
+  let html = "";
+
+  q.forEach(d=>{
+    const p = d.data();
+    html += `
+      <div class="post">
+        <b>${p.author}</b><br>
+        ${p.content || ""}
+        ${p.image ? `<br><img src="${p.image}" style="max-width:200px;">` : ""}
+      </div>
+    `;
+  });
+
+  document.getElementById("posts").innerHTML = html || "No posts";
+}
+
+// LOAD REPUTATION
+async function loadRep(){
+  const snap = await getDoc(doc(db,"users",username));
+  const rep = snap.exists() ? (snap.data().reputation || 0) : 0;
+  document.getElementById("rep").innerText = rep;
+}
+
+// LOAD USER VOTE
+async function loadVote(){
+  if(!currentUser) return;
+
+  const voteId = currentUser + "_" + username;
+  const snap = await getDoc(doc(db,"reputationVotes",voteId));
+
+  if(snap.exists()){
+    currentVote = snap.data().value;
+  }
+}
+
+// UPDATE VOTE
+async function vote(value){
+  if(!currentUser || currentUser === username) return;
+
+  const voteId = currentUser + "_" + username;
+  const userRef = doc(db,"users",username);
+  const voteRef = doc(db,"reputationVotes",voteId);
+
+  const userSnap = await getDoc(userRef);
+  let rep = userSnap.exists() ? (userSnap.data().reputation || 0) : 0;
+
+  // remove old vote
+  if(currentVote === 1) rep -= 1;
+  if(currentVote === -1) rep += 1;
+
+  // apply new vote
+  if(currentVote === value){
+    // cancel vote
+    currentVote = null;
+    await deleteDoc(voteRef);
+  } else {
+    currentVote = value;
+    rep += value;
+
+    await setDoc(voteRef,{
+      voterId: currentUser,
+      target: username,
+      value: value
+    });
+  }
+
+  await setDoc(userRef,{
+    reputation: rep
+  },{merge:true});
+
+  loadRep();
+}
+
+// EVENTS
+document.getElementById("upvote").onclick = ()=>vote(1);
+document.getElementById("downvote").onclick = ()=>vote(-1);
+
+// INIT
+loadProfile();
+loadPosts();
+loadRep();
+loadVote();
+
+</script>
+
+</body>
+</html>
