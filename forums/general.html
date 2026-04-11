@@ -21,6 +21,7 @@ textarea { width:100%; height:80px; background: rgb(232,224,207); color: rgb(91,
   height:40px;
   object-fit:cover;
   border:1px solid rgb(91,46,97);
+  cursor:pointer;
 }
 
 .post-content {
@@ -169,6 +170,17 @@ logoutBtn.onclick = async ()=>{
   window.location.href = "../index.html";
 };
 
+// 🔥 PROFILE NAVIGATION
+window.goProfile = function(username){
+  if(!username) return;
+
+  if(username === currentUser){
+    window.location.href = "../profile.html";
+  } else {
+    window.location.href = "../user.html?user=" + username;
+  }
+};
+
 // RESIZE IMAGE
 function resizeImage(file){
   return new Promise(resolve=>{
@@ -193,7 +205,7 @@ function resizeImage(file){
   });
 }
 
-// GET FULL IMAGE (no resize)
+// GET FULL IMAGE
 function getFullImage(file){
   return new Promise(resolve=>{
     const reader = new FileReader();
@@ -287,7 +299,7 @@ async function loadPosts(){
     if(post.author!=="Anonymous"){
       const userSnap=await getDoc(doc(db,"users",post.author));
       if(userSnap.exists() && userSnap.data().profilePic){
-        profilePic=`<img class="profile-thumb" src="${userSnap.data().profilePic}">`;
+        profilePic=`<img class="profile-thumb" src="${userSnap.data().profilePic}" onclick="goProfile('${post.author}')">`;
       }
     }
 
@@ -303,7 +315,7 @@ async function loadPosts(){
     div.innerHTML=`
       ${profilePic}
       <div>
-        <b>${post.author}:</b>
+        <b style="cursor:pointer;" onclick="goProfile('${post.author}')">${post.author}:</b>
         <div class="post-content">${shortText}</div>
         ${needsMore ? `<button class="readMoreBtn">Read More</button>` : ""}
         ${post.image ? `<img class="post-img" src="${post.image}" data-full="${post.fullImage || post.image}">` : ""}
@@ -331,7 +343,6 @@ async function loadPosts(){
     postsDiv.appendChild(div);
   }
 
-  // CLICK FULL IMAGE
   document.querySelectorAll(".post-img").forEach(img=>{
     img.onclick=()=>{
       document.getElementById("modalImg").src = img.dataset.full;
