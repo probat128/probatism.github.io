@@ -35,18 +35,27 @@ button {
   border:2px solid #5b2e61;
 }
 
-/* POSTS (FIXED SIZE + CLEAN LOOK) */
+/* 🔥 FIX: DESCRIPTION WRAPPING */
+#profileInfo p {
+  word-break: break-word;
+  overflow-wrap: break-word;
+  white-space: pre-wrap;
+  max-width:700px;
+}
+
+/* POSTS (WIDER + CLEAN) */
 .post {
   border:1px solid #5b2e61;
-  padding:8px;              /* smaller padding */
-  margin:8px 0;
-  max-width:600px;          /* prevents huge stretching */
+  padding:10px;
+  margin:10px 0;
+  max-width:750px; /* 🔥 increased width */
 }
 
 /* TEXT FIX */
 .post, .post div {
   word-break: break-word;
   overflow-wrap: break-word;
+  white-space: pre-wrap;
 }
 
 /* READ MORE */
@@ -206,7 +215,7 @@ async function loadProfile(){
   loadReputation();
 }
 
-/* REPUTATION (FIXED LIVE UPDATE) */
+/* REPUTATION */
 async function loadReputation(){
   const votesSnap = await getDocs(
     query(collection(db,"reputationVotes"), where("target","==",username))
@@ -257,7 +266,7 @@ async function vote(value, currentVote){
   loadReputation();
 }
 
-/* 🔥 LOAD POSTS + REPLIES TOGETHER */
+/* LOAD POSTS + REPLIES */
 async function loadAllContent(){
 
   const postsSnap = await getDocs(
@@ -278,7 +287,6 @@ async function loadAllContent(){
     combinedList.push({ id:d.id, type:"reply", ...d.data() });
   });
 
-  /* 🔥 SORT NEWEST FIRST */
   combinedList.sort((a,b)=>b.time - a.time);
 
   renderContent(true);
