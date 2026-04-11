@@ -33,26 +33,34 @@ button {
   height:128px;
   object-fit:cover;
   border:2px solid #5b2e61;
-  margin-top:10px;
 }
 
-/* CLEAN LAYOUT FIX */
-.section {
-  margin-top:20px;
-}
-
-/* POSTS */
+/* POSTS / REPLIES (UNIFIED STYLE) */
 .post {
   border:1px solid #5b2e61;
   padding:10px;
   margin:10px 0;
+  background:#e8e0cf;
 }
 
-/* TEXT FIX (WITHOUT BREAKING LAYOUT) */
-.post, #profileInfo p {
+/* TEXT FIX */
+.post, .post div {
   word-break: break-word;
   overflow-wrap: break-word;
   white-space: pre-wrap;
+}
+
+/* IMAGE */
+.post img {
+  max-width:200px;
+  margin-top:5px;
+  border:1px solid #5b2e61;
+}
+
+/* META */
+.meta {
+  font-size:12px;
+  margin-top:5px;
 }
 
 /* READ MORE */
@@ -99,17 +107,15 @@ button {
 
 <div id="profileInfo">Loading...</div>
 
-<div class="section">
 <h2>Posts & Replies</h2>
 <div id="userPosts">Loading...</div>
 <button id="loadMoreBtn">Load More</button>
-</div>
 
 <script type="module">
-import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import {
 getFirestore, doc, getDoc, setDoc,
-collection, getDocs, query, where, orderBy, limit, startAfter
+collection, getDocs, query, where
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 import {
@@ -122,9 +128,7 @@ const firebaseConfig = {
   projectId: "probatismm"
 };
 
-/* 🔥 FIX: PREVENT LOGOUT */
-const app = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
-
+const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
 
@@ -132,8 +136,8 @@ const urlParams = new URLSearchParams(window.location.search);
 const username = urlParams.get("user");
 
 let currentUser = null;
-let lastVisiblePost = null;
-let lastVisibleReply = null;
+let combinedList = [];
+let index = 0;
 
 /* AUTH */
 onAuthStateChanged(auth,(user)=>{
@@ -181,13 +185,14 @@ async function loadProfile(){
   if(!snap.exists()) return;
 
   const data = snap.data();
-  const joinDate = new Date(data.joinDate).toLocaleDateString();
 
   document.getElementById("pageTitle").innerText = data.username;
 
+  const joinDate = new Date(data.joinDate).toLocaleDateString();
+
   document.getElementById("profileInfo").innerHTML = `
-    <h2>${data.username}</h2>
-    <p>Joined: ${joinDate}</p>
+    <p><b>Username:</b> ${data.username}</p>
+    <p><b>Joined:</b> ${joinDate}</p>
     ${data.profilePic ? `<img class="profile-pic" src="${data.profilePic}">` : ""}
     <p>${data.description || ""}</p>
 
@@ -201,9 +206,8 @@ async function loadProfile(){
   loadReputation();
 }
 
-/* REPUTATION (FIXED PROPERLY) */
+/* REPUTATION */
 async function loadReputation(){
-
   const votesSnap = await getDocs(
     query(collection(db,"reputationVotes"), where("target","==",username))
   );
@@ -237,24 +241,15 @@ async function loadReputation(){
     return;
   }
 
-  upBtn.onclick = async ()=>{
-    await vote(1);
-  };
-
-  downBtn.onclick = async ()=>{
-    await vote(-1);
-  };
+  upBtn.onclick = ()=>vote(1, myVote);
+  downBtn.onclick = ()=>vote(-1, myVote);
 }
 
-async function vote(value){
+async function vote(value, currentVote){
   const voteRef = doc(db,"reputationVotes", currentUser + "_" + username);
-  const snap = await getDoc(voteRef);
 
-  let current = 0;
-  if(snap.exists()) current = snap.data().value;
-
-  if(current === value){
-    await setDoc(voteRef, { value:0, from:currentUser, target:username });
+  if(currentVote === value){
+    await setDoc(voteRef, { value: 0, from: currentUser, target: username });
   } else {
     await setDoc(voteRef, { value:value, from:currentUser, target:username });
   }
@@ -262,94 +257,80 @@ async function vote(value){
   loadReputation();
 }
 
-/* LOAD POSTS + REPLIES CLEANLY */
-async function loadPosts(){
+/* LOAD POSTS + REPLIES (FIXED ORDER) */
+async function loadAllContent(){
 
-  const container = document.getElementById("userPosts");
-
-  /* POSTS */
-  let postQuery = query(
-    collection(db,"posts"),
-    where("author","==",username),
-    orderBy("time","desc"),
-    limit(10)
+  const postsSnap = await getDocs(
+    query(collection(db,"posts"), where("author","==",username))
   );
 
-  if(lastVisiblePost){
-    postQuery = query(
-      collection(db,"posts"),
-      where("author","==",username),
-      orderBy("time","desc"),
-      startAfter(lastVisiblePost),
-      limit(10)
-    );
-  }
-
-  const postSnap = await getDocs(postQuery);
-
-  if(!postSnap.empty){
-    lastVisiblePost = postSnap.docs[postSnap.docs.length-1];
-
-    postSnap.forEach(docSnap=>{
-      const p = docSnap.data();
-      const date = new Date(p.time).toLocaleString();
-
-      container.innerHTML += `
-        <div class="post">
-          <b>${p.author}</b><br>
-          ${readMore(p.content)}
-          ${p.image ? `<br><img src="${p.image}" style="max-width:200px;">` : ""}
-          <div>${date}</div>
-          <button onclick="location.href='post.html?id=${docSnap.id}'">View Post</button>
-        </div>
-      `;
-    });
-  }
-
-  /* REPLIES */
-  let replyQuery = query(
-    collection(db,"replies"),
-    where("author","==",username),
-    orderBy("time","desc"),
-    limit(10)
+  const repliesSnap = await getDocs(
+    query(collection(db,"replies"), where("author","==",username))
   );
 
-  if(lastVisibleReply){
-    replyQuery = query(
-      collection(db,"replies"),
-      where("author","==",username),
-      orderBy("time","desc"),
-      startAfter(lastVisibleReply),
-      limit(10)
-    );
-  }
+  combinedList = [];
 
-  const replySnap = await getDocs(replyQuery);
-
-  if(!replySnap.empty){
-    lastVisibleReply = replySnap.docs[replySnap.docs.length-1];
-
-    replySnap.forEach(docSnap=>{
-      const r = docSnap.data();
-      const date = new Date(r.time).toLocaleString();
-
-      container.innerHTML += `
-        <div class="post">
-          <b>${r.author} (reply)</b><br>
-          ${readMore(r.content)}
-          ${r.image ? `<br><img src="${r.image}" style="max-width:200px;">` : ""}
-          <div>${date}</div>
-          <button onclick="location.href='post.html?id=${r.postId}'">View Thread</button>
-        </div>
-      `;
+  postsSnap.forEach(docSnap=>{
+    combinedList.push({
+      type:"post",
+      id:docSnap.id,
+      ...docSnap.data()
     });
-  }
+  });
+
+  repliesSnap.forEach(docSnap=>{
+    combinedList.push({
+      type:"reply",
+      id:docSnap.id,
+      ...docSnap.data()
+    });
+  });
+
+  // ✅ SORT NEWEST FIRST
+  combinedList.sort((a,b)=>b.time - a.time);
+
+  renderMore(true);
 }
 
-document.getElementById("loadMoreBtn").onclick = loadPosts;
+/* RENDER */
+function renderMore(reset=false){
+  const div = document.getElementById("userPosts");
 
+  if(reset){
+    div.innerHTML = "";
+    index = 0;
+  }
+
+  const chunk = combinedList.slice(index, index+10);
+
+  chunk.forEach(item=>{
+    const date = new Date(item.time).toLocaleString();
+
+    div.innerHTML += `
+      <div class="post">
+        <b>${item.author}</b> ${item.type==="reply"?"(reply)":""}<br>
+        ${readMore(item.content)}
+        ${item.image ? `<br><img src="${item.image}">` : ""}
+        <div class="meta">${date}</div>
+        ${item.type==="post"
+          ? `<button onclick="location.href='post.html?id=${item.id}'">View Post</button>`
+          : ""
+        }
+      </div>
+    `;
+  });
+
+  index += 10;
+
+  document.getElementById("loadMoreBtn").style.display =
+    index >= combinedList.length ? "none" : "block";
+}
+
+document.getElementById("loadMoreBtn").onclick = ()=>renderMore(false);
+
+/* INIT */
 loadProfile();
-loadPosts();
+loadAllContent();
 
 </script>
 
