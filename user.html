@@ -364,9 +364,11 @@ document.getElementById("loadMoreBtn").onclick = ()=>renderContent(false);
 loadProfile();
 loadAllContent();
 
-document.getElementById("signinOkBtn").onclick = ()=>{
-  document.getElementById("signinModal").style.display = "none";
-};
+window.addEventListener("DOMContentLoaded", ()=>{
+  document.getElementById("signinOkBtn").onclick = ()=>{
+    document.getElementById("signinModal").style.display = "none";
+  };
+});
 
 </script>
 
