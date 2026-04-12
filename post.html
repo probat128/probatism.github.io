@@ -385,7 +385,17 @@ ${readMore(r.content)}
 ${r.image?`<br><img class="imgThumb" src="${r.image}" onclick="showImg(this.src)">`:``}
 <div class="time">${new Date(r.time).toLocaleString()}</div>
 
-${r.author===currentUser?`<button class="deleteBtn" onclick="openDelete('${r.id}')">Delete</button>`:``}
+<div style="margin-top:5px; display:flex; gap:8px;">
+
+  <button onclick="location.href='post.html?id=${r.postId}'">
+    View Post
+  </button>
+
+  ${r.author===currentUser
+    ? `<button class="deleteBtn" onclick="openDelete('${r.id}')">Delete</button>`
+    : ``}
+
+</div>
 </div>
 `;
 
