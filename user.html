@@ -269,14 +269,21 @@ async function loadReputation(){
   if(myVote === 1) upBtn.classList.add("active");
   if(myVote === -1) downBtn.classList.add("active");
 
+upBtn.onclick = ()=>{
   if(!currentUser){
-    upBtn.disabled = true;
-    downBtn.disabled = true;
+    document.getElementById("signinModal").style.display = "flex";
     return;
   }
+  vote(1, myVote);
+};
 
-  upBtn.onclick = ()=>vote(1, myVote);
-  downBtn.onclick = ()=>vote(-1, myVote);
+downBtn.onclick = ()=>{
+  if(!currentUser){
+    document.getElementById("signinModal").style.display = "flex";
+    return;
+  }
+  vote(-1, myVote);
+};
 }
 
 async function vote(value, currentVote){
@@ -356,6 +363,10 @@ document.getElementById("loadMoreBtn").onclick = ()=>renderContent(false);
 /* INIT */
 loadProfile();
 loadAllContent();
+
+document.getElementById("signinOkBtn").onclick = ()=>{
+  document.getElementById("signinModal").style.display = "none";
+};
 
 </script>
 
