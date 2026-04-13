@@ -1,42 +1,164 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Quiz</title>
+<title>Quiz</title>
+
+<style>
+body { font-family: Arial; background: rgb(232,224,207); color: rgb(91,46,97); padding:20px; }
+nav a { color: rgb(91,46,97); margin-right:10px; text-decoration:none; }
+button { margin-top:10px; padding:8px 15px; cursor:pointer; background: rgb(232,224,207); color: rgb(91,46,97); border: 1px solid rgb(91,46,97); }
+
+.quiz-box {
+  border:1px solid rgb(91,46,97);
+  padding:20px;
+  margin-top:20px;
+}
+
+.answer-buttons {
+  margin-top:20px;
+  display:flex;
+  gap:15px;
+}
+
+.result-box {
+  border:1px solid rgb(91,46,97);
+  padding:20px;
+  margin-top:20px;
+}
+</style>
 </head>
+
 <body>
 
-<h1>Simple Quiz</h1>
+<!-- NAV -->
+<nav>
+<a href="index.html">Home</a>
+<a href="doctrine.html">Doctrine</a>
+<a href="forums.html">Forums</a>
+<a href="news.html">News</a>
+<a href="quiz.html">Quiz</a>
+<a href="signin.html" id="accountLink">Sign In / Sign Up</a>
+<button id="logoutBtn" style="display:none;">Logout</button>
+</nav>
 
-<p>Do you like X?</p>
-<button onclick="answer(1)">Yes</button>
-<button onclick="answer(-1)">No</button>
-<button onclick="answer(0)">I don't know</button>
+<h1>Quiz Title (Placeholder)</h1>
 
-<p id="result"></p>
+<div id="quizContainer" class="quiz-box">
+  <h3 id="questionText">Loading...</h3>
+
+  <div class="answer-buttons">
+    <button onclick="answer(1)">Yes</button>
+    <button onclick="answer(0)">I don't know</button>
+    <button onclick="answer(-1)">No</button>
+  </div>
+</div>
+
+<div id="resultContainer" class="result-box" style="display:none;">
+  <h2 id="resultTitle"></h2>
+  <p id="resultMessage"></p>
+  <button onclick="location.reload()">Retake Test</button>
+</div>
 
 <script>
+// QUESTIONS (EDIT THESE)
+const questions = [
+  "Placeholder question 1",
+  "Placeholder question 2",
+  "Placeholder question 3",
+  "Placeholder question 4",
+  "Placeholder question 5",
+  "Placeholder question 6",
+  "Placeholder question 7",
+  "Placeholder question 8",
+  "Placeholder question 9",
+  "Placeholder question 10",
+  "Placeholder question 11",
+  "Placeholder question 12",
+  "Placeholder question 13",
+  "Placeholder question 14",
+  "Placeholder question 15",
+  "Placeholder question 16",
+  "Placeholder question 17",
+  "Placeholder question 18",
+  "Placeholder question 19",
+  "Placeholder question 20",
+  "Placeholder question 21",
+  "Placeholder question 22",
+  "Placeholder question 23",
+  "Placeholder question 24",
+  "Placeholder question 25"
+];
+
+// RESULTS (EDIT THESE)
+const results = [
+  { range: [25,25], title:"Placeholder 1 Title", message:"Placeholder 1 Message" },
+  { range: [21,24], title:"Placeholder 2 Title", message:"Placeholder 2 Message" },
+  { range: [16,20], title:"Placeholder 3 Title", message:"Placeholder 3 Message" },
+  { range: [11,15], title:"Placeholder 4 Title", message:"Placeholder 4 Message" },
+  { range: [6,10], title:"Placeholder 5 Title", message:"Placeholder 5 Message" },
+  { range: [1,5], title:"Placeholder 6 Title", message:"Placeholder 6 Message" },
+  { range: [0,0], title:"Placeholder 7 Title", message:"Placeholder 7 Message" },
+  { range: [-5,-1], title:"Placeholder 8 Title", message:"Placeholder 8 Message" },
+  { range: [-10,-6], title:"Placeholder 9 Title", message:"Placeholder 9 Message" },
+  { range: [-15,-11], title:"Placeholder 10 Title", message:"Placeholder 10 Message" },
+  { range: [-20,-16], title:"Placeholder 11 Title", message:"Placeholder 11 Message" },
+  { range: [-24,-21], title:"Placeholder 12 Title", message:"Placeholder 12 Message" },
+  { range: [-25,-25], title:"Placeholder 13 Title", message:"Placeholder 13 Message" }
+];
+
+let currentQuestion = 0;
 let score = 0;
 
-function answer(value) {
-  score += value;
+// DISPLAY FIRST QUESTION
+document.getElementById("questionText").innerText = questions[currentQuestion];
 
-  if (score >= 2) {
-    document.getElementById("result").innerText = "Result A";
-  } else if (score >= 0) {
-    document.getElementById("result").innerText = "Result B";
+// HANDLE ANSWER
+function answer(value){
+  score += value;
+  currentQuestion++;
+
+  if(currentQuestion >= questions.length){
+    showResult();
   } else {
-    document.getElementById("result").innerText = "Result C";
+    document.getElementById("questionText").innerText = questions[currentQuestion];
+  }
+}
+
+// SHOW RESULT
+function showResult(){
+  document.getElementById("quizContainer").style.display = "none";
+  document.getElementById("resultContainer").style.display = "block";
+
+  for(const r of results){
+    if(score >= r.range[0] && score <= r.range[1]){
+      document.getElementById("resultTitle").innerText = r.title;
+      document.getElementById("resultMessage").innerText = r.message;
+      break;
+    }
   }
 }
 </script>
 
+<!-- LOGIN / LOGOUT -->
 <script>
-  const accountLink = document.getElementById("accountLink");
-  const currentUser = localStorage.getItem("currentUser");
-  if(currentUser){
-      accountLink.innerText = "Profile";
-      accountLink.href = "profile.html"; // Profile page you create
-  }
+const accountLink = document.getElementById("accountLink");
+const logoutBtn = document.getElementById("logoutBtn");
+
+const currentUser = localStorage.getItem("currentUser");
+
+if(currentUser){
+  accountLink.innerText = "Profile";
+  accountLink.href = "profile.html";
+  logoutBtn.style.display = "inline";
+} else {
+  logoutBtn.style.display = "none";
+}
+
+logoutBtn.onclick = function() {
+  localStorage.removeItem("currentUser");
+  alert("Logged out");
+  window.location.href = "index.html";
+};
 </script>
 
 </body>
