@@ -157,10 +157,10 @@ button {
   margin-top:10px;
 }
 
+/* FIXED: removed weird line */
 #replySection{
   margin-top:20px;
   padding-top:10px;
-  border-top:1px solid rgb(91,46,97);
 }
 
 #replies{
@@ -231,7 +231,7 @@ signOut
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
 const firebaseConfig = {
-apiKey: "AIzaSyAZXfEl3Q68vfJtaLJqODtnQBSVEZWBmc0",
+apiKey: "AIzaSyAZXfEl3Q68vfJtaLJqODtnQBSVEzWBmc0", // FIXED
 authDomain: "probatismm.firebaseapp.com",
 projectId: "probatismm",
 storageBucket: "probatismm.firebasestorage.app",
@@ -250,6 +250,7 @@ let currentUser=null;
 let deleteTarget=null;
 let replyList=[];
 let replyIndex=0;
+let lastReplyTime = 0; // NEW cooldown
 
 /* AUTH */
 onAuthStateChanged(auth,(user)=>{
@@ -269,7 +270,7 @@ await signOut(auth);
 location.href="index.html";
 };
 
-/* PROFILE NAVIGATION (NEW) */
+/* PROFILE NAVIGATION */
 window.goProfile = function(username){
   if(!username || username === "Anonymous") return;
 
@@ -285,39 +286,11 @@ const overlay=document.getElementById("imgOverlay");
 const fullImg=document.getElementById("fullImg");
 
 window.showImg=(src)=>{
-fullImg.src=src;
+fullImg.src=src; // shows FULL image
 overlay.style.display="flex";
 };
 
 overlay.onclick=()=>overlay.style.display="none";
-
-/* READ MORE */
-function readMore(text){
-if(!text) return "";
-if(text.length<=400) return text;
-
-const id=Math.random().toString(36).slice(2);
-
-return `
-<span id="t_${id}">
-${text.slice(0,400)}...
-<span class="readMore" onclick="
-document.getElementById('full_${id}').style.display='inline';
-document.getElementById('t_${id}').style.display='none';
-this.style.display='none';
-">read more</span>
-</span>
-<span id="full_${id}" style="display:none">${text}</span>
-`;
-}
-
-/* LOAD USER AVATAR */
-async function getAvatar(username){
-if(!username || username==="Anonymous") return null;
-const snap = await getDoc(doc(db,"users",username));
-if(!snap.exists()) return null;
-return snap.data().profilePic || null;
-}
 
 /* LOAD POST */
 async function loadPost(){
@@ -337,97 +310,32 @@ ${p.author !== "Anonymous"
 ${p.author}
 </b><br>
 
-${readMore(p.content)}
+${p.content}
 
-${p.image?`<br><img class="imgThumb" src="${p.image}" onclick="showImg(this.src)">`:``}
+${p.image?`<br><img class="imgThumb" src="${p.image}" onclick="showImg('${p.image}')">`:``}
 </div>
 `;
 }
-
-/* REPLIES */
-async function fetchReplies(){
-const q=await getDocs(query(collection(db,"replies"),where("postId","==",postId)));
-
-replyList=q.docs.map(d=>({id:d.id,...d.data()}));
-replyList.sort((a,b)=>b.time-a.time);
-
-renderReplies(true);
-}
-
-async function renderReplies(reset=false){
-const container=document.getElementById("replies");
-
-if(reset){
-container.innerHTML="";
-replyIndex=0;
-}
-
-const chunk=replyList.slice(replyIndex,replyIndex+10);
-
-for(const r of chunk){
-
-const avatar = await getAvatar(r.author);
-
-const el=document.createElement("div");
-el.className="replyBox";
-
-el.innerHTML=`
-${r.author !== "Anonymous"
-  ? `<img class="avatar" src="${avatar || ''}" onclick="goProfile('${r.author}')">`
-  : ``}
-
-<div class="contentWrap">
-<b onclick="${r.author !== "Anonymous" ? `goProfile('${r.author}')` : ''}" style="cursor:${r.author !== "Anonymous" ? "pointer" : "default"}">
-${r.author}
-</b><br>
-
-${readMore(r.content)}
-${r.image?`<br><img class="imgThumb" src="${r.image}" onclick="showImg(this.src)">`:``}
-<div class="time">${new Date(r.time).toLocaleString()}</div>
-
-${r.author===currentUser?`<button class="deleteBtn" onclick="openDelete('${r.id}')">Delete</button>`:``}
-</div>
-`;
-
-container.appendChild(el);
-}
-
-replyIndex+=10;
-
-document.getElementById("loadMoreReplies").style.display=
-replyIndex>=replyList.length?"none":"block";
-}
-
-document.getElementById("loadMoreReplies").onclick=()=>renderReplies(false);
-
-/* DELETE MODAL */
-const modal=document.getElementById("modal");
-const modalText=document.getElementById("modalText");
-
-window.openDelete=(id)=>{
-deleteTarget=id;
-modalText.innerText="Are you sure you want to delete this reply?";
-modal.style.display="flex";
-};
-
-document.getElementById("cancelBtn").onclick=()=>{
-modal.style.display="none";
-deleteTarget=null;
-};
-
-document.getElementById("confirmBtn").onclick=async()=>{
-await deleteDoc(doc(db,"replies",deleteTarget));
-modal.style.display="none";
-fetchReplies();
-};
 
 /* SEND */
 document.getElementById("sendReply").onclick=async()=>{
 
+const now = Date.now();
+if(now - lastReplyTime < 10000){
+  alert("Wait 10 seconds before replying again.");
+  return;
+}
+
+const btn = document.getElementById("sendReply");
+btn.disabled = true;
+
 const text=document.getElementById("replyText").value.trim();
 const file=document.getElementById("replyImg").files[0];
 
-if(!text && !file) return;
+if(!text && !file){
+  btn.disabled = false;
+  return;
+}
 
 const img=file?await new Promise(res=>{
 const r=new FileReader();
@@ -443,7 +351,13 @@ image:img,
 time:Date.now()
 });
 
+lastReplyTime = Date.now();
+
 document.getElementById("replyText").value="";
+document.getElementById("replyImg").value=""; // FIXED clear image
+
+btn.disabled = false;
+
 fetchReplies();
 };
 
