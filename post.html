@@ -160,7 +160,7 @@ button {
 #replySection{
   margin-top:20px;
   padding-top:10px;
-  border-top:1px solid rgb(91,46,97);
+  /* REMOVED WEIRD LINE */
 }
 
 #replies{
@@ -250,6 +250,7 @@ let currentUser=null;
 let deleteTarget=null;
 let replyList=[];
 let replyIndex=0;
+let lastReplyTime = 0; // NEW cooldown
 
 /* AUTH */
 onAuthStateChanged(auth,(user)=>{
@@ -269,7 +270,7 @@ await signOut(auth);
 location.href="index.html";
 };
 
-/* PROFILE NAVIGATION (NEW) */
+/* PROFILE NAVIGATION */
 window.goProfile = function(username){
   if(!username || username === "Anonymous") return;
 
@@ -339,7 +340,7 @@ ${p.author}
 
 ${readMore(p.content)}
 
-${p.image?`<br><img class="imgThumb" src="${p.image}" onclick="showImg(this.src)">`:``}
+${p.image?`<br><img class="imgThumb" src="${p.image}" data-full="${p.image}" onclick="showImg(this.dataset.full)">`:``}
 </div>
 `;
 }
@@ -382,7 +383,7 @@ ${r.author}
 </b><br>
 
 ${readMore(r.content)}
-${r.image?`<br><img class="imgThumb" src="${r.image}" onclick="showImg(this.src)">`:``}
+${r.image?`<br><img class="imgThumb" src="${r.image}" data-full="${r.image}" onclick="showImg(this.dataset.full)">`:``}
 <div class="time">${new Date(r.time).toLocaleString()}</div>
 
 ${r.author===currentUser?`<button class="deleteBtn" onclick="openDelete('${r.id}')">Delete</button>`:``}
@@ -421,13 +422,23 @@ modal.style.display="none";
 fetchReplies();
 };
 
-/* SEND */
+/* SEND WITH COOLDOWN */
 document.getElementById("sendReply").onclick=async()=>{
+
+const now = Date.now();
+if(now - lastReplyTime < 10000){
+  alert("Wait 10 seconds before replying again.");
+  return;
+}
+
+const btn = document.getElementById("sendReply");
 
 const text=document.getElementById("replyText").value.trim();
 const file=document.getElementById("replyImg").files[0];
 
 if(!text && !file) return;
+
+btn.disabled = true;
 
 const img=file?await new Promise(res=>{
 const r=new FileReader();
@@ -443,7 +454,13 @@ image:img,
 time:Date.now()
 });
 
+lastReplyTime = Date.now();
+
 document.getElementById("replyText").value="";
+document.getElementById("replyImg").value=""; // FIX
+
+setTimeout(()=>btn.disabled=false,10000);
+
 fetchReplies();
 };
 
