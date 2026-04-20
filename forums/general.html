@@ -227,11 +227,13 @@ function getFullImage(file){
 postButton.onclick = async ()=>{
   if(isPosting) return;
 
-  const now=Date.now();
-  if(now-lastPostTime<10000){
-    alert("Wait 10 seconds");
-    return;
-  }
+const now = Date.now();
+const remaining = 10000 - (now - lastPostTime);
+
+if(remaining > 0){
+  startCooldownUI(Math.ceil(remaining / 1000));
+  return;
+}
 
   const text=postText.value.trim();
   const file=postImage.files[0];
@@ -260,6 +262,7 @@ postButton.onclick = async ()=>{
   });
 
   lastPostTime=Date.now();
+  startCooldownUI(10);
   postText.value="";
   postImage.value="";
   isPosting=false;
@@ -383,6 +386,27 @@ confirmDeleteBtn.onclick=async ()=>{
 };
 
 cancelDeleteBtn.onclick=()=> deleteModal.style.display="none";
+
+function startCooldownUI(seconds){
+  const textEl = document.getElementById("cooldownText");
+  const btn = document.getElementById("postButton");
+
+  btn.disabled = true;
+
+  textEl.innerText = `Wait ${seconds} seconds before posting again`;
+
+  const interval = setInterval(() => {
+    seconds--;
+
+    if(seconds <= 0){
+      clearInterval(interval);
+      textEl.innerText = "";
+      btn.disabled = false;
+    } else {
+      textEl.innerText = `Wait ${seconds} seconds before posting again`;
+    }
+  }, 1000);
+}
 
 loadPosts();
 </script>
