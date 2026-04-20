@@ -79,14 +79,11 @@ textarea { width:100%; height:80px; background: rgb(232,224,207); color: rgb(91,
   border:2px solid rgb(91,46,97);
 }
 .readMoreBtn {
-  background: none;
-  border: none;
-  color: rgb(91,46,97);
-  text-decoration: underline;
-  font-size: 12px;
-  padding: 0;
-  margin-top: 3px;
   cursor: pointer;
+  font-size: 12px;
+  text-decoration: underline;
+  display: inline-block;
+  margin-top: 3px;
 }
 </style>
 </head>
@@ -354,7 +351,9 @@ async function loadPosts(){
         <div class="post-content">
           ${shortText}
           <b ${safeAuthorClick}>${post.author}:</b>
-          <div class="post-content">${shortText}</div>
+          <div class="post-content">
+          ${shortText.trimStart()}
+          </div>
           ${post.image ? `<img class="post-img" src="${post.image}" data-full="${post.fullImage || post.image}">` : ""}
           ${needsMore ? `<span class="readMoreBtn">read more</span>` : ""}
         </div>
