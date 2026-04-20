@@ -256,6 +256,10 @@ postButton.onclick = async ()=>{
   const text=postText.value.trim();
   const file=postImage.files[0];
 
+  if (!text && !file) {
+    return;
+  }
+
   isPosting=true;
   postButton.disabled=true;
 
