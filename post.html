@@ -183,9 +183,6 @@ button {
 <button id="logoutBtn">Logout</button>
 </nav>
 
-<br>
-<a href="forums/general.html">← Back</a>
-
 <h2>Post</h2>
 <div id="post"></div>
 
@@ -196,6 +193,7 @@ button {
   <input type="file" id="replyImg">
   <br>
   <button id="sendReply">Reply</button>
+  <p id="cooldownText" style="font-size:12px; margin-top:5px;"></p>
 </div>
 
 <h3>Replies</h3>
@@ -426,8 +424,10 @@ fetchReplies();
 document.getElementById("sendReply").onclick=async()=>{
 
 const now = Date.now();
-if(now - lastReplyTime < 10000){
-  alert("Wait 10 seconds before replying again.");
+const remaining = 10000 - (now - lastReplyTime);
+
+if(remaining > 0){
+  startCooldownUI(Math.ceil(remaining / 1000));
   return;
 }
 
@@ -455,6 +455,8 @@ time:Date.now()
 });
 
 lastReplyTime = Date.now();
+startCooldownUI(10);
+
 
 document.getElementById("replyText").value="";
 document.getElementById("replyImg").value=""; // FIX
@@ -463,6 +465,27 @@ setTimeout(()=>btn.disabled=false,10000);
 
 fetchReplies();
 };
+
+function startCooldownUI(seconds){
+  const textEl = document.getElementById("cooldownText");
+  const btn = document.getElementById("sendReply");
+
+  btn.disabled = true;
+
+  textEl.innerText = `Wait ${seconds} seconds before replying again`;
+
+  const interval = setInterval(() => {
+    seconds--;
+
+    if(seconds <= 0){
+      clearInterval(interval);
+      textEl.innerText = "";
+      btn.disabled = false;
+    } else {
+      textEl.innerText = `Wait ${seconds} seconds before replying again`;
+    }
+  }, 1000);
+}
 
 loadPost();
 fetchReplies();
