@@ -256,9 +256,6 @@ postButton.onclick = async ()=>{
   const text=postText.value.trim();
   const file=postImage.files[0];
 
-  if(text.length>8000){ alert("Too long"); return; }
-  if(!text && !file){ alert("Add content"); return; }
-
   isPosting=true;
   postButton.disabled=true;
 
