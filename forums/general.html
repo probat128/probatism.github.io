@@ -99,6 +99,7 @@ textarea { width:100%; height:80px; background: rgb(232,224,207); color: rgb(91,
 <textarea id="postText" maxlength="8000"></textarea><br>
 <input type="file" id="postImage" accept="image/*"><br>
 <button id="postButton">Post</button>
+<p id="cooldownText" style="font-size:12px; margin-top:5px;"></p>
 
 <h3>Posts</h3>
 <div id="posts">Loading...</div>
@@ -227,11 +228,13 @@ function getFullImage(file){
 postButton.onclick = async ()=>{
   if(isPosting) return;
 
-  const now=Date.now();
-  if(now-lastPostTime<10000){
-    alert("Wait 10 seconds");
-    return;
-  }
+const now = Date.now();
+const remaining = 10000 - (now - lastPostTime);
+
+if(remaining > 0){
+  startPostCooldownUI(Math.ceil(remaining / 1000));
+  return;
+}
 
   const text=postText.value.trim();
   const file=postImage.files[0];
@@ -260,6 +263,7 @@ postButton.onclick = async ()=>{
   });
 
   lastPostTime=Date.now();
+  startPostCooldownUI(10);
   postText.value="";
   postImage.value="";
   isPosting=false;
@@ -379,6 +383,27 @@ confirmDeleteBtn.onclick=async ()=>{
   deleteModal.style.display="none";
   postsDiv.innerHTML="";
   lastVisible=null;
+
+  function startPostCooldownUI(seconds){
+  const textEl = document.getElementById("cooldownText");
+  const btn = document.getElementById("postButton");
+
+  btn.disabled = true;
+
+  textEl.innerText = `Wait ${seconds} seconds before posting again`;
+
+  const interval = setInterval(() => {
+    seconds--;
+
+    if(seconds <= 0){
+      clearInterval(interval);
+      textEl.innerText = "";
+      btn.disabled = false;
+    } else {
+      textEl.innerText = `Wait ${seconds} seconds before posting again`;
+    }
+  }, 1000);
+}
   loadPosts();
 };
 
