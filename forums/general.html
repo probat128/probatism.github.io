@@ -162,6 +162,13 @@ const postsDiv = document.getElementById("posts");
 const loadMoreBtn = document.getElementById("loadMoreBtn");
 const accountLink = document.getElementById("accountLink");
 const logoutBtn = document.getElementById("logoutBtn");
+const adminUsers = [
+  "test128",
+  "userplaceholder2"
+];
+function isAdmin(username){
+  return adminUsers.includes(username);
+}
 
 let currentUser = null;
 let lastVisible = null;
@@ -352,7 +359,9 @@ async function loadPosts(){
     div.innerHTML=`
       ${profilePic}
       <div>
-        <b ${safeAuthorClick}>${post.author}:</b>
+        <b ${safeAuthorClick}>
+          ${post.author}${isAdmin(post.author) ? " (admin)" : ""}
+        :</b>
         <div class="post-content">${shortText}</div>
         ${needsMore ? `<button class="readMoreBtn">Read More</button>` : ""}
         ${post.image ? `<img class="post-img" src="${post.image}" data-full="${post.fullImage || post.image}">` : ""}
@@ -370,10 +379,10 @@ async function loadPosts(){
       };
     }
 
-    if(currentUser===post.author){
-      const btn=document.createElement("button");
-      btn.innerText="Delete";
-      btn.onclick=()=>showDeleteModal(docSnap.id);
+    if(currentUser === post.author || isAdmin(currentUser)){
+      const btn = document.createElement("button");
+      btn.innerText = "Delete";
+      btn.onclick = () => showDeleteModal(docSnap.id);
       div.querySelector(".button-row").appendChild(btn);
     }
 
