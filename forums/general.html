@@ -160,6 +160,9 @@ const postText = document.getElementById("postText");
 const postImage = document.getElementById("postImage");
 const postsDiv = document.getElementById("posts");
 const loadMoreBtn = document.getElementById("loadMoreBtn");
+const deleteModal = document.getElementById("deleteModal");
+const confirmDeleteBtn = document.getElementById("confirmDeleteBtn");
+const cancelDeleteBtn = document.getElementById("cancelDeleteBtn");
 const accountLink = document.getElementById("accountLink");
 const logoutBtn = document.getElementById("logoutBtn");
 const adminUsers = [
@@ -379,7 +382,10 @@ async function loadPosts(){
       };
     }
 
-    if(currentUser === post.author || isAdmin(currentUser)){
+    if(
+      currentUser &&
+      (currentUser === post.author || isAdmin(currentUser))
+    ){
       const btn = document.createElement("button");
       btn.innerText = "Delete";
       btn.onclick = () => showDeleteModal(docSnap.id);
@@ -400,20 +406,38 @@ async function loadPosts(){
 loadMoreBtn.onclick=loadPosts;
 document.getElementById("imgModal").onclick=()=> imgModal.style.display="none";
 
-window.showDeleteModal=id=>{
-  postToDelete=id;
-  deleteModal.style.display="flex";
+window.showDeleteModal = (id) => {
+  postToDelete = id;
+  const modal = document.getElementById("deleteModal");
+  modal.style.display = "flex";
 };
 
-confirmDeleteBtn.onclick=async ()=>{
-  await deleteDoc(doc(db,"posts",postToDelete));
-  deleteModal.style.display="none";
-  postsDiv.innerHTML="";
-  lastVisible=null;
-  loadPosts();
+
+confirmDeleteBtn.onclick = async () => {
+  try {
+    if (!postToDelete) return;
+
+    await deleteDoc(doc(db, "posts", postToDelete));
+
+    postToDelete = null;
+    document.getElementById("deleteModal").style.display = "none";
+
+    postsDiv.innerHTML = "";
+    lastVisible = null;
+    loadPosts();
+
+  } catch (err) {
+    console.error("Delete failed:", err);
+    alert("Delete failed (check Firestore rules or auth)");
+  }
 };
 
-cancelDeleteBtn.onclick=()=> deleteModal.style.display="none";
+// cancelDeleteBtn.onclick=()=> deleteModal.style.display="none";
+
+cancelDeleteBtn.onclick = () => {
+  postToDelete = null;
+  document.getElementById("deleteModal").style.display = "none";
+};
 
 loadPosts();
 </script>
