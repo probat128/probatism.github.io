@@ -348,14 +348,14 @@ async function loadPosts(){
       ${profilePic}
       <div>
         <b ${safeAuthorClick}>${post.author}:</b>
-        <div class="post-content">
-          ${shortText}
-          <b ${safeAuthorClick}>${post.author}:</b>
-          <div class="post-content">
-          ${shortText.trimStart()}
-          </div>
-          ${post.image ? `<img class="post-img" src="${post.image}" data-full="${post.fullImage || post.image}">` : ""}
-          ${needsMore ? `<span class="readMoreBtn">read more</span>` : ""}
+
+        <div class="post-content">${shortText.trimStart()}</div>
+
+        ${post.image ? `<img class="post-img" src="${post.image}" data-full="${post.fullImage || post.image}">` : ""}
+
+        ${needsMore ? `<span class="readMoreBtn">read more</span>` : ""}
+          
+        
         </div>
 
         ${post.image ? `<img class="post-img" src="${post.image}" data-full="${post.fullImage || post.image}">` : ""}
