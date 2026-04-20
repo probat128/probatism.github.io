@@ -353,7 +353,10 @@ async function loadPosts(){
         <b ${safeAuthorClick}>${post.author}:</b>
         <div class="post-content">
           ${shortText}
-          ${needsMore ? `<span class="readMoreBtn">Read more</span>` : ""}
+          <b ${safeAuthorClick}>${post.author}:</b>
+          <div class="post-content">${shortText}</div>
+          ${post.image ? `<img class="post-img" src="${post.image}" data-full="${post.fullImage || post.image}">` : ""}
+          ${needsMore ? `<span class="readMoreBtn">read more</span>` : ""}
         </div>
 
         ${post.image ? `<img class="post-img" src="${post.image}" data-full="${post.fullImage || post.image}">` : ""}
