@@ -283,7 +283,13 @@ postButton.onclick = async ()=>{
 
   await addDoc(collection(db,"posts"),{
     subforum:"general",
+
+    // display username (unchanged)
     author: currentUser || "Anonymous",
+
+    // 🔒 REAL identity (NEW — this is the fix)
+    authorEmail: auth.currentUser ? auth.currentUser.email : null,
+
     content:text,
     image:image,
     fullImage:fullImage,
