@@ -358,7 +358,7 @@ async function loadPosts(){
     let profilePic = "";
 
     if(post.authorUID){
-      const userSnap = await getDoc(doc(db,"users",post.author));
+      const userSnap = await getDoc(doc(db,"users",post.authorUID));
 
       if(userSnap.exists() && userSnap.data().profilePic){
         profilePic = `<img class="profile-thumb" src="${userSnap.data().profilePic}" onclick="goProfile('${post.author}')">`;
