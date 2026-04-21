@@ -392,8 +392,7 @@ async function loadPosts(){
     }
 
     if(
-      currentUser &&
-      (currentUser === post.author || isAdmin())
+      (currentUID && currentUID === post.authorUID) || isAdmin()
     ){
       const btn = document.createElement("button");
       btn.innerText = "Delete";
