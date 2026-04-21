@@ -253,8 +253,8 @@ const adminUIDs = [
   "IDlmRGgh2PaLx15krpeq5jGU6SJ3"
 ];
 
-function isAdmin(uid){
-  return uid && adminUIDs.includes(uid);
+function isAdmin() {
+  return currentUID && adminUIDs.includes(currentUID);
 }
 let replyIndex=0;
 let lastReplyTime = 0; // NEW cooldown
@@ -395,7 +395,11 @@ ${readMore(r.content)}
 ${r.image?`<br><img class="imgThumb" src="${r.image}" data-full="${r.image}" onclick="showImg(this.dataset.full)">`:``}
 <div class="time">${new Date(r.time).toLocaleString()}</div>
 
-${(currentUID && r.authorUID && currentUID === r.authorUID) || isAdmin(currentUID)
+const canDelete =
+  (currentUID && r.authorUID && currentUID === r.authorUID) ||
+  isAdmin();
+
+${canDelete
   ? `<button class="deleteBtn" onclick="openDelete('${r.id}')">Delete</button>`
   : ``}
 </div>
