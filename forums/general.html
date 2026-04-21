@@ -168,8 +168,8 @@ const logoutBtn = document.getElementById("logoutBtn");
 const adminUIDs = [
   "a8F3kL92xPq7ZrT6"
 ];
-function isAdmin(uid){
-  return adminUIDs.includes(uid);
+function isAdmin() {
+  return currentUID && adminUIDs.includes(currentUID);
 }
 
 let currentUID = null;
@@ -180,22 +180,30 @@ let lastPostTime = 0;
 let postToDelete = null;
 
 // AUTH
-onAuthStateChanged(auth,(user)=>{
-  console.log("Auth state:", user); // 🔍 debug
+onAuthStateChanged(auth, (user) => {
+  console.log("Auth state:", user);
 
-  if(user){
-    console.log("a8F3kL92xPq7ZrT6", user.uid);
-    currentUser = user.email.replace("@fake.com","");
+  if (user) {
+    currentUser = user.email.replace("@fake.com", "");
     currentUID = user.uid;
+
     accountLink.innerText = "Profile";
     accountLink.href = "../profile.html";
     logoutBtn.style.display = "inline";
+
   } else {
     currentUser = null;
+    currentUID = null;
+
     accountLink.innerText = "Sign In / Sign Up";
     accountLink.href = "../signin.html";
     logoutBtn.style.display = "none";
   }
+
+  // 🔥 THIS IS THE IMPORTANT PART
+  postsDiv.innerHTML = "";
+  lastVisible = null;
+  loadPosts();
 });
 
 // LOGOUT
@@ -392,8 +400,7 @@ async function loadPosts(){
     }
 
     if(
-      (currentUID && post.authorUID && currentUID === post.authorUID) ||
-      isAdmin(currentUID)
+      (currentUID && post.authorUID && currentUID === post.authorUID) || isAdmin()
     ){
       const btn = document.createElement("button");
       btn.innerText = "Delete";
@@ -448,7 +455,6 @@ cancelDeleteBtn.onclick = () => {
   document.getElementById("deleteModal").style.display = "none";
 };
 
-loadPosts();
 </script>
 
 </body>
