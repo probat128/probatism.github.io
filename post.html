@@ -253,8 +253,8 @@ const adminUIDs = [
   "IDlmRGgh2PaLx15krpeq5jGU6SJ3"
 ];
 
-function isAdmin() {
-  return currentUID && adminUIDs.includes(currentUID);
+function isAdmin(uid){
+  return uid && adminUIDs.includes(uid);
 }
 let replyIndex=0;
 let lastReplyTime = 0; // NEW cooldown
@@ -395,11 +395,7 @@ ${readMore(r.content)}
 ${r.image?`<br><img class="imgThumb" src="${r.image}" data-full="${r.image}" onclick="showImg(this.dataset.full)">`:``}
 <div class="time">${new Date(r.time).toLocaleString()}</div>
 
-const canDelete =
-  (currentUID && r.authorUID && currentUID === r.authorUID) ||
-  isAdmin();
-
-${canDelete
+${(currentUID && r.authorUID && currentUID === r.authorUID) || isAdmin(currentUID)
   ? `<button class="deleteBtn" onclick="openDelete('${r.id}')">Delete</button>`
   : ``}
 </div>
@@ -464,15 +460,15 @@ r.readAsDataURL(file);
 }):null;
 
 await addDoc(collection(db,"replies"),{
-  postId,
-  author: currentUser || "Anonymous",
+postId,
+author: currentUser || "Anonymous",
 
-  authorUID: auth.currentUser ? auth.currentUser.uid : null,
-  authorEmail: auth.currentUser ? auth.currentUser.email : null,
+// ✅ ADD THIS LINE:
+authorUID: auth.currentUser ? auth.currentUser.uid : null,
 
-  content: text,
-  image: img,
-  time: Date.now()
+content: text,
+image: img,
+time: Date.now()
 });
 
 lastReplyTime = Date.now();
