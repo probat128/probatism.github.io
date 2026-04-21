@@ -168,8 +168,8 @@ const logoutBtn = document.getElementById("logoutBtn");
 const adminUIDs = [
   "a8F3kL92xPq7ZrT6"
 ];
-function isAdmin(){
-  return adminUIDs.includes(currentUID);
+function isAdmin(uid){
+  return adminUIDs.includes(uid);
 }
 
 let currentUID = null;
@@ -312,6 +312,9 @@ postButton.onclick = async ()=>{
 };
 
 async function loadPosts(){
+  console.log("currentUID:", currentUID);
+  console.log("isAdmin:", isAdmin(currentUID));
+  console.log("post authorUID:", post.authorUID);
 
   let q=query(
     collection(db,"posts"),
@@ -392,7 +395,8 @@ async function loadPosts(){
     }
 
     if(
-      (currentUID && currentUID === post.authorUID) || isAdmin()
+      (currentUID && post.authorUID && currentUID === post.authorUID) ||
+      isAdmin(currentUID)
     ){
       const btn = document.createElement("button");
       btn.innerText = "Delete";
