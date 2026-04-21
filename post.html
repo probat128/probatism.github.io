@@ -460,15 +460,15 @@ r.readAsDataURL(file);
 }):null;
 
 await addDoc(collection(db,"replies"),{
-postId,
-author: currentUser || "Anonymous",
+  postId,
+  author: currentUser || "Anonymous",
 
-// ✅ ADD THIS LINE:
-authorUID: auth.currentUser ? auth.currentUser.uid : null,
+  authorUID: auth.currentUser ? auth.currentUser.uid : null,
+  authorEmail: auth.currentUser ? auth.currentUser.email : null,
 
-content: text,
-image: img,
-time: Date.now()
+  content: text,
+  image: img,
+  time: Date.now()
 });
 
 lastReplyTime = Date.now();
