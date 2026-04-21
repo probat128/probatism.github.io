@@ -165,14 +165,14 @@ const confirmDeleteBtn = document.getElementById("confirmDeleteBtn");
 const cancelDeleteBtn = document.getElementById("cancelDeleteBtn");
 const accountLink = document.getElementById("accountLink");
 const logoutBtn = document.getElementById("logoutBtn");
-const adminUsers = [
-  "test128",
-  "userplaceholder2"
+const adminUIDs = [
+  "a8F3kL92xPq7ZrT6"
 ];
-function isAdmin(username){
-  return adminUsers.includes(username?.replace("@fake.com",""));
+function isAdmin(){
+  return adminUIDs.includes(currentUID);
 }
 
+let currentUID = null;
 let currentUser = null;
 let lastVisible = null;
 let isPosting = false;
@@ -186,6 +186,7 @@ onAuthStateChanged(auth,(user)=>{
   if(user){
     console.log("a8F3kL92xPq7ZrT6", user.uid);
     currentUser = user.email.replace("@fake.com","");
+    currentUID = user.uid;
     accountLink.innerText = "Profile";
     accountLink.href = "../profile.html";
     logoutBtn.style.display = "inline";
@@ -371,7 +372,7 @@ async function loadPosts(){
       ${profilePic}
       <div>
         <b ${safeAuthorClick}>
-          ${post.author}${isAdmin(post.author) ? " (admin)" : ""}
+          ${post.author}${adminUIDs.includes(post.authorUID) ? " (admin)" : ""}
         :</b>
         <div class="post-content">${shortText}</div>
         ${needsMore ? `<button class="readMoreBtn">Read More</button>` : ""}
@@ -392,7 +393,7 @@ async function loadPosts(){
 
     if(
       currentUser &&
-      (currentUser === post.author || isAdmin(currentUser))
+      (currentUser === post.author || isAdmin())
     ){
       const btn = document.createElement("button");
       btn.innerText = "Delete";
