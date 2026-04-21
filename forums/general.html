@@ -184,6 +184,7 @@ onAuthStateChanged(auth,(user)=>{
   console.log("Auth state:", user); // 🔍 debug
 
   if(user){
+    console.log("MY UID:", user.uid);
     currentUser = user.email.replace("@fake.com","");
     accountLink.innerText = "Profile";
     accountLink.href = "../profile.html";
@@ -289,6 +290,7 @@ postButton.onclick = async ()=>{
 
     // 🔒 REAL identity (NEW — this is the fix)
     authorEmail: auth.currentUser ? auth.currentUser.email : null,
+    authorUID: auth.currentUser ? auth.currentUser.uid : null,
 
     content:text,
     image:image,
