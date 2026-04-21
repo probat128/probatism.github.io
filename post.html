@@ -225,7 +225,8 @@ query, where, deleteDoc
 import {
 getAuth,
 onAuthStateChanged,
-signOut
+signOut,
+signInAnonymously
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
 const firebaseConfig = {
@@ -269,8 +270,7 @@ if(user){
 } else {
   currentUser=null;
   currentUID = null;
-  document.getElementById("accountLink").innerText="Sign In / Sign Up";
-  document.getElementById("accountLink").href="signin.html";
+  signInAnonymously(auth).catch(console.error);
 }
 });
 
@@ -461,7 +461,8 @@ r.readAsDataURL(file);
 
 await addDoc(collection(db,"replies"),{
 postId,
-author: currentUser || "Anonymous",
+author: currentUser || "Guest",
+authorUID: auth.currentUser ? auth.currentUser.uid : null,
 
 // ✅ ADD THIS LINE:
 authorUID: auth.currentUser ? auth.currentUser.uid : null,
