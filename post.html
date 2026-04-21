@@ -247,6 +247,15 @@ const postId = new URLSearchParams(location.search).get("id");
 let currentUser=null;
 let deleteTarget=null;
 let replyList=[];
+let currentUID = null;
+
+const adminUIDs = [
+  "IDlmRGgh2PaLx15krpeq5jGU6SJ3"
+];
+
+function isAdmin(uid){
+  return uid && adminUIDs.includes(uid);
+}
 let replyIndex=0;
 let lastReplyTime = 0; // NEW cooldown
 
@@ -254,10 +263,12 @@ let lastReplyTime = 0; // NEW cooldown
 onAuthStateChanged(auth,(user)=>{
 if(user){
   currentUser=user.email.replace("@fake.com","");
+  currentUID = user.uid;
   document.getElementById("accountLink").innerText="Profile";
   document.getElementById("accountLink").href="profile.html";
 } else {
   currentUser=null;
+  currentUID = null;
   document.getElementById("accountLink").innerText="Sign In / Sign Up";
   document.getElementById("accountLink").href="signin.html";
 }
@@ -384,7 +395,9 @@ ${readMore(r.content)}
 ${r.image?`<br><img class="imgThumb" src="${r.image}" data-full="${r.image}" onclick="showImg(this.dataset.full)">`:``}
 <div class="time">${new Date(r.time).toLocaleString()}</div>
 
-${r.author===currentUser?`<button class="deleteBtn" onclick="openDelete('${r.id}')">Delete</button>`:``}
+${(currentUID && r.authorUID && currentUID === r.authorUID) || isAdmin(currentUID)
+  ? `<button class="deleteBtn" onclick="openDelete('${r.id}')">Delete</button>`
+  : ``}
 </div>
 `;
 
@@ -448,10 +461,14 @@ r.readAsDataURL(file);
 
 await addDoc(collection(db,"replies"),{
 postId,
-author:currentUser||"Anonymous",
-content:text,
-image:img,
-time:Date.now()
+author: currentUser || "Anonymous",
+
+// ✅ ADD THIS LINE:
+authorUID: auth.currentUser ? auth.currentUser.uid : null,
+
+content: text,
+image: img,
+time: Date.now()
 });
 
 lastReplyTime = Date.now();
