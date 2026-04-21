@@ -312,10 +312,7 @@ postButton.onclick = async ()=>{
 };
 
 async function loadPosts(){
-  console.log("currentUID:", currentUID);
-  console.log("isAdmin:", isAdmin(currentUID));
-  console.log("post authorUID:", post.authorUID);
-
+  
   let q=query(
     collection(db,"posts"),
     where("subforum","==","general"),
