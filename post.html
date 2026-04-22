@@ -463,9 +463,7 @@ await addDoc(collection(db,"replies"),{
 postId,
 author: currentUser || "Guest",
 authorUID: auth.currentUser ? auth.currentUser.uid : null,
-
-// ✅ ADD THIS LINE:
-authorUID: auth.currentUser ? auth.currentUser.uid : null,
+authorEmail: auth.currentUser ? auth.currentUser.email : null,
 
 content: text,
 image: img,
