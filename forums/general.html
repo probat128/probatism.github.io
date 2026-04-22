@@ -299,10 +299,7 @@ postButton.onclick = async ()=>{
     // display username (unchanged)
     author: currentUser || "Guest",
     authorUID: auth.currentUser ? auth.currentUser.uid : null,
-
-    // 🔒 REAL identity (NEW — this is the fix)
     authorEmail: auth.currentUser ? auth.currentUser.email : null,
-    authorUID: auth.currentUser ? auth.currentUser.uid : null,
 
     content:text,
     image:image,
