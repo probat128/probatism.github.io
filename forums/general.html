@@ -490,7 +490,12 @@ async function loadAd(type, imgEl, linkEl) {
     const snap = await getDocs(q);
 
     if (snap.empty) {
-      imgEl.src = "https://via.placeholder.com/728x90";
+      if (type === "banner") {
+        imgEl.src = "../placeholder-ad.png";
+      } else {
+        imgEl.src = "../placeholder-ad.png";
+      }
+
       linkEl.href = "../advertise.html";
       return;
     }
