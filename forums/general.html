@@ -140,7 +140,7 @@ textarea { width:100%; height:80px; background: rgb(232,224,207); color: rgb(91,
 
 <script type="module">
 import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getFirestore, collection, addDoc, getDocs, query, where, orderBy, deleteDoc, doc, getDoc, limit, startAfter } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { getFirestore, collection, addDoc, getDocs, query, where, orderBy, deleteDoc, doc, getDoc, limit, startAfter, updateDoc, increment } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { getAuth, onAuthStateChanged, signOut, signInAnonymously } 
 from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
@@ -216,6 +216,17 @@ onAuthStateChanged(auth, (user) => {
   postsDiv.innerHTML = "";
   lastVisible = null;
   loadPosts();
+
+  // LOAD ADS
+  loadAd("banner",
+    document.getElementById("topAdImg"),
+    document.getElementById("topAdLink")
+  );
+
+  loadAd("box",
+    document.getElementById("bottomAdImg"),
+    document.getElementById("bottomAdLink")
+  );
 });
 
 // LOGOUT
@@ -464,6 +475,40 @@ cancelDeleteBtn.onclick = () => {
   postToDelete = null;
   document.getElementById("deleteModal").style.display = "none";
 };
+
+// LOAD ADS
+async function loadAd(type, imgEl, linkEl) {
+  try {
+    const q = query(
+      collection(db, "ads"),
+      where("type", "==", type),
+      where("active", "==", true),
+      where("impressionsLeft", ">", 0),
+      limit(1)
+    );
+
+    const snap = await getDocs(q);
+
+    if (snap.empty) {
+      imgEl.src = "https://via.placeholder.com/728x90";
+      linkEl.href = "../advertise.html";
+      return;
+    }
+
+    const adDoc = snap.docs[0];
+    const ad = adDoc.data();
+
+    imgEl.src = ad.image;
+    linkEl.href = ad.link;
+
+    await updateDoc(doc(db, "ads", adDoc.id), {
+      impressionsLeft: increment(-1)
+    });
+
+  } catch (err) {
+    console.error("Ad load error:", err);
+  }
+}
 
 </script>
 
