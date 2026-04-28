@@ -496,10 +496,6 @@ async function loadAd(type, imgEl, linkEl) {
       return;
     }
 
-      linkEl.href = "../advertise.html";
-      return;
-    }
-
     const adDoc = snap.docs[0];
     const ad = adDoc.data();
 
@@ -512,6 +508,10 @@ async function loadAd(type, imgEl, linkEl) {
 
   } catch (err) {
     console.error("Ad load error:", err);
+
+    // fallback if query fails (like missing index)
+    imgEl.src = "../placeholder-ad.png";
+    linkEl.href = "../advertise.html";
   }
 }
 
