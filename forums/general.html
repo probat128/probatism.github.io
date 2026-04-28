@@ -490,8 +490,7 @@ async function loadAd(type, imgEl, linkEl) {
     const snap = await getDocs(q);
 
     if (snap.empty) {
-      imgEl.src = "../placeholder-ad.png";
-      console.log("Using placeholder ad:", type);
+      imgEl.src = "/placeholder-ad.png";
       linkEl.href = "../advertise.html";
       return;
     }
@@ -500,6 +499,9 @@ async function loadAd(type, imgEl, linkEl) {
     const ad = adDoc.data();
 
     imgEl.src = ad.image;
+    imgEl.onerror = () => {
+      imgEl.src = "/placeholder-ad.png";
+    };
     linkEl.href = ad.link;
 
     await updateDoc(doc(db, "ads", adDoc.id), {
@@ -510,7 +512,7 @@ async function loadAd(type, imgEl, linkEl) {
     console.error("Ad load error:", err);
 
     // fallback if query fails (like missing index)
-    imgEl.src = "../placeholder-ad.png";
+    imgEl.src = "/placeholder-ad.png";
     linkEl.href = "../advertise.html";
   }
 }
