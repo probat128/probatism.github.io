@@ -499,7 +499,9 @@ async function loadAd(type, imgEl, linkEl) {
     const ad = adDoc.data();
 
     imgEl.src = ad.image;
+
     imgEl.onerror = () => {
+      console.log("Ad failed, using placeholder");
       imgEl.src = "/placeholder-ad.png";
     };
     linkEl.href = ad.link;
