@@ -490,11 +490,11 @@ async function loadAd(type, imgEl, linkEl) {
     const snap = await getDocs(q);
 
     if (snap.empty) {
-      if (type === "banner") {
-        imgEl.src = "placeholder-ad.png";
-      } else {
-        imgEl.src = "placeholder-ad.png";
-      }
+      imgEl.src = "../placeholder-ad.png";
+      console.log("Using placeholder ad:", type);
+      linkEl.href = "../advertise.html";
+      return;
+    }
 
       linkEl.href = "../advertise.html";
       return;
