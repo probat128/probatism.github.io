@@ -8,7 +8,6 @@ body {
   background: rgb(232,224,207);
   color: rgb(91,46,97);
   padding:20px;
-  text-align:center;
 }
 
 input, button {
@@ -44,6 +43,20 @@ button {
   border:2px solid rgb(91,46,97);
   padding:20px;
 }
+nav {
+  text-align: left;
+  margin-bottom: 10px;
+}
+
+nav a {
+  color: rgb(91,46,97);
+  margin-right: 10px;
+  text-decoration: none;
+}
+
+nav button {
+  margin-left: 5px;
+}
 </style>
 </head>
 
@@ -60,7 +73,7 @@ button {
 
 <h1>Advertise</h1>
 
-<div class="box">
+<div class="box" style="display:block; margin:auto; width:fit-content;">
 
 <p>Select Ad Type:</p>
 <select id="adType">
