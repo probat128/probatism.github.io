@@ -64,6 +64,51 @@ logoutBtn.onclick = function () {
   alert("Logged out");
   window.location.href = "index.html";
 };
+
+async function loadAd(type, imgEl, linkEl) {
+  try {
+    const q = query(
+      collection(db, "ads"),
+      where("type", "==", type),
+      where("active", "==", true),
+      where("impressionsLeft", ">", 0),
+      limit(10) // get multiple ads
+    );
+
+    const snap = await getDocs(q);
+
+    if (snap.empty) {
+      imgEl.src = "/probatism.github.io/placeholder-ad.png";
+      linkEl.href = "../advertise.html";
+      return;
+    }
+
+
+    const ads = snap.docs;
+    const randomAdDoc = ads[Math.floor(Math.random() * ads.length)];
+    const ad = randomAdDoc.data();
+
+    imgEl.src = ad.image;
+
+    imgEl.onerror = () => {
+      console.log("Ad failed, using placeholder");
+      imgEl.src = "/probatism.github.io/placeholder-ad.png";
+    };
+
+    linkEl.href = ad.link;
+
+    await updateDoc(doc(db, "ads", randomAdDoc.id), {
+      impressionsLeft: increment(-1)
+    });
+
+  } catch (err) {
+    console.error("Ad load error:", err);
+
+    imgEl.src = "/probatism.github.io/placeholder-ad.png";
+    linkEl.href = "../advertise.html";
+  }
+}
+
 </script>
 
 <div id="bottomAdContainer" style="text-align:center; margin-top:20px;">
