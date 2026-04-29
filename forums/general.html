@@ -478,49 +478,71 @@ cancelDeleteBtn.onclick = () => {
 
 // LOAD ADS
 async function loadAd(type, imgEl, linkEl) {
+  if (!imgEl || !linkEl) return;
+
   try {
+    // 1. Get ALL active ads of this type
     const q = query(
       collection(db, "ads"),
       where("type", "==", type),
-      where("active", "==", true),
-      limit(10)
+      where("active", "==", true)
     );
 
     const snap = await getDocs(q);
 
+    // 2. If absolutely no ads exist → placeholder
     if (snap.empty) {
       imgEl.src = "/probatism.github.io/placeholder-ad.png";
-      linkEl.href = "../advertise.html";
+      linkEl.href = "advertise.html";
       return;
     }
 
-    // FILTER OUT ADS WITH 0 IMPRESSIONS
-    const validAds = snap.docs.filter(doc => {
-      const data = doc.data();
-      return typeof data.impressionsLeft === "number" && data.impressionsLeft > 0;
+    // 3. Build STRICT valid ad pool
+    const validAds = [];
+
+    snap.docs.forEach(docSnap => {
+      const data = docSnap.data();
+
+      // Only allow ads that are truly valid
+      if (
+        data &&
+        typeof data.image === "string" &&
+        data.image.trim() !== "" &&
+        typeof data.link === "string" &&
+        data.link.trim() !== "" &&
+        typeof data.impressionsLeft === "number" &&
+        data.impressionsLeft > 0
+      ) {
+        validAds.push({
+          id: docSnap.id,
+          data
+        });
+      }
     });
 
+    // 4. If NO valid ads → placeholder
     if (validAds.length === 0) {
       imgEl.src = "/probatism.github.io/placeholder-ad.png";
       linkEl.href = "advertise.html";
       return;
     }
 
-    // RANDOM PICK
-    const randomAdDoc = validAds[Math.floor(Math.random() * validAds.length)];
-    const ad = randomAdDoc.data();
+    // 5. Pick random VALID ad
+    const chosen = validAds[Math.floor(Math.random() * validAds.length)];
 
-    imgEl.src = ad.image;
+    // 6. Apply ad
+    imgEl.src = chosen.data.image;
+    linkEl.href = chosen.data.link;
 
+    // 7. If image fails → ONLY THEN fallback
     imgEl.onerror = () => {
-      console.log("Ad failed, using placeholder");
+      console.log("Image failed → placeholder");
       imgEl.src = "/probatism.github.io/placeholder-ad.png";
+      linkEl.href = "advertise.html";
     };
 
-    linkEl.href = ad.link;
-
-    // 🔥 GLOBAL IMPRESSION DECREMENT
-    await updateDoc(doc(db, "ads", randomAdDoc.id), {
+    // 8. Decrement impressions
+    await updateDoc(doc(db, "ads", chosen.id), {
       impressionsLeft: increment(-1)
     });
 
@@ -528,7 +550,7 @@ async function loadAd(type, imgEl, linkEl) {
     console.error("Ad load error:", err);
 
     imgEl.src = "/probatism.github.io/placeholder-ad.png";
-    linkEl.href = "../advertise.html";
+    linkEl.href = "advertise.html";
   }
 }
 
