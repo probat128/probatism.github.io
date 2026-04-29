@@ -1,0 +1,21 @@
+// top ad below
+<div id="topAdContainer" style="text-align:center; margin-bottom:10px;">
+  <a id="topAdLink" href="#">
+    <img id="topAdImg" style="width:728px; height:90px;">
+  </a>
+  <div style="font-size:10px;">
+    <a href="../advertise.html">Start advertising</a>
+  </div>
+</div>
+
+//bottom ad below
+<div id="bottomAdContainer" style="text-align:center; margin-top:20px;">
+  <a id="bottomAdLink" href="#">
+    <img id="bottomAdImg" style="width:300px; height:250px;">
+  </a>
+  <div style="font-size:10px;">
+    <a href="../advertise.html">Start advertising</a>
+  </div>
+</div>
+
+(just place it anywhere in the code depending on where it should show up)
