@@ -484,7 +484,7 @@ async function loadAd(type, imgEl, linkEl) {
       where("type", "==", type),
       where("active", "==", true),
       where("impressionsLeft", ">", 0),
-      limit(1)
+      limit(10) // get multiple ads
     );
 
     const snap = await getDocs(q);
@@ -495,8 +495,10 @@ async function loadAd(type, imgEl, linkEl) {
       return;
     }
 
-    const adDoc = snap.docs[0];
-    const ad = adDoc.data();
+    // 🔥 RANDOM AD SELECTION
+    const ads = snap.docs;
+    const randomAdDoc = ads[Math.floor(Math.random() * ads.length)];
+    const ad = randomAdDoc.data();
 
     imgEl.src = ad.image;
 
@@ -504,16 +506,17 @@ async function loadAd(type, imgEl, linkEl) {
       console.log("Ad failed, using placeholder");
       imgEl.src = "/probatism.github.io/placeholder-ad.png";
     };
+
     linkEl.href = ad.link;
 
-    await updateDoc(doc(db, "ads", adDoc.id), {
+    // 🔥 GLOBAL IMPRESSION DECREMENT
+    await updateDoc(doc(db, "ads", randomAdDoc.id), {
       impressionsLeft: increment(-1)
     });
 
   } catch (err) {
     console.error("Ad load error:", err);
 
-    // fallback if query fails (like missing index)
     imgEl.src = "/probatism.github.io/placeholder-ad.png";
     linkEl.href = "../advertise.html";
   }
