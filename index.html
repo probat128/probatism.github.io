@@ -97,7 +97,6 @@ async function loadAd(type, imgEl, linkEl) {
       collection(db, "ads"),
       where("type", "==", type),
       where("active", "==", true),
-      where("impressionsLeft", ">", 0),
       limit(10)
     );
 
@@ -110,8 +109,20 @@ async function loadAd(type, imgEl, linkEl) {
     }
 
 
-    const ads = snap.docs;
-    const randomAdDoc = ads[Math.floor(Math.random() * ads.length)];
+    // FILTER OUT ADS WITH 0 IMPRESSIONS
+    const validAds = snap.docs.filter(doc => {
+      const data = doc.data();
+      return typeof data.impressionsLeft === "number" && data.impressionsLeft > 0;
+    });
+
+    if (validAds.length === 0) {
+      imgEl.src = "/probatism.github.io/placeholder-ad.png";
+      linkEl.href = "advertise.html";
+      return;
+    }
+
+    // RANDOM PICK
+    const randomAdDoc = validAds[Math.floor(Math.random() * validAds.length)];
     const ad = randomAdDoc.data();
 
     imgEl.src = ad.image;
