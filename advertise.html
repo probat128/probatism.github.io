@@ -54,7 +54,8 @@ button {
 <a href="forums.html">Forums</a>
 <a href="news.html">News</a>
 <a href="quiz.html">Quiz</a>
-<a href="signin.html">Sign In / Sign Up</a>
+<a href="signin.html" id="accountLink">Sign In / Sign Up</a>
+<button id="logoutBtn" style="display:none;">Logout</button>
 </nav>
 
 <h1>Advertise</h1>
@@ -108,6 +109,8 @@ button {
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { getAuth, onAuthStateChanged, signOut, signInAnonymously } 
+from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAZXfEl3Q68vfJtaLJqODtnQBSVEzWBmc0",
@@ -120,6 +123,7 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
+const auth = getAuth(app);
 
 let impressions = 1000;
 
@@ -176,6 +180,30 @@ window.submitAd = async function(){
 };
 
 window.goHome = function(){
+  window.location.href = "index.html";
+};
+
+// NAVBAR AUTH SYSTEM (same as general.html)
+
+const accountLink = document.getElementById("accountLink");
+const logoutBtn = document.getElementById("logoutBtn");
+
+onAuthStateChanged(auth, (user) => {
+  if (user) {
+    accountLink.innerText = "Profile";
+    accountLink.href = "profile.html";
+    logoutBtn.style.display = "inline";
+  } else {
+    signInAnonymously(auth).catch(console.error);
+
+    accountLink.innerText = "Sign In / Sign Up";
+    accountLink.href = "signin.html";
+    logoutBtn.style.display = "none";
+  }
+});
+
+logoutBtn.onclick = async () => {
+  await signOut(auth);
   window.location.href = "index.html";
 };
 </script>
