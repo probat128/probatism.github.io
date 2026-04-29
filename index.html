@@ -91,14 +91,14 @@ logoutBtn.onclick = function () {
 };
 
 async function loadAd(type, imgEl, linkEl) {
+  if (!imgEl || !linkEl) return;
   try {
     const q = query(
       collection(db, "ads"),
       where("type", "==", type),
       where("active", "==", true),
       where("impressionsLeft", ">", 0),
-      imgEl.src = ad.image;
-      linkEl.href = ad.link;
+      limit(10)
     );
 
     const snap = await getDocs(q);
@@ -131,7 +131,7 @@ async function loadAd(type, imgEl, linkEl) {
     console.error("Ad load error:", err);
 
     imgEl.src = "/probatism.github.io/placeholder-ad.png";
-    linkEl.href = "../advertise.html";
+    linkEl.href = "advertise.html";
   }
 }
 
@@ -142,7 +142,7 @@ async function loadAd(type, imgEl, linkEl) {
     <img id="bottomAdImg" style="width:300px; height:250px; border:1px solid rgb(91,46,97);">
   </a>
   <div style="font-size:10px;">
-    <a href="../advertise.html">Start advertising</a>
+    <a href="advertise.html">Start advertising</a>
   </div>
 </div>
 
