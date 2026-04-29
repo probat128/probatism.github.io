@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Advertise</title>
+<style>
+body {
+  font-family: Arial;
+  background: rgb(232,224,207);
+  color: rgb(91,46,97);
+  padding:20px;
+  text-align:center;
+}
+
+input, button {
+  margin:5px;
+  padding:5px;
+  border:1px solid rgb(91,46,97);
+  background: rgb(232,224,207);
+  color: rgb(91,46,97);
+}
+
+button {
+  cursor:pointer;
+}
+
+.box {
+  border:1px solid rgb(91,46,97);
+  padding:15px;
+  display:inline-block;
+}
+
+#popup {
+  display:none;
+  position:fixed;
+  top:0; left:0;
+  width:100%; height:100%;
+  background: rgba(232,224,207,0.9);
+  justify-content:center;
+  align-items:center;
+}
+
+#popupContent {
+  background: rgb(232,224,207);
+  border:2px solid rgb(91,46,97);
+  padding:20px;
+}
+</style>
+</head>
+
+<body>
+
+<h1>Advertise</h1>
+
+<div class="box">
+
+<p>Select Ad Type:</p>
+<select id="adType">
+  <option value="banner">728x90 Banner</option>
+  <option value="box">300x250 Box</option>
+</select>
+
+<br><br>
+
+<p>Upload Ad Image:</p>
+<input type="file" id="imageInput" accept="image/*">
+
+<br><br>
+
+<p>Impressions:</p>
+<button onclick="changeImpressions(-1000)">-</button>
+<span id="impressions">1000</span>
+<button onclick="changeImpressions(1000)">+</button>
+
+<p id="price"></p>
+
+<br>
+
+<p>Ad Link:</p>
+<input id="linkInput" placeholder="https://example.com">
+
+<br>
+
+<p>Your Email:</p>
+<input id="emailInput" placeholder="you@example.com">
+
+<br><br>
+
+<button onclick="submitAd()">Submit</button>
+
+</div>
+
+<!-- POPUP -->
+<div id="popup">
+  <div id="popupContent">
+    <p>You should receive an email within 1–2 days.</p>
+    <button onclick="goHome()">OK</button>
+  </div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAZXfEl3Q68vfJtaLJqODtnQBSVEzWBmc0",
+  authDomain: "probatismm.firebaseapp.com",
+  projectId: "probatismm",
+  storageBucket: "probatismm.firebasestorage.app",
+  messagingSenderId: "746935651152",
+  appId: "1:746935651152:web:82491ddac346bc654a3a55"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+let impressions = 1000;
+
+window.changeImpressions = function(amount){
+  impressions += amount;
+
+  if(impressions < 1000) impressions = 1000;
+  if(impressions > 50000) impressions = 50000;
+
+  document.getElementById("impressions").innerText = impressions;
+
+  updatePrice();
+};
+
+function updatePrice(){
+  const usd = (impressions / 1000) * 3;
+  const gbp = (impressions / 1000) * 2.5;
+
+  document.getElementById("price").innerText =
+    `$${usd} / £${gbp}`;
+}
+
+updatePrice();
+
+window.submitAd = async function(){
+  const file = document.getElementById("imageInput").files[0];
+  const link = document.getElementById("linkInput").value.trim();
+  const email = document.getElementById("emailInput").value.trim();
+  const type = document.getElementById("adType").value;
+
+  if(!file || !link || !email){
+    alert("Fill everything");
+    return;
+  }
+
+  const reader = new FileReader();
+
+  reader.onload = async function(e){
+    const imageData = e.target.result;
+
+    await addDoc(collection(db, "adRequests"), {
+      type: type,
+      image: imageData,
+      link: link,
+      email: email,
+      impressions: impressions,
+      time: Date.now()
+    });
+
+    document.getElementById("popup").style.display = "flex";
+  };
+
+  reader.readAsDataURL(file);
+};
+
+window.goHome = function(){
+  window.location.href = "index.html";
+};
+</script>
+
+</body>
+</html>
