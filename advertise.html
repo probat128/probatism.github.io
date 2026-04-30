@@ -84,7 +84,7 @@ nav button {
 <br><br>
 
 <p>Upload Ad Image:</p>
-<input type="file" id="imageInput" accept="image/*">
+<input type="file" id="imageInput" accept="image/png, image/jpeg">
 
 <br><br>
 
@@ -163,21 +163,76 @@ updatePrice();
 
 window.submitAd = async function(){
   const file = document.getElementById("imageInput").files[0];
+  // FILE VALIDATION
+  if (file) {
+    const allowedTypes = ["image/png", "image/jpeg"];
+
+    if (!allowedTypes.includes(file.type)) {
+      alert("Only PNG and JPEG images are allowed.");
+      return;
+    }
+
+    if (file.size > 2 * 1024 * 1024) {
+      alert("Image must be under 2MB.");
+      return;
+    }
+  }
   const link = document.getElementById("linkInput").value.trim();
+  if (link.length > 256) {
+  alert("Link too long (max 256 characters).");
+  return;
+}
+
+// simple URL validation
+try {
+  new URL(link);
+} catch {
+  alert("Enter a valid URL (must include https://)");
+  return;
+}
   const email = document.getElementById("emailInput").value.trim();
+  if (email.length > 256) {
+  alert("Email too long (max 256 characters).");
+  return;
+}
+
+// basic email regex
+const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+if (!emailRegex.test(email)) {
+  alert("Enter a valid email address.");
+  return;
+}
   const type = document.getElementById("adType").value;
 
   if(!file || !link || !email){
     alert("Fill everything");
     return;
+  }// 24 hour cooldown
+const lastSubmit = localStorage.getItem("lastAdSubmit");
+
+if (lastSubmit) {
+  const diff = Date.now() - parseInt(lastSubmit);
+
+  if (diff < 24 * 60 * 60 * 1000) {
+    alert("You can only submit one ad every 24 hours.");
+    return;
   }
+}
+
+  
 
   const reader = new FileReader();
 
   reader.onload = async function(e){
     const imageData = e.target.result;
+    if (imageData.length > 2_500_000) {
+      alert("Image too large after processing.");
+      return;
+    }
 
     await addDoc(collection(db, "adRequests"), {
+      localStorage.setItem("lastAdSubmit", Date.now());
       type: type,
       image: imageData,
       link: link,
