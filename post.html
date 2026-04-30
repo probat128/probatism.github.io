@@ -168,6 +168,16 @@ button {
   flex-direction:column;
 }
 
+.mention {
+  color: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.mention:hover {
+  color: blue;
+}
+
 </style>
 </head>
 
@@ -228,6 +238,15 @@ onAuthStateChanged,
 signOut,
 signInAnonymously
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+
+function extractMentions(text){
+  if(!text) return [];
+
+  const matches = text.match(/@[\w]+/g) || [];
+  const cleaned = matches.map(m => m.replace("@",""));
+
+  return [...new Set(cleaned)].filter(u => u !== "Anonymous");
+}
 
 const firebaseConfig = {
 apiKey: "AIzaSyAZXfEl3Q68vfJtaLJqODtnQBSVEzWBmc0",
@@ -290,6 +309,16 @@ window.goProfile = function(username){
   }
 };
 
+function renderMentions(text){
+  if(!text) return "";
+
+  return text.replace(/@([\w]+)/g, (match, username) => {
+    if(username === "Anonymous") return match;
+
+    return `<span class="mention" onclick="goProfile('${username}')">@${username}</span>`;
+  });
+}
+
 /* IMAGE VIEW */
 const overlay=document.getElementById("imgOverlay");
 const fullImg=document.getElementById("fullImg");
@@ -347,7 +376,7 @@ ${p.author !== "Anonymous"
 ${p.author}
 </b><br>
 
-${readMore(p.content)}
+${renderMentions(readMore(p.content))}
 
 ${p.image?`<br><img class="imgThumb" src="${p.image}" data-full="${p.image}" onclick="showImg(this.dataset.full)">`:``}
 </div>
@@ -391,7 +420,7 @@ ${r.author !== "Anonymous"
 ${r.author}
 </b><br>
 
-${readMore(r.content)}
+${renderMentions(readMore(r.content))}
 ${r.image?`<br><img class="imgThumb" src="${r.image}" data-full="${r.image}" onclick="showImg(this.dataset.full)">`:``}
 <div class="time">${new Date(r.time).toLocaleString()}</div>
 
@@ -459,6 +488,8 @@ r.onload=()=>res(r.result);
 r.readAsDataURL(file);
 }):null;
 
+const mentions = extractMentions(text);
+
 await addDoc(collection(db,"replies"),{
 postId,
 author: currentUser || "Guest",
@@ -467,7 +498,9 @@ authorEmail: auth.currentUser ? auth.currentUser.email : null,
 
 content: text,
 image: img,
-time: Date.now()
+time: Date.now(),
+
+mentionedUsers: mentions
 });
 
 lastReplyTime = Date.now();
