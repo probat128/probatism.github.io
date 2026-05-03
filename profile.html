@@ -139,7 +139,17 @@
 <textarea id="description"></textarea>
 <button id="saveDescBtn">Save Description</button>
 
-<script>
+
+
+<script type="module">
+import { getFirestore, doc, getDocs, setDoc, collection } 
+from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+import { getAuth } 
+from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+
+const auth = getAuth();
+const db = window.db; // IMPORTANT: assumes db already exists globally
 
 document.getElementById("changeUsernameBtn").onclick = async () => {
   const newNameRaw = document.getElementById("newUsername").value.trim();
@@ -152,7 +162,7 @@ document.getElementById("changeUsernameBtn").onclick = async () => {
   }
 
   try {
-    // 1. clean username
+    // clean username
     let base = newNameRaw
       .toLowerCase()
       .replace(/\s+/g, "")
@@ -161,20 +171,17 @@ document.getElementById("changeUsernameBtn").onclick = async () => {
 
     if (base.length < 3) base = "user";
 
-    // 2. ensure uniqueness
+    // check uniqueness properly
+    const allUsersSnap = await getDocs(collection(db, "users"));
+
     let finalName = base;
     let exists = true;
 
     while (exists) {
-      const q = await getDoc(doc(db, "users", username));
-
-      const snap = await getDoc(doc(db, "users", username));
       exists = false;
 
-      // check ALL users for same username
-      const test = await getDocs(collection(db, "users"));
-      test.forEach(d => {
-        if (d.data().username === finalName && d.id !== username) {
+      allUsersSnap.forEach(d => {
+        if (d.data().username === finalName) {
           exists = true;
         }
       });
@@ -184,27 +191,26 @@ document.getElementById("changeUsernameBtn").onclick = async () => {
       }
     }
 
-    // 3. update Firestore
-    await setDoc(doc(db, "users", username), {
+    const user = auth.currentUser;
+
+    // update user document (UID-based)
+    await setDoc(doc(db, "users", user.uid), {
       username: finalName
     }, { merge: true });
 
-    // 4. update localStorage
     localStorage.setItem("currentUser", finalName);
 
     status.innerText = "Username updated!";
     status.style.color = "green";
 
-    // 5. refresh UI
     loadProfile();
 
   } catch (err) {
     console.error(err);
-    status.innerText = "Error changing username";
+    status.innerText = "Error changing username: " + err.message;
     status.style.color = "red";
   }
 };
-
 </script>
 
 <br><br>
