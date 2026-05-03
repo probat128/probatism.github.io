@@ -78,6 +78,9 @@
   <input id="username" placeholder="Username"><br>
   <input id="password" type="password" placeholder="Password"><br>
   <button onclick="submitForm()">Continue</button>
+  <p id="passwordHint" style="font-size:12px; opacity:0.6; display:none;">
+    Make sure to use a very strong password!
+  </p>
 </div>
 
 <p id="status"></p>
@@ -111,10 +114,20 @@ function showStatus(message, type){
 
 window.setMode = function(newMode){
   mode = newMode;
-  document.getElementById("title").innerText = newMode === "signin" ? "Sign In" : "Sign Up";
+
+  document.getElementById("title").innerText =
+    newMode === "signin" ? "Sign In" : "Sign Up";
 
   document.getElementById("signInTab").classList.toggle("active", newMode === "signin");
   document.getElementById("signUpTab").classList.toggle("active", newMode === "signup");
+
+  // SHOW / HIDE PASSWORD HINT
+  const hint = document.getElementById("passwordHint");
+  if(newMode === "signup"){
+    hint.style.display = "block";
+  } else {
+    hint.style.display = "none";
+  }
 
   showStatus("", "");
 }
@@ -126,6 +139,27 @@ window.submitForm = async function(){
   if(!username || !password){
     showStatus("Enter username and password", "error");
     return;
+  }
+
+  // USERNAME VALIDATION
+  const usernameRegex = /^[A-Za-z0-9_]+$/;
+  if(!usernameRegex.test(username)){
+    showStatus("Username can only contain letters, numbers, and underscores", "error");
+    return;
+  }
+  if(username.length < 3){
+    showStatus("Username must be at least 3 characters", "error");
+    return;
+  }
+
+  // PASSWORD VALIDATION (only on signup)
+  if(mode === "signup"){
+    const strongPassword = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z\d]).{8,}$/;
+
+    if(!strongPassword.test(password)){
+      showStatus("Password must be 8+ chars, include upper, lower, number, and symbol", "error");
+      return;
+    }
   }
 
   const email = username + "@fake.com";
@@ -145,10 +179,11 @@ window.submitForm = async function(){
 
       // ensure auth is ready before writing
       if(userCredential.user){
-        await setDoc(userRef, {
-          username: username,
-          joinDate: Date.now()
-        });
+         await setDoc(userRef, {
+           username: username,
+           uid: userCredential.user.uid,
+           joinDate: Date.now()
+         });
       }
 
       localStorage.setItem("currentUser", username);
@@ -192,8 +227,10 @@ logoutBtn.onclick = function() {
   localStorage.removeItem("currentUser");
   alert("Logged out");
   window.location.href = "index.html";
-};
+}
 </script>
+
+<script>
 
 </body>
 </html>
