@@ -78,6 +78,8 @@
   <input id="username" placeholder="Username"><br>
   <input id="password" type="password" placeholder="Password"><br>
   <button onclick="submitForm()">Continue</button>
+  <br><br>
+  <button onclick="googleSignIn()">Sign in with Google</button>
   <p id="passwordHint" style="font-size:12px; opacity:0.6; display:none;">
     Make sure to use a very strong password!
   </p>
@@ -88,8 +90,13 @@
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword } 
-from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+import { 
+  getAuth, 
+  createUserWithEmailAndPassword, 
+  signInWithEmailAndPassword,
+  GoogleAuthProvider,
+  signInWithPopup
+} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAZXfEl3Q68vfJtaLJqODtnQBSVEzWBmc0",
@@ -103,6 +110,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
+const provider = new GoogleAuthProvider();
 
 let mode = "signin";
 
@@ -127,6 +135,29 @@ window.setMode = function(newMode){
   showStatus("", "");
 }
 
+async function generateUniqueUsername(baseName){
+  let username = baseName.replace(/\s+/g, "_").replace(/[^A-Za-z0-9_]/g, "");
+  
+  if(username.length < 3){
+    username = "user" + Math.floor(Math.random() * 10000);
+  }
+
+  let finalUsername = username;
+  let counter = 0;
+
+  while(true){
+    const userRef = doc(db, "users", finalUsername);
+    const snap = await getDoc(userRef);
+
+    if(!snap.exists()){
+      return finalUsername;
+    }
+
+    counter++;
+    finalUsername = username + Math.floor(Math.random() * 10000);
+  }
+}
+
 window.submitForm = async function(){
   const username = document.getElementById("username").value.trim();
   const password = document.getElementById("password").value.trim();
@@ -135,6 +166,49 @@ window.submitForm = async function(){
     showStatus("Enter username and password", "error");
     return;
   }
+
+window.googleSignIn = async function(){
+  try {
+    const result = await signInWithPopup(auth, provider);
+    const user = result.user;
+
+    // Check if user already exists
+    const usersRef = doc(db, "users", user.uid);
+    const existingUser = await getDoc(usersRef);
+
+    let username;
+
+    if(existingUser.exists()){
+      username = existingUser.data().username;
+    } else {
+      // Generate username from Google name
+      username = await generateUniqueUsername(user.displayName || "user");
+
+      await setDoc(doc(db, "users", username), {
+        username: username,
+        uid: user.uid,
+        joinDate: Date.now()
+      });
+
+      // ALSO store reverse lookup (important)
+      await setDoc(doc(db, "users", user.uid), {
+        username: username
+      });
+    }
+
+    localStorage.setItem("currentUser", username);
+
+    showStatus("Logged in with Google!", "success");
+
+    setTimeout(() => {
+      window.location.href = "index.html";
+    }, 1000);
+
+  } catch(err){
+    console.error(err);
+    showStatus("Google sign-in failed: " + err.message, "error");
+  }
+};
 
   const usernameRegex = /^[A-Za-z0-9_]+$/;
   if(!usernameRegex.test(username)){
