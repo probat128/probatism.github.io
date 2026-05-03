@@ -127,10 +127,81 @@
 <h1>Profile</h1>
 
 <div id="profileInfo">Loading...</div>
+<br><br>
+
+<label><b>Change Username:</b></label><br>
+<input id="newUsername" placeholder="New username">
+<button id="changeUsernameBtn">Change</button>
+
+<p id="usernameStatus"></p>
 
 <label><b>Description:</b></label>
 <textarea id="description"></textarea>
 <button id="saveDescBtn">Save Description</button>
+
+document.getElementById("changeUsernameBtn").onclick = async () => {
+  const newNameRaw = document.getElementById("newUsername").value.trim();
+  const status = document.getElementById("usernameStatus");
+
+  if (!newNameRaw) {
+    status.innerText = "Enter a username";
+    status.style.color = "red";
+    return;
+  }
+
+  try {
+    // 1. clean username
+    let base = newNameRaw
+      .toLowerCase()
+      .replace(/\s+/g, "")
+      .replace(/[^a-z0-9]/g, "")
+      .slice(0, 18);
+
+    if (base.length < 3) base = "user";
+
+    // 2. ensure uniqueness
+    let finalName = base;
+    let exists = true;
+
+    while (exists) {
+      const q = await getDoc(doc(db, "users", username));
+
+      const snap = await getDoc(doc(db, "users", username));
+      exists = false;
+
+      // check ALL users for same username
+      const test = await getDocs(collection(db, "users"));
+      test.forEach(d => {
+        if (d.data().username === finalName && d.id !== username) {
+          exists = true;
+        }
+      });
+
+      if (exists) {
+        finalName = base + Math.floor(100000 + Math.random() * 900000);
+      }
+    }
+
+    // 3. update Firestore
+    await setDoc(doc(db, "users", username), {
+      username: finalName
+    }, { merge: true });
+
+    // 4. update localStorage
+    localStorage.setItem("currentUser", finalName);
+
+    status.innerText = "Username updated!";
+    status.style.color = "green";
+
+    // 5. refresh UI
+    loadProfile();
+
+  } catch (err) {
+    console.error(err);
+    status.innerText = "Error changing username";
+    status.style.color = "red";
+  }
+};
 
 <br><br>
 
