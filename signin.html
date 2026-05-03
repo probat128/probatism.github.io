@@ -236,10 +236,13 @@ window.googleSignIn = async function(){
     if(existingUser.exists()){
       username = existingUser.data().username;
     } else {
-      const baseNameRaw =
+      let baseNameRaw =
         user.displayName ||
         user.email?.split("@")[0] ||
         "user";
+
+      baseNameRaw = baseNameRaw.replace(/\s+/g, "");
+      
 
       username = await generateUniqueUsername(baseNameRaw);
 
