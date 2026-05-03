@@ -185,14 +185,10 @@ window.submitForm = async function(){
 
       const uniqueUsername = await generateUniqueUsername(username);
 
-      await setDoc(doc(db, "users", uniqueUsername), {
-        username: uniqueUsername,
+      await setDoc(doc(db, "users", user.uid), {
+        username: username,
         uid: user.uid,
         joinDate: Date.now()
-      });
-
-      await setDoc(doc(db, "users", user.uid), {
-        username: uniqueUsername
       });
 
       localStorage.setItem("currentUser", uniqueUsername);
@@ -247,10 +243,9 @@ window.googleSignIn = async function(){
 
       username = await generateUniqueUsername(baseNameRaw);
 
-      await setDoc(doc(db, "users", username), {
+      await setDoc(doc(db, "users", user.uid), {
         username: username,
         uid: user.uid,
-        email: user.email,
         joinDate: Date.now()
       });
     }
