@@ -121,13 +121,8 @@ window.setMode = function(newMode){
   document.getElementById("signInTab").classList.toggle("active", newMode === "signin");
   document.getElementById("signUpTab").classList.toggle("active", newMode === "signup");
 
-  // SHOW / HIDE PASSWORD HINT
   const hint = document.getElementById("passwordHint");
-  if(newMode === "signup"){
-    hint.style.display = "block";
-  } else {
-    hint.style.display = "none";
-  }
+  hint.style.display = newMode === "signup" ? "block" : "none";
 
   showStatus("", "");
 }
@@ -141,7 +136,6 @@ window.submitForm = async function(){
     return;
   }
 
-  // USERNAME VALIDATION
   const usernameRegex = /^[A-Za-z0-9_]+$/;
   if(!usernameRegex.test(username)){
     showStatus("Username can only contain letters, numbers, and underscores", "error");
@@ -152,10 +146,8 @@ window.submitForm = async function(){
     return;
   }
 
-  // PASSWORD VALIDATION (only on signup)
   if(mode === "signup"){
     const strongPassword = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z\d]).{8,}$/;
-
     if(!strongPassword.test(password)){
       showStatus("Password must be 8+ chars, include upper, lower, number, and symbol", "error");
       return;
@@ -166,10 +158,8 @@ window.submitForm = async function(){
   const userRef = doc(db, "users", username);
 
   try {
-
     if(mode === "signup"){
       const userSnap = await getDoc(userRef);
-
       if(userSnap.exists()){
         showStatus("Username already exists", "error");
         return;
@@ -177,7 +167,6 @@ window.submitForm = async function(){
 
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
 
-      // ensure auth is ready before writing
       if(userCredential.user){
          await setDoc(userRef, {
            username: username,
@@ -220,8 +209,11 @@ window.submitForm = async function(){
       else{
         showStatus("Error: " + err.message, "error");
       }
-    }
-    
+  } // <-- THIS closes the try/catch
+
+}; // <-- THIS closes submitForm function properly
+
+// Code below runs on page load, outside submitForm
 const accountLink = document.getElementById("accountLink");
 const logoutBtn = document.getElementById("logoutBtn");
 
