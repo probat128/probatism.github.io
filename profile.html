@@ -162,16 +162,27 @@ document.getElementById("changeUsernameBtn").onclick = async () => {
   }
 
   try {
-    // clean username
+    // =========================
+    // SAME RULES AS SIGNUP
+    // =========================
     let base = newNameRaw
       .toLowerCase()
       .replace(/\s+/g, "")
       .replace(/[^a-z0-9]/g, "")
       .slice(0, 18);
 
-    if (base.length < 3) base = "user";
+    if (base.length < 3) {
+      base = "user" + Math.floor(Math.random() * 1000);
+    }
 
-    // check uniqueness properly
+    // MUST START WITH LETTER/NUMBER ONLY (same as signup safety)
+    if (!/^[a-z0-9]/.test(base)) {
+      base = "user" + base;
+    }
+
+    // =========================
+    // CHECK UNIQUENESS
+    // =========================
     const allUsersSnap = await getDocs(collection(db, "users"));
 
     let finalName = base;
@@ -187,16 +198,27 @@ document.getElementById("changeUsernameBtn").onclick = async () => {
       });
 
       if (exists) {
-        finalName = base + Math.floor(100000 + Math.random() * 900000);
+        finalName =
+          base + Math.floor(100000 + Math.random() * 900000);
       }
     }
 
     const user = auth.currentUser;
 
-    // update user document (UID-based)
-    await setDoc(doc(db, "users", user.uid), {
-      username: finalName
-    }, { merge: true });
+    if (!user) {
+      throw new Error("Not logged in");
+    }
+
+    // =========================
+    // UPDATE USER DOC
+    // =========================
+    await setDoc(
+      doc(db, "users", user.uid),
+      {
+        username: finalName
+      },
+      { merge: true }
+    );
 
     localStorage.setItem("currentUser", finalName);
 
@@ -207,11 +229,10 @@ document.getElementById("changeUsernameBtn").onclick = async () => {
 
   } catch (err) {
     console.error(err);
-    status.innerText = "Error changing username: " + err.message;
+    status.innerText = "Error: " + err.message;
     status.style.color = "red";
   }
 };
-</script>
 
 <br><br>
 
@@ -267,6 +288,7 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
+window.db = db;
 const auth = getAuth(app);
 
 let username=null;
