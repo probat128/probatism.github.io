@@ -136,7 +136,11 @@ window.setMode = function(newMode){
 }
 
 async function generateUniqueUsername(baseName){
-  let username = baseName.replace(/\s+/g, "_").replace(/[^A-Za-z0-9_]/g, "");
+  let username = baseName
+    .toLowerCase()
+    .replace(/\s+/g, "")
+    .replace(/[^a-z0-9]/g, "");
+    username = username.slice(0, 18); // reserve space for numbers
   
   if(username.length < 3){
     username = "user" + Math.floor(Math.random() * 10000);
@@ -145,17 +149,22 @@ async function generateUniqueUsername(baseName){
   let finalUsername = username;
   let counter = 0;
 
-  while(true){
+  while(counter < 20){
     const userRef = doc(db, "users", finalUsername);
     const snap = await getDoc(userRef);
 
     if(!snap.exists()){
-      return finalUsername;
+      return finalUsername.slice(0, 24);
     }
 
+    finalUsername = (username.slice(0, 18) + Math.floor(100000 + Math.random() * 900000))
+      .slice(0, 24);
+
     counter++;
-    finalUsername = username + Math.floor(Math.random() * 10000);
   }
+
+  // fallback (very unlikely)
+  return (username.slice(0, 18) + Date.now()).slice(0, 24);
 }
 
 window.submitForm = async function(){
@@ -231,7 +240,12 @@ window.googleSignIn = async function(){
     if(existingUser.exists()){
       username = existingUser.data().username;
     } else {
-      username = await generateUniqueUsername(user.displayName || "user");
+      const baseNameRaw =
+        user.displayName ||
+        user.email?.split("@")[0] ||
+        "user";
+
+      username = await generateUniqueUsername(baseNameRaw);
 
       await setDoc(doc(db, "users", username), {
         username: username,
