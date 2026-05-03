@@ -202,11 +202,12 @@ onAuthStateChanged(auth, async (user)=>{
     location.href="signin.html";
     return;
   }
-  username = localStorage.getItem("currentUser");
+
+  username = user.uid; // IMPORTANT FIX
+
   loadProfile();
   loadAllData();
   loadMentions();
-  
 });
 
 /* LOGOUT */
@@ -225,7 +226,14 @@ async function loadProfile(){
   }
 
   const d = snap.data();
-  const date = new Date(d.joinDate);
+
+  if (!d) {
+    document.getElementById("profileInfo").innerHTML =
+      "<b>Account not found</b>";
+    return;
+  }
+
+  const date = new Date(d.joinDate || Date.now());
 
   document.getElementById("profileInfo").innerHTML=`
     <p><b>${d.username}</b></p>
