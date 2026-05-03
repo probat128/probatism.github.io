@@ -167,12 +167,13 @@ window.submitForm = async function(){
     return;
   }
 
+ // <-- THIS closes submitForm function properly
+
 window.googleSignIn = async function(){
   try {
     const result = await signInWithPopup(auth, provider);
     const user = result.user;
 
-    // Check if user already exists
     const usersRef = doc(db, "users", user.uid);
     const existingUser = await getDoc(usersRef);
 
@@ -181,7 +182,6 @@ window.googleSignIn = async function(){
     if(existingUser.exists()){
       username = existingUser.data().username;
     } else {
-      // Generate username from Google name
       username = await generateUniqueUsername(user.displayName || "user");
 
       await setDoc(doc(db, "users", username), {
@@ -190,7 +190,6 @@ window.googleSignIn = async function(){
         joinDate: Date.now()
       });
 
-      // ALSO store reverse lookup (important)
       await setDoc(doc(db, "users", user.uid), {
         username: username
       });
@@ -209,83 +208,6 @@ window.googleSignIn = async function(){
     showStatus("Google sign-in failed: " + err.message, "error");
   }
 };
-
-  const usernameRegex = /^[A-Za-z0-9_]+$/;
-  if(!usernameRegex.test(username)){
-    showStatus("Username can only contain letters, numbers, and underscores", "error");
-    return;
-  }
-  if(username.length < 3){
-    showStatus("Username must be at least 3 characters", "error");
-    return;
-  }
-
-  if(mode === "signup"){
-    const strongPassword = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z\d]).{8,}$/;
-    if(!strongPassword.test(password)){
-      showStatus("Password must be 8+ chars, include upper, lower, number, and symbol", "error");
-      return;
-    }
-  }
-
-  const email = username + "@fake.com";
-  const userRef = doc(db, "users", username);
-
-  try {
-    if(mode === "signup"){
-      const userSnap = await getDoc(userRef);
-      if(userSnap.exists()){
-        showStatus("Username already exists", "error");
-        return;
-      }
-
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-
-      if(userCredential.user){
-         await setDoc(userRef, {
-           username: username,
-           uid: userCredential.user.uid,
-           joinDate: Date.now()
-         });
-      }
-
-      localStorage.setItem("currentUser", username);
-      showStatus("Account created!", "success");
-
-      setTimeout(() => {
-        window.location.href = "index.html";
-      }, 1000);
-    }
-
-    if(mode === "signin"){
-      await signInWithEmailAndPassword(auth, email, password);
-
-      localStorage.setItem("currentUser", username);
-      showStatus("Logged in!", "success");
-
-      setTimeout(() => {
-        window.location.href = "index.html";
-      }, 1000);
-    }
-
-  } catch(err){
-      console.error(err);
-
-      if(err.code === "auth/user-not-found"){
-        showStatus("Account does not exist", "error");
-      }
-      else if(err.code === "auth/wrong-password"){
-        showStatus("Incorrect password", "error");
-      }
-      else if(err.code === "auth/invalid-credential"){
-        showStatus("Invalid login details (likely wrong password or old account)", "error");
-      }
-      else{
-        showStatus("Error: " + err.message, "error");
-      }
-  } // <-- THIS closes the try/catch
-
-}; // <-- THIS closes submitForm function properly
 
 // Code below runs on page load, outside submitForm
 const accountLink = document.getElementById("accountLink");
