@@ -250,11 +250,8 @@ window.googleSignIn = async function(){
       await setDoc(doc(db, "users", username), {
         username: username,
         uid: user.uid,
+        email: user.email,
         joinDate: Date.now()
-      });
-
-      await setDoc(doc(db, "users", user.uid), {
-        username: username
       });
     }
 
