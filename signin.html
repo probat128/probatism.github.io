@@ -167,6 +167,55 @@ window.submitForm = async function(){
     return;
   }
 
+  try {
+    if(mode === "signup"){
+      const email = username + "@example.com";
+
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+
+      const uniqueUsername = await generateUniqueUsername(username);
+
+      await setDoc(doc(db, "users", uniqueUsername), {
+        username: uniqueUsername,
+        uid: user.uid,
+        joinDate: Date.now()
+      });
+
+      await setDoc(doc(db, "users", user.uid), {
+        username: uniqueUsername
+      });
+
+      localStorage.setItem("currentUser", uniqueUsername);
+
+      showStatus("Account created!", "success");
+
+    } else {
+      const email = username + "@example.com";
+
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+
+      const userDoc = await getDoc(doc(db, "users", user.uid));
+
+      if(userDoc.exists()){
+        const savedUsername = userDoc.data().username;
+        localStorage.setItem("currentUser", savedUsername);
+      }
+
+      showStatus("Signed in!", "success");
+    }
+
+    setTimeout(() => {
+      window.location.href = "index.html";
+    }, 1000);
+
+  } catch(err){
+    console.error(err);
+    showStatus(err.message, "error");
+  }
+};
+
  // <-- THIS closes submitForm function properly
 
 window.googleSignIn = async function(){
