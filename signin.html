@@ -3,34 +3,82 @@
 <head>
   <title>Account</title>
   <style>
-    body { font-family: Arial; background:#111; color:white; padding:20px; }
-    input { width:200px; padding:5px; margin:5px 0; background:#222; color:white; border:none; }
-    button { padding:5px 10px; margin:5px 0; cursor:pointer; }
-    .tab { cursor:pointer; margin-right:10px; color:cyan; }
-    .active { font-weight:bold; text-decoration:underline; }
+  body { 
+    font-family: Arial; 
+    background: rgb(232,224,207); 
+    color: rgb(91,46,97); 
+    padding:20px; 
+  }
 
-    #status {
-      margin-top:10px;
-      font-weight:bold;
-    }
+  nav a { 
+    color: rgb(91,46,97); 
+    margin-right:10px; 
+    text-decoration:none; 
+  }
 
-    .success { color: lightgreen; }
-    .error { color: red; }
+  button { 
+    margin-top:5px; 
+    padding:5px 10px; 
+    cursor:pointer; 
+    background: rgb(232,224,207); 
+    color: rgb(91,46,97); 
+    border: 1px solid rgb(91,46,97); 
+  }
+
+  input { 
+    width:250px; 
+    padding:5px; 
+    margin:5px 0; 
+    background: rgb(232,224,207); 
+    color: rgb(91,46,97); 
+    border:1px solid rgb(91,46,97); 
+  }
+
+  .tab { 
+    cursor:pointer; 
+    margin-right:10px; 
+  }
+
+  .active { 
+    font-weight:bold; 
+    text-decoration:underline; 
+  }
+
+  #status {
+    margin-top:10px;
+    font-weight:bold;
+  }
+
+  .success { color: green; }
+  .error { color: red; }
   </style>
 </head>
 <body>
 
+<nav>
+<a href="index.html">Home</a>
+<a href="doctrine.html">Doctrine</a>
+<a href="forums.html">Forums</a>
+<a href="news.html">News</a>
+<a href="quiz.html">Quiz</a>
+<a href="signin.html" id="accountLink">Sign In / Sign Up</a>
+<button id="logoutBtn" style="display:none;">Logout</button>
+</nav>
+
 <h1 id="title">Sign In</h1>
 
-<div>
+<p>Access your account or create a new one.</p>
+
+<div style="margin-bottom:10px;">
   <span id="signInTab" class="tab active" onclick="setMode('signin')">Sign In</span>
   <span id="signUpTab" class="tab" onclick="setMode('signup')">Sign Up</span>
 </div>
 
-<input id="username" placeholder="Username">
-<input id="password" type="password" placeholder="Password">
-
-<button onclick="submitForm()">Continue</button>
+<div>
+  <input id="username" placeholder="Username"><br>
+  <input id="password" type="password" placeholder="Password"><br>
+  <button onclick="submitForm()">Continue</button>
+</div>
 
 <p id="status"></p>
 
@@ -126,6 +174,25 @@ window.submitForm = async function(){
     showStatus("Error: " + err.message, "error");
   }
 }
+<script>
+const accountLink = document.getElementById("accountLink");
+const logoutBtn = document.getElementById("logoutBtn");
+
+const currentUser = localStorage.getItem("currentUser");
+
+if(currentUser){
+  accountLink.innerText = "Profile";
+  accountLink.href = "profile.html";
+  logoutBtn.style.display = "inline";
+} else {
+  logoutBtn.style.display = "none";
+}
+
+logoutBtn.onclick = function() {
+  localStorage.removeItem("currentUser");
+  alert("Logged out");
+  window.location.href = "index.html";
+};
 </script>
 
 </body>
