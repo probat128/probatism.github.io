@@ -188,10 +188,11 @@ window.submitForm = async function(){
 
       // SAVE USER IN FIRESTORE (IMPORTANT: USE UID AS DOCUMENT ID)
       await setDoc(doc(db, "users", user.uid), {
-        username: uniqueUsername,   // IMPORTANT FIX
+        username: uniqueUsername,
         uid: user.uid,
-        email: user.email,
-        joinDate: Date.now()
+        joinDate: Date.now(),
+        description: "",
+        profilePic: ""
       });
 
       // IMPORTANT: ALWAYS STORE USERNAME ONLY (NOT EMAIL)
