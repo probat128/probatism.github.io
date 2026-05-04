@@ -197,7 +197,6 @@ const db = getFirestore(app);
 window.db = db;
 const auth = getAuth(app);
 
-let uid = null;
 let username = null;  
 let items=[];
 let mentions = [];
@@ -213,12 +212,35 @@ onAuthStateChanged(auth, async (user) => {
     return;
   }
 
-  uid = user.uid;
+  // OLD SYSTEM (email users)
+  if (user.email && user.email.endsWith("@fake.com")) {
+    username = user.email.replace("@fake.com", "");
+  } 
+  // NEW SYSTEM (Google users)
+  else {
+    const ref = doc(db, "users", user.uid);
+    const snap = await getDoc(ref);
 
-  console.log("Logged in UID:", uid);
+    if (!snap.exists()) {
+      // create profile for Google user
+      const newUsername = "user" + user.uid.slice(0,5);
+
+      await setDoc(doc(db, "users", newUsername), {
+        username: newUsername,
+        joinDate: Date.now()
+      });
+
+      username = newUsername;
+    } else {
+      username = snap.data().username;
+    }
+  }
+
+  console.log("FINAL USERNAME:", username);
 
   loadProfile();
-
+  loadAllData();
+  loadMentions();
 });
 
 /* LOGOUT */
@@ -232,13 +254,15 @@ async function loadProfile() {
   try {
     const el = document.getElementById("profileInfo");
 
-    const ref = doc(db, "users", uid);
-    const snap = await getDoc(ref);
+    const snap = await getDoc(doc(db, "users", username));
 
     if (!snap.exists()) {
-      document.getElementById("profileInfo").innerHTML =
-        "<b>No profile found. Please sign in again.</b>";
-      return;
+      await setDoc(doc(db, "users", username), {
+        username: username,
+        joinDate: Date.now()
+      });
+
+      return loadProfile();
     }
 
     const d = snap.data();
@@ -300,7 +324,7 @@ document.getElementById("changeUsernameBtn").onclick = async () => {
     }
   }
 
-  await setDoc(doc(db, "users", uid), {
+  await setDoc(doc(db, "users", username), {
     username: finalName
   }, { merge: true });
 
@@ -317,7 +341,7 @@ document.getElementById("changeUsernameBtn").onclick = async () => {
 document.getElementById("saveDescBtn").onclick = async () => {
   if (!uid) return;
 
-  await setDoc(doc(db, "users", uid), {
+  await setDoc(doc(db, "users", username), {
     description: document.getElementById("description").value
   }, { merge: true });
 
@@ -335,7 +359,7 @@ document.getElementById("uploadPicBtn").onclick = async () => {
   const reader = new FileReader();
 
   reader.onload = async () => {
-    await setDoc(doc(db, "users", uid), {
+    await setDoc(doc(db, "users", username), {
       profilePic: reader.result
     }, { merge: true });
 
@@ -387,8 +411,8 @@ function format(text){
 
 /* LOAD ALL */
 async function loadAllData(){
-  const posts = await getDocs(collection(db, "posts"));
-  const replies = await getDocs(collection(db, "replies"));
+  const posts = await getDocs(query(collection(db,"posts"),where("author","==",username)));
+  const replies = await getDocs(query(collection(db,"replies"),where("author","==",username)));
 
   items=[];
 
