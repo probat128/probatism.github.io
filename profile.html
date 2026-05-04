@@ -197,7 +197,7 @@ const db = getFirestore(app);
 window.db = db;
 const auth = getAuth(app);
 
-let username=null;
+let uid = null;
 let items=[];
 let mentions = [];
 let mentionsIndex = 0;
@@ -219,6 +219,8 @@ onAuthStateChanged(auth, async (user) => {
   console.log("Logged in UID:", uid);
 
   loadProfile();
+  loadAllData();
+  loadMentions();
 });
 
 /* LOGOUT */
@@ -245,6 +247,7 @@ async function loadProfile() {
     }
 
     const d = snap.data();
+    username = d.username;
 
     el.innerHTML = `
       <p><b>${d.username}</b></p>
@@ -310,6 +313,38 @@ document.getElementById("changeUsernameBtn").onclick = async () => {
   }, 300);
 };
 
+/* SAVE DESCRIPTION */
+document.getElementById("saveDescBtn").onclick = async () => {
+  if (!uid) return;
+
+  await setDoc(doc(db, "users", uid), {
+    description: document.getElementById("description").value
+  }, { merge: true });
+
+  console.log("Description saved");
+};
+
+
+/* UPLOAD PROFILE PICTURE */
+document.getElementById("uploadPicBtn").onclick = async () => {
+  if (!uid) return;
+
+  const file = document.getElementById("profilePic").files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+
+  reader.onload = async () => {
+    await setDoc(doc(db, "users", uid), {
+      profilePic: reader.result
+    }, { merge: true });
+
+    loadProfile(); // refresh UI
+  };
+
+  reader.readAsDataURL(file);
+};
+
 /* UPLOAD PIC */
 document.getElementById("uploadPicBtn").onclick=async()=>{
   const file=document.getElementById("profilePic").files[0];
@@ -317,7 +352,7 @@ document.getElementById("uploadPicBtn").onclick=async()=>{
 
   const r=new FileReader();
   r.onload=async()=>{
-    await setDoc(doc(db,"users",username),{
+    await setDoc(doc(db, "users", uid), {
       profilePic:r.result
     },{merge:true});
     loadProfile();
@@ -416,6 +451,7 @@ async function loadMentions(){
   mentionsIndex = 0;
 
   renderMentionsUI();
+  
 }
 
 function renderMentionsUI(){
