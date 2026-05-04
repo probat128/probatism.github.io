@@ -198,6 +198,7 @@ window.db = db;
 const auth = getAuth(app);
 
 let username = null;  
+let uid = null;
 let items=[];
 let mentions = [];
 let mentionsIndex = 0;
@@ -212,27 +213,36 @@ onAuthStateChanged(auth, async (user) => {
     return;
   }
 
-  // OLD SYSTEM (email users)
+  uid = user.uid;
+
+  // EMAIL USERS (old system)
   if (user.email && user.email.endsWith("@fake.com")) {
     username = user.email.replace("@fake.com", "");
   } 
-  // NEW SYSTEM (Google users)
+  // GOOGLE USERS
   else {
-    const ref = doc(db, "users", user.uid);
-    const snap = await getDoc(ref);
+    const mapRef = doc(db, "userMap", uid);
+    const mapSnap = await getDoc(mapRef);
 
-    if (!snap.exists()) {
-      // create profile for Google user
-      const newUsername = "user" + user.uid.slice(0,5);
+    if (!mapSnap.exists()) {
 
+      const newUsername = "user" + uid.slice(0,5);
+
+      // create actual user profile
       await setDoc(doc(db, "users", newUsername), {
         username: newUsername,
         joinDate: Date.now()
       });
 
+      // map uid -> username
+      await setDoc(mapRef, {
+        username: newUsername
+      });
+
       username = newUsername;
+
     } else {
-      username = snap.data().username;
+      username = mapSnap.data().username;
     }
   }
 
@@ -339,7 +349,6 @@ document.getElementById("changeUsernameBtn").onclick = async () => {
 
 /* SAVE DESCRIPTION */
 document.getElementById("saveDescBtn").onclick = async () => {
-  if (!uid) return;
 
   await setDoc(doc(db, "users", username), {
     description: document.getElementById("description").value
@@ -351,7 +360,6 @@ document.getElementById("saveDescBtn").onclick = async () => {
 
 /* UPLOAD PROFILE PICTURE */
 document.getElementById("uploadPicBtn").onclick = async () => {
-  if (!uid) return;
 
   const file = document.getElementById("profilePic").files[0];
   if (!file) return;
