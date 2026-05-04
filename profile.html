@@ -236,19 +236,18 @@ async function loadProfile() {
     const snap = await getDoc(ref);
 
     if (!snap.exists()) {
-      await setDoc(ref, {
-        username: "user" + uid.slice(0, 5),
-        joinDate: Date.now()
-      });
-
-      return loadProfile();
+      document.getElementById("profileInfo").innerHTML =
+        "<b>No profile found. Please sign in again.</b>";
+      return;
     }
 
     const d = snap.data();
     username = d.username;
 
-    loadAllData();
-    loadMentions();
+    console.log("Loaded username:", username);
+
+    await loadAllData();
+    await loadMentions();
 
     el.innerHTML = `
       <p><b>${d.username}</b></p>
@@ -388,13 +387,34 @@ function format(text){
 
 /* LOAD ALL */
 async function loadAllData(){
-  const posts=await getDocs(query(collection(db,"posts"),where("author","==",username)));
-  const replies=await getDocs(query(collection(db,"replies"),where("author","==",username)));
+  const posts = await getDocs(collection(db, "posts"));
+  const replies = await getDocs(collection(db, "replies"));
 
   items=[];
 
-  posts.forEach(d=>items.push({type:"post",id:d.id,...d.data()}));
-  replies.forEach(d=>items.push({type:"reply",id:d.id,...d.data()}));
+  posts.forEach(d => {
+    const data = d.data();
+
+    // ONLY include posts that belong to this user
+    if (data.author === username) {
+      items.push({
+        type: "post",
+        id: d.id,
+        ...data
+      });
+    }
+  });
+  replies.forEach(d => {
+    const data = d.data();
+
+    if (data.author === username) {
+      items.push({
+        type: "reply",
+        id: d.id,
+        ...data
+      });
+    }
+  });
 
   items.sort((a,b)=>b.time-a.time);
 
@@ -404,6 +424,8 @@ async function loadAllData(){
 }
 
 async function loadMentions(){
+
+  console.log("Checking mentions for:", username);
 
   const postsSnap = await getDocs(collection(db,"posts"));
   const repliesSnap = await getDocs(collection(db,"replies"));
