@@ -227,24 +227,27 @@ window.googleSignIn = async function(){
   try {
     const result = await signInWithPopup(auth, provider);
     const user = result.user;
-
+ 
     const usersRef = doc(db, "users", user.uid);
     const existingUser = await getDoc(usersRef);
 
     let username;
 
-    if(existingUser.exists()){
+    if (existingUser.exists()) {
       username = existingUser.data().username;
     } else {
+
       let baseNameRaw =
         user.displayName ||
         user.email?.split("@")[0] ||
         "user";
 
       baseNameRaw = baseNameRaw.replace(/\s+/g, "");
-      
-
+ 
+      // ✅ THIS LINE STAYS EXACTLY AS IS
       username = await generateUniqueUsername(baseNameRaw);
+
+      // 🔴 IMPORTANT: USE THIS EXACT VALUE EVERYWHERE BELOW
 
       await setDoc(doc(db, "users", user.uid), {
         username: username,
@@ -253,6 +256,7 @@ window.googleSignIn = async function(){
       });
     }
 
+    // ALWAYS sync frontend with Firestore value
     localStorage.setItem("currentUser", username);
 
     showStatus("Logged in with Google!", "success");
