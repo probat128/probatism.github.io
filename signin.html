@@ -178,6 +178,7 @@ window.submitForm = async function(){
 
   try {
     if(mode === "signup"){
+
       const email = username + "@example.com";
 
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
@@ -185,12 +186,15 @@ window.submitForm = async function(){
 
       const uniqueUsername = await generateUniqueUsername(username);
 
+      // SAVE USER IN FIRESTORE (IMPORTANT: USE UID AS DOCUMENT ID)
       await setDoc(doc(db, "users", user.uid), {
-        username: username,
+        username: uniqueUsername,   // IMPORTANT FIX
         uid: user.uid,
+        email: user.email,
         joinDate: Date.now()
       });
 
+      // IMPORTANT: ALWAYS STORE USERNAME ONLY (NOT EMAIL)
       localStorage.setItem("currentUser", uniqueUsername);
 
       showStatus("Account created!", "success");
@@ -227,14 +231,14 @@ window.googleSignIn = async function(){
   try {
     const result = await signInWithPopup(auth, provider);
     const user = result.user;
- 
+
     const usersRef = doc(db, "users", user.uid);
     const existingUser = await getDoc(usersRef);
 
-    let username;
+    let finalUsername;
 
     if (existingUser.exists()) {
-      username = existingUser.data().username;
+      finalUsername = existingUser.data().username;
     } else {
 
       let baseNameRaw =
@@ -243,21 +247,19 @@ window.googleSignIn = async function(){
         "user";
 
       baseNameRaw = baseNameRaw.replace(/\s+/g, "");
- 
-      // ✅ THIS LINE STAYS EXACTLY AS IS
-      username = await generateUniqueUsername(baseNameRaw);
 
-      // 🔴 IMPORTANT: USE THIS EXACT VALUE EVERYWHERE BELOW
+      finalUsername = await generateUniqueUsername(baseNameRaw);
 
       await setDoc(doc(db, "users", user.uid), {
-        username: username,
+        username: finalUsername,
         uid: user.uid,
+        email: user.email,
         joinDate: Date.now()
       });
     }
 
-    // ALWAYS sync frontend with Firestore value
-    localStorage.setItem("currentUser", username);
+    // 🔥 CRITICAL FIX: ALWAYS STORE CLEAN USERNAME
+    localStorage.setItem("currentUser", finalUsername);
 
     showStatus("Logged in with Google!", "success");
 
