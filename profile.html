@@ -264,10 +264,10 @@ async function loadProfile() {
   try {
     const el = document.getElementById("profileInfo");
 
-    const snap = await getDoc(doc(db, "users", username));
+    const snap = await getDoc(doc(db, "users", uid));
 
     if (!snap.exists()) {
-      await setDoc(doc(db, "users", username), {
+      await setDoc(doc(db, "users", uid), {
         username: username,
         joinDate: Date.now()
       });
@@ -276,7 +276,7 @@ async function loadProfile() {
     }
 
     const d = snap.data();
-    username = d.username;
+    username = d.username || username;
 
     console.log("Loaded username:", username);
 
@@ -334,7 +334,7 @@ document.getElementById("changeUsernameBtn").onclick = async () => {
     }
   }
 
-  await setDoc(doc(db, "users", username), {
+  await setDoc(doc(db, "users", uid), {
     username: finalName
   }, { merge: true });
 
@@ -350,7 +350,7 @@ document.getElementById("changeUsernameBtn").onclick = async () => {
 /* SAVE DESCRIPTION */
 document.getElementById("saveDescBtn").onclick = async () => {
 
-  await setDoc(doc(db, "users", username), {
+  await setDoc(doc(db, "users", uid), {
     description: document.getElementById("description").value
   }, { merge: true });
 
@@ -367,7 +367,7 @@ document.getElementById("uploadPicBtn").onclick = async () => {
   const reader = new FileReader();
 
   reader.onload = async () => {
-    await setDoc(doc(db, "users", username), {
+    await setDoc(doc(db, "users", uid), {
       profilePic: reader.result
     }, { merge: true });
 
