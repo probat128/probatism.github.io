@@ -214,6 +214,17 @@ onAuthStateChanged(auth, async (user) => {
   }
 
   uid = user.uid;
+
+  const userDoc = await getDoc(doc(db, "users", uid));
+
+  if(userDoc.exists()){
+    username = userDoc.data().username;
+  } else {
+    console.error("User doc missing — this should not happen");
+    return;
+  }
+
+  localStorage.setItem("currentUser", username);
   const userDoc = await getDoc(doc(db, "users", user.uid));
 
   if(userDoc.exists()){
@@ -221,42 +232,10 @@ onAuthStateChanged(auth, async (user) => {
     localStorage.setItem("currentUser", username);
   }
 
-  // EMAIL USERS (old system)
-  if (user.email && user.email.endsWith("@fake.com")) {
-    username = user.email.replace("@fake.com", "");
-  } 
-  // GOOGLE USERS
-  else {
-    const mapRef = doc(db, "userMap", uid);
-    const mapSnap = await getDoc(mapRef);
-
-    if (!mapSnap.exists()) {
-
-      const newUsername = "user" + uid.slice(0,5);
-
-      // create actual user profile
-      await setDoc(doc(db, "users", newUsername), {
-        username: newUsername,
-        joinDate: Date.now()
-      });
-
-      // map uid -> username
-      await setDoc(mapRef, {
-        username: newUsername
-      });
-
-      username = newUsername;
-
-    } else {
-      username = mapSnap.data().username;
-    }
-  }
 
   console.log("FINAL USERNAME:", username);
 
-  loadProfile();
-  loadAllData();
-  loadMentions();
+  await loadProfile();
 });
 
 /* LOGOUT */
@@ -273,14 +252,10 @@ async function loadProfile() {
     const snap = await getDoc(doc(db, "users", uid));
 
     if (!snap.exists()) {
-      await setDoc(doc(db, "users", uid), {
-        username: localStorage.getItem("currentUser"),
-        joinDate: Date.now(),
-        description: "",
-        profilePic: ""
-      });
-
-      return loadProfile();
+      console.error("User document missing — account creation failed");
+      document.getElementById("profileInfo").innerHTML =
+        "<b>Account error. Please sign out and back in.</b>";
+      return;
     }
 
     const d = snap.data();
@@ -290,9 +265,7 @@ async function loadProfile() {
 
     console.log("Loaded username:", username);
 
-    await loadAllData();
-    await loadMentions();
-
+    
     el.innerHTML = `
       <p><b>${d.username}</b></p>
       ${d.profilePic ? `<img class="profile-pic" src="${d.profilePic}">` : ""}
@@ -306,6 +279,9 @@ async function loadProfile() {
     document.getElementById("profileInfo").innerHTML =
       "<b>Error loading profile</b>";
   }
+
+  loadAllData();
+  loadMentions();
 }
 
 document.getElementById("changeUsernameBtn").onclick = async () => {
