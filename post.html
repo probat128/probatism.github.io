@@ -281,7 +281,7 @@ let lastReplyTime = 0; // NEW cooldown
 
 /* AUTH */
 onAuthStateChanged(auth, async (user)=>{
-if(user){
+if(user && !user.isAnonymous){
   currentUID = user.uid;
 
   // 🔥 GET REAL USERNAME FROM FIRESTORE
@@ -303,8 +303,13 @@ if(user){
   document.getElementById("accountLink").href="profile.html";
 
 } else {
-  currentUser=null;
+  currentUser = "Anonymous";
   currentUID = null;
+
+  document.getElementById("accountLink").innerText = "Sign In / Sign Up";
+  document.getElementById("accountLink").href = "signin.html";
+  document.getElementById("logoutBtn").style.display = "none";
+
   signInAnonymously(auth).catch(console.error);
 }
 });
