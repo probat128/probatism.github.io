@@ -127,20 +127,12 @@
 <h1>Profile</h1>
 
 <div id="profileInfo">Loading...</div>
-<br><br>
-
-<label><b>Change Username:</b></label><br>
-<input id="newUsername" placeholder="New username">
-<button id="changeUsernameBtn">Change</button>
-
-<p id="usernameStatus"></p>
 
 <label><b>Description:</b></label>
 <textarea id="description"></textarea>
 <button id="saveDescBtn">Save Description</button>
 
-
-
+<br><br>
 
 <label><b>Profile Picture:</b></label>
 <input type="file" id="profilePic">
@@ -194,11 +186,9 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
-window.db = db;
 const auth = getAuth(app);
 
-let username = null;  
-let uid = null;
+let username=null;
 let items=[];
 let mentions = [];
 let mentionsIndex = 0;
@@ -206,36 +196,17 @@ let index=0;
 let deleteTarget=null;
 let deleteType=null;
 
-
-onAuthStateChanged(auth, async (user) => {
-  if (!user) {
-    location.href = "signin.html";
+/* AUTH */
+onAuthStateChanged(auth, async (user)=>{
+  if(!user){
+    location.href="signin.html";
     return;
   }
-
-  uid = user.uid;
-
-  const userDoc = await getDoc(doc(db, "users", uid));
-
-  if(userDoc.exists()){
-    username = userDoc.data().username;
-  } else {
-    console.error("User doc missing — this should not happen");
-    return;
-  }
-
-  localStorage.setItem("currentUser", username);
-  const userDoc = await getDoc(doc(db, "users", user.uid));
-
-  if(userDoc.exists()){
-    username = userDoc.data().username;
-    localStorage.setItem("currentUser", username);
-  }
-
-
-  console.log("FINAL USERNAME:", username);
-
-  await loadProfile();
+  username=user.email.replace("@fake.com","");
+  loadProfile();
+  loadAllData();
+  loadMentions();
+  
 });
 
 /* LOGOUT */
@@ -245,124 +216,41 @@ document.getElementById("logoutBtn").onclick=async()=>{
 };
 
 /* PROFILE */
-async function loadProfile() {
-  try {
-    const el = document.getElementById("profileInfo");
+async function loadProfile(){
+  const snap=await getDoc(doc(db,"users",username));
+  const d=snap.data();
+  const date=new Date(d.joinDate);
 
-    const snap = await getDoc(doc(db, "users", uid));
+  document.getElementById("profileInfo").innerHTML=`
+    <p><b>${d.username}</b></p>
+    <p>${date.toLocaleString()}</p>
+    ${d.profilePic?`<img class="profile-pic" src="${d.profilePic}">`:``}
+  `;
 
-    if (!snap.exists()) {
-      console.error("User document missing — account creation failed");
-      document.getElementById("profileInfo").innerHTML =
-        "<b>Account error. Please sign out and back in.</b>";
-      return;
-    }
-
-    const d = snap.data();
-
-    username = d.username;
-    localStorage.setItem("currentUser", d.username);
-
-    console.log("Loaded username:", username);
-
-    
-    el.innerHTML = `
-      <p><b>${d.username}</b></p>
-      ${d.profilePic ? `<img class="profile-pic" src="${d.profilePic}">` : ""}
-      <p>${new Date(d.joinDate).toLocaleString()}</p>
-    `;
-
-    document.getElementById("description").value = d.description || "";
-
-  } catch (err) {
-    console.error("loadProfile error:", err);
-    document.getElementById("profileInfo").innerHTML =
-      "<b>Error loading profile</b>";
-  }
-
-  loadAllData();
-  loadMentions();
+  document.getElementById("description").value=d.description||"";
 }
 
-document.getElementById("changeUsernameBtn").onclick = async () => {
-  const status = document.getElementById("usernameStatus");
-  const raw = document.getElementById("newUsername").value.trim();
+/* SAVE DESC */
+document.getElementById("saveDescBtn").onclick=async()=>{
+  await setDoc(doc(db,"users",username),{
+    description:document.getElementById("description").value
+  },{merge:true});
+};
 
-  if (!raw) {
-    status.innerText = "Enter a username";
-    status.style.color = "red";
-    return;
-  }
+/* UPLOAD PIC */
+document.getElementById("uploadPicBtn").onclick=async()=>{
+  const file=document.getElementById("profilePic").files[0];
+  if(!file) return;
 
-  let base = raw.toLowerCase()
-    .replace(/\s+/g, "")
-    .replace(/[^a-z0-9]/g, "")
-    .slice(0, 18);
-
-  if (base.length < 3) base = "user" + Math.floor(Math.random() * 999);
-
-  const allUsers = await getDocs(collection(db, "users"));
-
-  let finalName = base;
-  let exists = true;
-
-  while (exists) {
-    exists = false;
-
-    allUsers.forEach(d => {
-      if (d.data().username === finalName && d.id !== uid) {
-        exists = true;
-      }
-    });
-
-    if (exists) {
-      finalName = base + Math.floor(100000 + Math.random() * 900000);
-    }
-  }
-
-  await setDoc(doc(db, "users", uid), {
-    username: finalName
-  }, { merge: true });
-
-  status.innerText = "Username updated!";
-  status.style.color = "green";
-
-  // force reload profile after DB update
-  setTimeout(() => {
+  const r=new FileReader();
+  r.onload=async()=>{
+    await setDoc(doc(db,"users",username),{
+      profilePic:r.result
+    },{merge:true});
     loadProfile();
-  }, 300);
-};
-
-/* SAVE DESCRIPTION */
-document.getElementById("saveDescBtn").onclick = async () => {
-
-  await setDoc(doc(db, "users", uid), {
-    description: document.getElementById("description").value
-  }, { merge: true });
-
-  console.log("Description saved");
-};
-
-
-/* UPLOAD PROFILE PICTURE */
-document.getElementById("uploadPicBtn").onclick = async () => {
-
-  const file = document.getElementById("profilePic").files[0];
-  if (!file) return;
-
-  const reader = new FileReader();
-
-  reader.onload = async () => {
-    await setDoc(doc(db, "users", uid), {
-      profilePic: reader.result
-    }, { merge: true });
-
-    loadProfile(); // refresh UI
   };
-
-  reader.readAsDataURL(file);
+  r.readAsDataURL(file);
 };
-
 
 /* DELETE */
 window.askDelete=(id,type)=>{
@@ -405,34 +293,13 @@ function format(text){
 
 /* LOAD ALL */
 async function loadAllData(){
-  const posts = await getDocs(query(collection(db,"posts"),where("author","==",username)));
-  const replies = await getDocs(query(collection(db,"replies"),where("author","==",username)));
+  const posts=await getDocs(query(collection(db,"posts"),where("author","==",username)));
+  const replies=await getDocs(query(collection(db,"replies"),where("author","==",username)));
 
   items=[];
 
-  posts.forEach(d => {
-    const data = d.data();
-
-    // ONLY include posts that belong to this user
-    if (data.author === username) {
-      items.push({
-        type: "post",
-        id: d.id,
-        ...data
-      });
-    }
-  });
-  replies.forEach(d => {
-    const data = d.data();
-
-    if (data.author === username) {
-      items.push({
-        type: "reply",
-        id: d.id,
-        ...data
-      });
-    }
-  });
+  posts.forEach(d=>items.push({type:"post",id:d.id,...d.data()}));
+  replies.forEach(d=>items.push({type:"reply",id:d.id,...d.data()}));
 
   items.sort((a,b)=>b.time-a.time);
 
@@ -442,8 +309,6 @@ async function loadAllData(){
 }
 
 async function loadMentions(){
-
-  console.log("Checking mentions for:", username);
 
   const postsSnap = await getDocs(collection(db,"posts"));
   const repliesSnap = await getDocs(collection(db,"replies"));
@@ -478,7 +343,6 @@ async function loadMentions(){
   mentionsIndex = 0;
 
   renderMentionsUI();
-  
 }
 
 function renderMentionsUI(){
