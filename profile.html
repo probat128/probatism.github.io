@@ -193,6 +193,7 @@ let uid = null;
 let mentions = [];
 let mentionsIndex = 0;
 let index=0;
+let items = [];
 let deleteTarget=null;
 let deleteType=null;
 
@@ -310,8 +311,8 @@ function format(text){
 
 /* LOAD ALL */
 async function loadAllData(){
-  const posts=await getDocs(query(collection(db,"posts"),where("author","==",username)));
-  const replies=await getDocs(query(collection(db,"replies"),where("author","==",username)));
+  const posts=await getDocs(query(collection(db,"posts"),where("authorUID","==",uid)));
+  const replies=await getDocs(query(collection(db,"replies"),where("authorUID","==",uid)));
 
   items=[];
 
