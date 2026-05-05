@@ -213,7 +213,7 @@ let postToDelete = null;
 onAuthStateChanged(auth, (user) => {
   console.log("Auth state:", user);
 
-  if (user) {
+  if (user && !user.isAnonymous) {
     currentUID = user.uid;
 
     // 🔥 GET REAL USERNAME FROM FIRESTORE
@@ -243,16 +243,23 @@ onAuthStateChanged(auth, (user) => {
   postsDiv.innerHTML = "";
   lastVisible = null;
 
-  // 🔥 WAIT until username is loaded
-  getDoc(doc(db, "users", user.uid)).then(snap => {
-    if(snap.exists()){
-      currentUser = snap.data().username;
-    } else {
-      currentUser = "Anonymous";
-    }
+  if (user && !user.isAnonymous) {
+    // Logged in user → load username
+    getDoc(doc(db, "users", user.uid)).then(snap => {
+      if(snap.exists()){
+        currentUser = snap.data().username;
+      } else {
+        currentUser = "Anonymous";
+      }
 
+      loadPosts();
+    });
+
+  } else {
+    // Anonymous user
+    currentUser = "Anonymous";
     loadPosts();
-  });
+  }
 
   // LOAD ADS
   loadAd("banner",
