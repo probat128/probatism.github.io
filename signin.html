@@ -3,42 +3,100 @@
 <head>
   <title>Account</title>
   <style>
-    body { font-family: Arial; background:#111; color:white; padding:20px; }
-    input { width:200px; padding:5px; margin:5px 0; background:#222; color:white; border:none; }
-    button { padding:5px 10px; margin:5px 0; cursor:pointer; }
-    .tab { cursor:pointer; margin-right:10px; color:cyan; }
-    .active { font-weight:bold; text-decoration:underline; }
+  body { 
+    font-family: Arial; 
+    background: rgb(232,224,207); 
+    color: rgb(91,46,97); 
+    padding:20px; 
+  }
 
-    #status {
-      margin-top:10px;
-      font-weight:bold;
-    }
+  nav a { 
+    color: rgb(91,46,97); 
+    margin-right:10px; 
+    text-decoration:none; 
+  }
 
-    .success { color: lightgreen; }
-    .error { color: red; }
+  button { 
+    margin-top:5px; 
+    padding:5px 10px; 
+    cursor:pointer; 
+    background: rgb(232,224,207); 
+    color: rgb(91,46,97); 
+    border: 1px solid rgb(91,46,97); 
+  }
+
+  input { 
+    width:250px; 
+    padding:5px; 
+    margin:5px 0; 
+    background: rgb(232,224,207); 
+    color: rgb(91,46,97); 
+    border:1px solid rgb(91,46,97); 
+  }
+
+  .tab { 
+    cursor:pointer; 
+    margin-right:10px; 
+  }
+
+  .active { 
+    font-weight:bold; 
+    text-decoration:underline; 
+  }
+
+  #status {
+    margin-top:10px;
+    font-weight:bold;
+  }
+
+  .success { color: green; }
+  .error { color: red; }
   </style>
 </head>
 <body>
 
+<nav>
+<a href="index.html">Home</a>
+<a href="doctrine.html">Doctrine</a>
+<a href="forums.html">Forums</a>
+<a href="news.html">News</a>
+<a href="quiz.html">Quiz</a>
+<a href="signin.html" id="accountLink">Sign In / Sign Up</a>
+<button id="logoutBtn" style="display:none;">Logout</button>
+</nav>
+
 <h1 id="title">Sign In</h1>
 
-<div>
+<p>Access your account or create a new one.</p>
+
+<div style="margin-bottom:10px;">
   <span id="signInTab" class="tab active" onclick="setMode('signin')">Sign In</span>
   <span id="signUpTab" class="tab" onclick="setMode('signup')">Sign Up</span>
 </div>
 
-<input id="username" placeholder="Username">
-<input id="password" type="password" placeholder="Password">
-
-<button onclick="submitForm()">Continue</button>
+<div>
+  <input id="username" placeholder="Username"><br>
+  <input id="password" type="password" placeholder="Password"><br>
+  <button onclick="submitForm()">Continue</button>
+  <br><br>
+  <button onclick="googleSignIn()">Sign in with Google</button>
+  <p id="passwordHint" style="font-size:12px; opacity:0.6; display:none;">
+    Make sure to use a very strong password!
+  </p>
+</div>
 
 <p id="status"></p>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword } 
-from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+import { 
+  getAuth, 
+  createUserWithEmailAndPassword, 
+  signInWithEmailAndPassword,
+  GoogleAuthProvider,
+  signInWithPopup
+} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAZXfEl3Q68vfJtaLJqODtnQBSVEzWBmc0",
@@ -52,6 +110,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
+const provider = new GoogleAuthProvider();
 
 let mode = "signin";
 
@@ -63,12 +122,49 @@ function showStatus(message, type){
 
 window.setMode = function(newMode){
   mode = newMode;
-  document.getElementById("title").innerText = newMode === "signin" ? "Sign In" : "Sign Up";
+
+  document.getElementById("title").innerText =
+    newMode === "signin" ? "Sign In" : "Sign Up";
 
   document.getElementById("signInTab").classList.toggle("active", newMode === "signin");
   document.getElementById("signUpTab").classList.toggle("active", newMode === "signup");
 
+  const hint = document.getElementById("passwordHint");
+  hint.style.display = newMode === "signup" ? "block" : "none";
+
   showStatus("", "");
+}
+
+async function generateUniqueUsername(baseName){
+  let username = baseName
+    .toLowerCase()
+    .replace(/\s+/g, "")
+    .replace(/[^a-z0-9]/g, "");
+    username = username.slice(0, 18); // reserve space for numbers
+  
+  if(username.length < 3){
+    username = "user" + Math.floor(Math.random() * 10000);
+  }
+
+  let finalUsername = username;
+  let counter = 0;
+
+  while(counter < 20){
+    const userRef = doc(db, "users", finalUsername);
+    const snap = await getDoc(userRef);
+
+    if(!snap.exists()){
+      return finalUsername.slice(0, 24);
+    }
+
+    finalUsername = (username.slice(0, 18) + Math.floor(100000 + Math.random() * 900000))
+      .slice(0, 24);
+
+    counter++;
+  }
+
+  // fallback (very unlikely)
+  return (username.slice(0, 18) + Date.now()).slice(0, 24);
 }
 
 window.submitForm = async function(){
@@ -80,53 +176,125 @@ window.submitForm = async function(){
     return;
   }
 
-  const email = username + "@fake.com";
-  const userRef = doc(db, "users", username);
-
   try {
-
     if(mode === "signup"){
-      const userSnap = await getDoc(userRef);
 
-      if(userSnap.exists()){
-        showStatus("Username already exists", "error");
-        return;
-      }
+      const email = username + "@example.com";
 
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
 
-      // ensure auth is ready before writing
-      if(userCredential.user){
-        await setDoc(userRef, {
-          username: username,
-          joinDate: Date.now()
-        });
-      }
+      const uniqueUsername = await generateUniqueUsername(username);
 
-      localStorage.setItem("currentUser", username);
+      // SAVE USER IN FIRESTORE (IMPORTANT: USE UID AS DOCUMENT ID)
+      await setDoc(doc(db, "users", user.uid), {
+        username: uniqueUsername,
+        uid: user.uid,
+        joinDate: Date.now(),
+        description: "",
+        profilePic: ""
+      });
+
+      // IMPORTANT: ALWAYS STORE USERNAME ONLY (NOT EMAIL)
+      localStorage.setItem("currentUser", uniqueUsername);
+
       showStatus("Account created!", "success");
 
-      setTimeout(() => {
-        window.location.href = "index.html";
-      }, 1000);
+    } else {
+      const email = username + "@example.com";
+
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+
+      const userDoc = await getDoc(doc(db, "users", user.uid));
+
+      if(userDoc.exists()){
+        const savedUsername = userDoc.data().username;
+        localStorage.setItem("currentUser", savedUsername);
+      }
+
+      showStatus("Signed in!", "success");
     }
 
-    if(mode === "signin"){
-      await signInWithEmailAndPassword(auth, email, password);
-
-      localStorage.setItem("currentUser", username);
-      showStatus("Logged in!", "success");
-
-      setTimeout(() => {
-        window.location.href = "index.html";
-      }, 1000);
-    }
+    setTimeout(() => {
+      window.location.href = "index.html";
+    }, 1000);
 
   } catch(err){
-    showStatus("Error: " + err.message, "error");
+    console.error(err);
+    showStatus(err.message, "error");
   }
+};
+
+ // <-- THIS closes submitForm function properly
+
+window.googleSignIn = async function(){
+  try {
+    const result = await signInWithPopup(auth, provider);
+    const user = result.user;
+
+    const usersRef = doc(db, "users", user.uid);
+    const existingUser = await getDoc(usersRef);
+
+    let finalUsername;
+
+    if (existingUser.exists()) {
+      finalUsername = existingUser.data().username;
+    } else {
+
+      let baseNameRaw =
+        user.displayName ||
+        user.email?.split("@")[0] ||
+        "user";
+
+      baseNameRaw = baseNameRaw.replace(/\s+/g, "");
+
+      finalUsername = await generateUniqueUsername(baseNameRaw);
+
+      await setDoc(doc(db, "users", user.uid), {
+        username: finalUsername,
+        uid: user.uid,
+        email: user.email,
+        joinDate: Date.now()
+      });
+    }
+
+    // 🔥 CRITICAL FIX: ALWAYS STORE CLEAN USERNAME
+    localStorage.setItem("currentUser", finalUsername);
+
+    showStatus("Logged in with Google!", "success");
+
+    setTimeout(() => {
+      window.location.href = "index.html";
+    }, 1000);
+
+  } catch(err){
+    console.error(err);
+    showStatus("Google sign-in failed: " + err.message, "error");
+  }
+};
+
+// Code below runs on page load, outside submitForm
+const accountLink = document.getElementById("accountLink");
+const logoutBtn = document.getElementById("logoutBtn");
+
+const currentUser = localStorage.getItem("currentUser");
+
+if(currentUser){
+  accountLink.innerText = "Profile";
+  accountLink.href = "profile.html";
+  logoutBtn.style.display = "inline";
+} else {
+  logoutBtn.style.display = "none";
 }
+
+logoutBtn.onclick = function() {
+  localStorage.removeItem("currentUser");
+  alert("Logged out");
+  window.location.href = "index.html";
+};
 </script>
+
 
 </body>
 </html>
