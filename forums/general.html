@@ -481,17 +481,24 @@ async function loadPosts(){
       };
     }
 
-    if(
-      (currentUID && post.authorUID && currentUID === post.authorUID) || isAdmin()
-    ){
+      const isOwner =
+      currentUID &&
+      post.authorUID &&
+      currentUID === post.authorUID;
+
+    // Anonymous users CAN delete only if they are owner
+    if (isOwner || isAdmin()) {
       const btn = document.createElement("button");
-      btn.innerText = "Delete";
-      btn.onclick = () => showDeleteModal(docSnap.id);
+       btn.innerText = "Delete";
+
+      btn.onclick = () => {
+        // extra safety check at click-time
+        if (!isOwner && !isAdmin()) return;
+        showDeleteModal(docSnap.id);
+      };
+
       div.querySelector(".button-row").appendChild(btn);
     }
-
-    postsDiv.appendChild(div);
-  }
 
   document.querySelectorAll(".post-img").forEach(img=>{
     img.onclick=()=>{
