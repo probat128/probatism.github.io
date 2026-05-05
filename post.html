@@ -280,12 +280,28 @@ let replyIndex=0;
 let lastReplyTime = 0; // NEW cooldown
 
 /* AUTH */
-onAuthStateChanged(auth,(user)=>{
+onAuthStateChanged(auth, async (user)=>{
 if(user){
-  currentUser=user.email.replace("@fake.com","");
   currentUID = user.uid;
+
+  // 🔥 GET REAL USERNAME FROM FIRESTORE
+  try {
+    const userSnap = await getDoc(doc(db, "users", user.uid));
+
+    if(userSnap.exists() && userSnap.data().username){
+      currentUser = userSnap.data().username;
+    } else {
+      currentUser = "Anonymous";
+    }
+
+  } catch(e){
+    console.error("User fetch error:", e);
+    currentUser = "Anonymous";
+  }
+
   document.getElementById("accountLink").innerText="Profile";
   document.getElementById("accountLink").href="profile.html";
+
 } else {
   currentUser=null;
   currentUID = null;
@@ -352,12 +368,16 @@ this.style.display='none';
 
 /* LOAD USER AVATAR */
 async function getAvatar(username){
-if(!username || username==="Anonymous") return null;
-const snap = await getDoc(doc(db,"users",username));
-if(!snap.exists()) return null;
-return snap.data().profilePic || null;
-}
+  if(!username || username==="Anonymous") return null;
 
+  const q = query(collection(db,"users"), where("username","==",username));
+  const snap = await getDocs(q);
+
+  if(snap.empty) return null;
+
+  const data = snap.docs[0].data();
+  return data.profilePic || null;
+}
 /* LOAD POST */
 async function loadPost(){
 const snap=await getDoc(doc(db,"posts",postId));
@@ -492,7 +512,7 @@ const mentions = extractMentions(text);
 
 await addDoc(collection(db,"replies"),{
 postId,
-author: currentUser || "Guest",
+author: currentUser || "Anonymous",
 authorUID: auth.currentUser ? auth.currentUser.uid : null,
 authorEmail: auth.currentUser ? auth.currentUser.email : null,
 
