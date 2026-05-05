@@ -188,8 +188,8 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
 
-let username=null;
-let items=[];
+let username = null;
+let uid = null;
 let mentions = [];
 let mentionsIndex = 0;
 let index=0;
@@ -202,7 +202,7 @@ onAuthStateChanged(auth, async (user)=>{
     location.href="signin.html";
     return;
   }
-  username=user.email.replace("@fake.com","");
+  uid = user.uid;
   loadProfile();
   loadAllData();
   loadMentions();
@@ -217,8 +217,21 @@ document.getElementById("logoutBtn").onclick=async()=>{
 
 /* PROFILE */
 async function loadProfile(){
-  const snap=await getDoc(doc(db,"users",username));
-  const d=snap.data();
+  const snap = await getDoc(doc(db, "users", uid));
+
+  if(!snap.exists()){
+    document.getElementById("profileInfo").innerText = "User not found.";
+    return;
+  }
+
+  const d = snap.data();
+
+  if(!d.username){
+  document.getElementById("profileInfo").innerText = "Corrupt user data.";
+  return;
+}
+
+  username = d.username; // IMPORTANT: restore username
   const date=new Date(d.joinDate);
 
   document.getElementById("profileInfo").innerHTML=`
@@ -232,7 +245,7 @@ async function loadProfile(){
 
 /* SAVE DESC */
 document.getElementById("saveDescBtn").onclick=async()=>{
-  await setDoc(doc(db,"users",username),{
+  await setDoc(doc(db,"users",uid),{
     description:document.getElementById("description").value
   },{merge:true});
 };
@@ -244,7 +257,7 @@ document.getElementById("uploadPicBtn").onclick=async()=>{
 
   const r=new FileReader();
   r.onload=async()=>{
-    await setDoc(doc(db,"users",username),{
+    await setDoc(doc(db,"users",uid),{
       profilePic:r.result
     },{merge:true});
     loadProfile();
