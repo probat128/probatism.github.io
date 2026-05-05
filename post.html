@@ -449,9 +449,15 @@ ${renderMentions(readMore(r.content))}
 ${r.image?`<br><img class="imgThumb" src="${r.image}" data-full="${r.image}" onclick="showImg(this.dataset.full)">`:``}
 <div class="time">${new Date(r.time).toLocaleString()}</div>
 
-${(currentUID && r.authorUID && currentUID === r.authorUID) || isAdmin(currentUID)
-  ? `<button class="deleteBtn" onclick="openDelete('${r.id}')">Delete</button>`
-  : ``}
+${(
+  (currentUID && r.authorUID && currentUID === r.authorUID) ||
+  isAdmin(currentUID)
+) ? `
+  <button class="deleteBtn" onclick="
+    if (!currentUID || currentUID !== '${r.authorUID}' && !(${JSON.stringify(adminUIDs)}.includes(currentUID))) return;
+    openDelete('${r.id}')
+  ">Delete</button>
+` : ``}
 </div>
 `;
 
