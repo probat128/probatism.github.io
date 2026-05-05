@@ -128,7 +128,7 @@ textarea { width:100%; height:80px; background: rgb(232,224,207); color: rgb(91,
 
 <h3>Create Post</h3>
 <textarea id="postText" maxlength="8000"></textarea><br>
-<input type="file" id="postImage" accept="image/*"><br>
+<input type="file" id="postImage" accept="image/*" style="display:none;" disabled><br>
 <button id="postButton">Post</button>
 <p id="cooldownMsg" style="display:none; font-size:12px;"></p>
 
@@ -214,6 +214,8 @@ onAuthStateChanged(auth, (user) => {
   console.log("Auth state:", user);
 
   if (user && !user.isAnonymous) {
+    document.getElementById("postImage").style.display = "inline";
+    document.getElementById("postImage").disabled = false;
     currentUID = user.uid;
 
     // 🔥 GET REAL USERNAME FROM FIRESTORE
@@ -221,7 +223,10 @@ onAuthStateChanged(auth, (user) => {
       if(snap.exists()){
         currentUser = snap.data().username;
       } else {
+        
         currentUser = "Anonymous";
+        document.getElementById("postImage").style.display = "none";
+        document.getElementById("postImage").disabled = true;
       }
     });
 
@@ -334,6 +339,13 @@ function getFullImage(file){
 }
 
 postButton.onclick = async ()=>{
+  if (!auth.currentUser || auth.currentUser.isAnonymous) {
+    // block image uploads for anonymous users
+    if (postImage.files.length > 0) {
+      alert("Anonymous users cannot upload images.");
+      return;
+    }
+  }
   if(isPosting) return;
 
   const now=Date.now();
