@@ -200,7 +200,7 @@ button {
 <div id="replySection">
   <textarea id="replyText"></textarea>
   <br>
-  <input type="file" id="replyImg">
+  <input type="file" id="replyImg" style="display:none;" disabled>
   <br>
   <button id="sendReply">Reply</button>
   <p id="cooldownText" style="font-size:12px; margin-top:5px;"></p>
@@ -281,6 +281,14 @@ let lastReplyTime = 0; // NEW cooldown
 
 /* AUTH */
 onAuthStateChanged(auth, async (user)=>{
+
+if (user && !user.isAnonymous) {
+  document.getElementById("replyImg").style.display = "inline";
+  document.getElementById("replyImg").disabled = false;
+} else {
+  document.getElementById("replyImg").style.display = "none";
+  document.getElementById("replyImg").disabled = true;
+}
 if(user && !user.isAnonymous){
   currentUID = user.uid;
 
