@@ -214,8 +214,16 @@ onAuthStateChanged(auth, (user) => {
   console.log("Auth state:", user);
 
   if (user) {
-    currentUser = user.email.replace("@fake.com", "");
     currentUID = user.uid;
+
+    // 🔥 GET REAL USERNAME FROM FIRESTORE
+    getDoc(doc(db, "users", user.uid)).then(snap => {
+      if(snap.exists()){
+        currentUser = snap.data().username;
+      } else {
+        currentUser = "Anonymous";
+      }
+    });
 
     accountLink.innerText = "Profile";
     accountLink.href = "../profile.html";
@@ -234,7 +242,17 @@ onAuthStateChanged(auth, (user) => {
   // 🔥 THIS IS THE IMPORTANT PART
   postsDiv.innerHTML = "";
   lastVisible = null;
-  loadPosts();
+
+  // 🔥 WAIT until username is loaded
+  getDoc(doc(db, "users", user.uid)).then(snap => {
+    if(snap.exists()){
+      currentUser = snap.data().username;
+    } else {
+      currentUser = "Anonymous";
+    }
+
+    loadPosts();
+  });
 
   // LOAD ADS
   loadAd("banner",
