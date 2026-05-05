@@ -202,11 +202,15 @@ onAuthStateChanged(auth, async (user)=>{
     location.href="signin.html";
     return;
   }
+
   uid = user.uid;
-  loadProfile();
+
+  // 🔥 WAIT for profile to load username FIRST
+  await loadProfile();
+
+  // 🔥 NOW username exists → safe to query
   loadAllData();
   loadMentions();
-  
 });
 
 /* LOGOUT */
