@@ -307,6 +307,7 @@ function isAdmin(uid){
   return uid && adminUIDs.includes(uid);
 }
 let replyIndex=0;
+const REPLY_PAGE_SIZE = 10;
 let lastReplyTime = 0; // NEW cooldown
 
 replyImgInput.addEventListener("click", (e) => {
@@ -457,6 +458,7 @@ const q=await getDocs(query(collection(db,"replies"),where("postId","==",postId)
 replyList=q.docs.map(d=>({id:d.id,...d.data()}));
 replyList.sort((a,b)=>b.time-a.time);
 
+replyIndex = 0; 
 renderReplies(true);
 }
 
@@ -470,11 +472,10 @@ if(replyList.length === 0){
 }
 
 if(reset){
-container.innerHTML="";
-replyIndex=0;
+  container.innerHTML="";
 }
 
-const chunk=replyList.slice(replyIndex,replyIndex+10);
+const chunk = replyList.slice(replyIndex, replyIndex + REPLY_PAGE_SIZE);
 
 for(const r of chunk){
 
@@ -515,13 +516,17 @@ el.querySelectorAll(".imgThumb").forEach(img => {
   };
 });
 
-replyIndex+=10;
+replyIndex += REPLY_PAGE_SIZE;
 
-document.getElementById("loadMoreReplies").style.display=
-replyIndex>=replyList.length?"none":"block";
+const loadBtn = document.getElementById("loadMoreReplies");
+
+if(replyIndex >= replyList.length){
+  loadBtn.style.display = "none";
+} else {
+  loadBtn.style.display = "block";
 }
 
-document.getElementById("loadMoreReplies").onclick=()=>renderReplies(false);
+loadBtn.onclick = () => renderReplies(false);
 
 }
 
