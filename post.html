@@ -178,6 +178,13 @@ button {
   color: blue;
 }
 
+.noReplies {
+  text-align: center;
+  margin-top: 10px;
+  color: rgb(149,118,141);
+  font-size: 14px;
+}
+
 </style>
 </head>
 
@@ -442,6 +449,12 @@ renderReplies(true);
 
 async function renderReplies(reset=false){
 const container=document.getElementById("replies");
+
+if(replyList.length === 0){
+  container.innerHTML = `<div class="noReplies">No replies yet</div>`;
+  document.getElementById("loadMoreReplies").style.display = "none";
+  return;
+}
 
 if(reset){
 container.innerHTML="";
