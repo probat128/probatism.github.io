@@ -458,11 +458,12 @@ const q=await getDocs(query(collection(db,"replies"),where("postId","==",postId)
 replyList=q.docs.map(d=>({id:d.id,...d.data()}));
 replyList.sort((a,b)=>b.time-a.time);
 
-replyIndex = 0; 
-renderReplies(true);
+replyIndex = 0;
+document.getElementById("replies").innerHTML = "";
+renderReplies(false);
 }
 
-async function renderReplies(reset=false){
+async function renderReplies(){
 const container=document.getElementById("replies");
 
 if(replyList.length === 0){
@@ -471,9 +472,6 @@ if(replyList.length === 0){
   return;
 }
 
-if(reset){
-  container.innerHTML="";
-}
 
 const chunk = replyList.slice(replyIndex, replyIndex + REPLY_PAGE_SIZE);
 
@@ -518,6 +516,10 @@ el.querySelectorAll(".imgThumb").forEach(img => {
 
 replyIndex += REPLY_PAGE_SIZE;
 
+
+
+}
+
 const loadBtn = document.getElementById("loadMoreReplies");
 
 if(replyIndex >= replyList.length){
@@ -526,11 +528,7 @@ if(replyIndex >= replyList.length){
   loadBtn.style.display = "block";
 }
 
-loadBtn.onclick = () => renderReplies(false);
-
-}
-
-}
+loadBtn.onclick = () => renderReplies();
 
 /* DELETE MODAL */
 const modal=document.getElementById("modal");
