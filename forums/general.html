@@ -128,7 +128,7 @@ textarea { width:100%; height:80px; background: rgb(232,224,207); color: rgb(91,
 
 <h3>Create Post</h3>
 <textarea id="postText" maxlength="8000"></textarea><br>
-<input type="file" id="postImage" accept="image/*" style="display:none;" disabled><br>
+<input type="file" id="postImage" accept="image/*">
 <button id="postButton">Post</button>
 <p id="cooldownMsg" style="display:none; font-size:12px;"></p>
 
@@ -145,6 +145,14 @@ textarea { width:100%; height:80px; background: rgb(232,224,207); color: rgb(91,
     <p>Delete this post?</p>
     <button id="confirmDeleteBtn">Delete</button>
     <button id="cancelDeleteBtn">Cancel</button>
+  </div>
+</div>
+
+<!-- IMAGE LOCK MODAL -->
+<div id="imageLockModal" class="modal-bg">
+  <div class="modal-content">
+    <p>You must be signed in to attach images</p>
+    <button id="imageLockOkBtn">OK</button>
   </div>
 </div>
 
@@ -193,6 +201,8 @@ const loadMoreBtn = document.getElementById("loadMoreBtn");
 const deleteModal = document.getElementById("deleteModal");
 const confirmDeleteBtn = document.getElementById("confirmDeleteBtn");
 const cancelDeleteBtn = document.getElementById("cancelDeleteBtn");
+const imageLockModal = document.getElementById("imageLockModal");
+const imageLockOkBtn = document.getElementById("imageLockOkBtn");
 const accountLink = document.getElementById("accountLink");
 const logoutBtn = document.getElementById("logoutBtn");
 const adminUIDs = [
@@ -209,13 +219,19 @@ let isPosting = false;
 let lastPostTime = 0;
 let postToDelete = null;
 
+postImage.addEventListener("click", (e) => {
+  if (!auth.currentUser || auth.currentUser.isAnonymous) {
+    e.preventDefault(); // stop file picker
+    postImage.value = ""; // extra safety
+    imageLockModal.style.display = "flex";
+  }
+});
+
 // AUTH
 onAuthStateChanged(auth, (user) => {
   console.log("Auth state:", user);
 
   if (user && !user.isAnonymous) {
-    document.getElementById("postImage").style.display = "inline";
-    document.getElementById("postImage").disabled = false;
     currentUID = user.uid;
 
     // 🔥 GET REAL USERNAME FROM FIRESTORE
@@ -225,8 +241,7 @@ onAuthStateChanged(auth, (user) => {
       } else {
         
         currentUser = "Anonymous";
-        document.getElementById("postImage").style.display = "none";
-        document.getElementById("postImage").disabled = true;
+        
       }
     });
 
@@ -340,9 +355,7 @@ function getFullImage(file){
 
 postButton.onclick = async ()=>{
   if (!auth.currentUser || auth.currentUser.isAnonymous) {
-    // block image uploads for anonymous users
     if (postImage.files.length > 0) {
-      alert("Anonymous users cannot upload images.");
       return;
     }
   }
@@ -558,6 +571,10 @@ confirmDeleteBtn.onclick = async () => {
 cancelDeleteBtn.onclick = () => {
   postToDelete = null;
   document.getElementById("deleteModal").style.display = "none";
+};
+
+imageLockOkBtn.onclick = () => {
+  imageLockModal.style.display = "none";
 };
 
 // LOAD ADS
