@@ -74,7 +74,7 @@ button {
   position: absolute;
   top: 6px;
   right: 8px;
-  font-size: 11px;
+  font-size: 20px;
   font-weight: bold;
   color: rgb(91,46,97);
 }
@@ -291,6 +291,7 @@ const replyImgInput = document.getElementById("replyImg");
 
 const postId = new URLSearchParams(location.search).get("id");
 let postAuthor = null;
+let postAuthorUID = null;
 
 /* STATE */
 let currentUser=null;
@@ -427,6 +428,7 @@ async function loadPost(){
 const snap=await getDoc(doc(db,"posts",postId));
 const p=snap.data();
 postAuthor = p.author;
+postAuthorUID = p.authorUID;
 
 const avatar = await getAvatar(p.author);
 
@@ -482,7 +484,7 @@ const el=document.createElement("div");
 el.className="replyBox";
 
 el.innerHTML=`
-${(postAuthor && r.author === postAuthor) ? `<div class="opBadge">OP</div>` : ``}
+${(postAuthorUID && r.authorUID && r.authorUID === postAuthorUID) ? `<div class="opBadge">OP</div>` : ``}
 ${r.author !== "Anonymous"
   ? `<img class="avatar" src="${avatar || ''}" onclick="goProfile('${r.author}')">`
   : ``}
