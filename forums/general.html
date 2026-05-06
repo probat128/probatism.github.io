@@ -512,12 +512,15 @@ async function loadPosts(){
       div.querySelector(".button-row").appendChild(btn);
     }
 
-  document.querySelectorAll(".post-img").forEach(img=>{
-    img.onclick=()=>{
-      document.getElementById("modalImg").src = img.dataset.full;
-      document.getElementById("imgModal").style.display="flex";
-    };
-  });
+document.querySelectorAll(".post-img").forEach(img=>{
+  img.onclick=()=>{
+    document.getElementById("modalImg").src = img.dataset.full;
+    document.getElementById("imgModal").style.display="flex";
+  };
+});
+
+postsDiv.appendChild(div);
+
 }
 }
 
