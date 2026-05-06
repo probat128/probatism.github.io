@@ -453,71 +453,86 @@ ${p.image?`<br><img class="imgThumb" src="${p.image}" data-full="${p.image}" onc
 
 /* REPLIES */
 async function fetchReplies(){
-const q=await getDocs(query(collection(db,"replies"),where("postId","==",postId)));
+  const qSnap = await getDocs(
+    query(collection(db,"replies"), where("postId","==",postId))
+  );
 
-replyList=q.docs.map(d=>({id:d.id,...d.data()}));
-replyList.sort((a,b)=>b.time-a.time);
+  replyList = qSnap.docs.map(d => ({id:d.id,...d.data()}));
 
-replyIndex = 0;
-document.getElementById("replies").innerHTML = "";
-renderReplies(false);
+  // sort once only
+  replyList.sort((a,b)=>b.time-a.time);
+
+  // reset pagination
+  replyIndex = 0;
+
+  // clear UI
+  document.getElementById("replies").innerHTML = "";
+
+  // load first batch
+  renderReplies();
 }
 
 async function renderReplies(){
-const container=document.getElementById("replies");
 
-if(replyList.length === 0){
-  container.innerHTML = `<div class="noReplies">No replies yet</div>`;
-  document.getElementById("loadMoreReplies").style.display = "none";
-  return;
-}
+  const container = document.getElementById("replies");
+  const loadBtn = document.getElementById("loadMoreReplies");
 
+  // get next batch
+  const chunk = replyList.slice(replyIndex, replyIndex + REPLY_PAGE_SIZE);
 
-const chunk = replyList.slice(replyIndex, replyIndex + REPLY_PAGE_SIZE);
+  for(const r of chunk){
 
-for(const r of chunk){
+    const avatar = await getAvatar(r.author);
 
-const avatar = await getAvatar(r.author);
+    const el=document.createElement("div");
+    el.className="replyBox";
 
-const el=document.createElement("div");
-el.className="replyBox";
+    el.innerHTML=`
+    ${(postAuthorUID && r.authorUID && r.authorUID === postAuthorUID) ? `<div class="opBadge">OP</div>` : ``}
 
-el.innerHTML=`
-${(postAuthorUID && r.authorUID && r.authorUID === postAuthorUID) ? `<div class="opBadge">OP</div>` : ``}
-${r.author !== "Anonymous"
-  ? `<img class="avatar" src="${avatar || ''}" onclick="goProfile('${r.author}')">`
-  : ``}
+    ${r.author !== "Anonymous"
+      ? `<img class="avatar" src="${avatar || ''}" onclick="goProfile('${r.author}')">`
+      : ``}
 
-<div class="contentWrap">
-<b onclick="${r.author !== "Anonymous" ? `goProfile('${r.author}')` : ''}" style="cursor:${r.author !== "Anonymous" ? "pointer" : "default"}">
-${r.author}
-</b><br>
+    <div class="contentWrap">
+      <b onclick="${r.author !== "Anonymous" ? `goProfile('${r.author}')` : ''}" style="cursor:${r.author !== "Anonymous" ? "pointer" : "default"}">
+        ${r.author}
+      </b><br>
 
-${renderMentions(readMore(r.content))}
-${r.image?`<br><img class="imgThumb" src="${r.image}" data-full="${r.image}">`:``}
-<div class="time">${new Date(r.time).toLocaleString()}</div>
+      ${renderMentions(readMore(r.content))}
 
-${(
-  (currentUID && r.authorUID && currentUID === r.authorUID) ||
-  isAdmin(currentUID)
-) ? `
-  <button class="deleteBtn" onclick="openDelete('${r.id}')">Delete</button>
-` : ``}
-</div>
-`;
+      ${r.image?`<br><img class="imgThumb" src="${r.image}" data-full="${r.image}">`:``}
 
-container.appendChild(el);
+      <div class="time">${new Date(r.time).toLocaleString()}</div>
 
-el.querySelectorAll(".imgThumb").forEach(img => {
-  img.onclick = () => {
-    showImg(img.dataset.full);
-  };
-});
+      ${(
+        (currentUID && r.authorUID && currentUID === r.authorUID) ||
+        isAdmin(currentUID)
+      ) ? `
+        <button class="deleteBtn" onclick="openDelete('${r.id}')">Delete</button>
+      ` : ``}
+    </div>
+    `;
 
-replyIndex += REPLY_PAGE_SIZE;
+    container.appendChild(el);
 
+    el.querySelectorAll(".imgThumb").forEach(img => {
+      img.onclick = () => showImg(img.dataset.full);
+    });
 
+  }
 
+  // 🔥 MOVE INDEX AFTER RENDER (IMPORTANT FIX)
+  replyIndex += chunk.length;
+
+  // show/hide button
+  if(replyIndex >= replyList.length){
+    loadBtn.style.display = "none";
+  } else {
+    loadBtn.style.display = "block";
+  }
+
+  loadBtn.onclick = () => renderReplies();
 }
 
 const loadBtn = document.getElementById("loadMoreReplies");
