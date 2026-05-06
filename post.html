@@ -214,19 +214,21 @@ button {
 <img id="fullImg">
 </div>
 
+<!-- DELETE MODAL -->
 <div class="modal-bg" id="modal">
+  <div class="modal-content">
+    <p id="modalText"></p>
+    <button id="confirmBtn">Confirm</button>
+    <button id="cancelBtn">Cancel</button>
+  </div>
+</div>
+
 <!-- IMAGE LOCK MODAL -->
 <div id="imageLockModal" class="modal-bg">
   <div class="modal-content">
     <p>You must be signed in to attach images</p>
     <button id="imageLockOkBtn">OK</button>
   </div>
-</div>
-<div class="modal-content">
-<p id="modalText"></p>
-<button id="confirmBtn">Confirm</button>
-<button id="cancelBtn">Cancel</button>
-</div>
 </div>
 
 <script type="module">
@@ -301,6 +303,7 @@ replyImgInput.addEventListener("click", (e) => {
 onAuthStateChanged(auth, async (user)=>{
 
 if(user && !user.isAnonymous){
+document.getElementById("logoutBtn").style.display = "inline";
   currentUID = user.uid;
 
   // 🔥 GET REAL USERNAME FROM FIRESTORE
