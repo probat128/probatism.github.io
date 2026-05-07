@@ -441,9 +441,8 @@ ${p.author !== "Anonymous"
   : ``}
 
 <b onclick="${p.author !== "Anonymous" ? `goProfile('${p.author}')` : ''}" style="cursor:${p.author !== "Anonymous" ? "pointer" : "default"}">
-${p.author}
+${p.author}${adminUIDs.includes(p.authorUID) ? " (admin)" : ""}
 </b><br>
-
 ${renderMentions(readMore(p.content))}
 
 ${p.image?`<br><img class="imgThumb" src="${p.image}" data-full="${p.image}" onclick="showImg(this.dataset.full)">`:``}
@@ -496,7 +495,7 @@ async function renderReplies(){
 
     <div class="contentWrap">
       <b onclick="${r.author !== "Anonymous" ? `goProfile('${r.author}')` : ''}" style="cursor:${r.author !== "Anonymous" ? "pointer" : "default"}">
-        ${r.author}
+        ${r.author}${adminUIDs.includes(r.authorUID) ? " (admin)" : ""}
       </b><br>
 
       ${renderMentions(readMore(r.content))}
