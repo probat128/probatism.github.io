@@ -497,6 +497,13 @@ async function loadPosts(){
         <div class="time">${date}</div>
         <div class="button-row">
           <button onclick="location.href='../post.html?id=${docSnap.id}'">Replies</button>
+
+          <span
+            style="font-size:12px; text-decoration:underline; cursor:pointer;"
+            onclick="reportPost('${docSnap.id}', '${post.author}', '${post.authorUID}')"
+          >
+            report
+          </span>
         </div>
       </div>
     `;
@@ -656,6 +663,32 @@ async function loadAd(type, imgEl, linkEl) {
     linkEl.href = "advertise.html";
   }
 }
+
+window.reportPost = async function(postId, author, authorUID){
+
+  const confirmBox = confirm(
+    "Are you sure you want to report this post? False reports will lead to a ban. You can check what breaks the rules here."
+  );
+
+  if(!confirmBox) return;
+
+  const report = {
+    type: "post",
+    contentId: postId,
+
+    reporterUID: currentUID,
+    reporterUsername: currentUser || "Anonymous",
+
+    targetUID: authorUID || null,
+    targetUsername: author,
+
+    createdAt: Date.now()
+  };
+
+  await addDoc(collection(db, "reports"), report);
+
+  alert("Report submitted.");
+};
 
 </script>
 
