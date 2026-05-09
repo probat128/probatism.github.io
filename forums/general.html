@@ -463,7 +463,7 @@ if(!auth.currentUser){
 await addDoc(collection(db,"posts"),{
     subforum:"general",
     author: currentUser || "Anonymous",
-    authorUID: auth.currentUser.uid,
+    authorUID: auth.currentUser.isAnonymous ? null : auth.currentUser.uid,
     authorEmail: auth.currentUser.email || null,
     content:text,
     image:image,
