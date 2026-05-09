@@ -672,12 +672,17 @@ r.readAsDataURL(file);
 
 const mentions = extractMentions(text);
 
+if(!auth.currentUser){
+  alert("Authentication still loading. Please wait a second and try again.");
+  btn.disabled = false;
+  return;
+}
+
 await addDoc(collection(db,"replies"),{
 postId,
 author: currentUser || "Anonymous",
-authorUID: auth.currentUser ? auth.currentUser.uid : null,
-authorEmail: auth.currentUser ? auth.currentUser.email : null,
-
+authorUID: auth.currentUser.uid,
+authorEmail: auth.currentUser.email || null,
 content: text,
 image: img,
 time: Date.now(),
