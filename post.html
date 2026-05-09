@@ -509,6 +509,13 @@ async function renderReplies(){
         (currentUID && r.authorUID && currentUID === r.authorUID) ||
         isAdmin(currentUID)
       ) ? `
+
+        <span
+          style="font-size:12px; text-decoration:underline; cursor:pointer; margin-right:10px;"
+          onclick="reportReply('${r.id}', '${r.author}', '${r.authorUID}')"
+        >
+          report
+        </span>
         <button class="deleteBtn" onclick="openDelete('${r.id}')">Delete</button>
       ` : ``}
     </div>
@@ -658,6 +665,30 @@ imageLockOkBtn.onclick = () => {
 
 loadPost();
 fetchReplies();
+
+window.reportReply = async function(replyId, author, authorUID){
+
+  const confirmBox = confirm(
+    "Are you sure you want to report this post? False reports will lead to a ban. You can check what breaks the rules here."
+  );
+
+  if(!confirmBox) return;
+
+  await addDoc(collection(db, "reports"), {
+    type: "reply",
+    contentId: replyId,
+
+    reporterUID: currentUID,
+    reporterUsername: currentUser || "Anonymous",
+
+    targetUID: authorUID || null,
+    targetUsername: author,
+
+    createdAt: Date.now()
+  });
+
+  alert("Report submitted.");
+};
 
    
 </script>
