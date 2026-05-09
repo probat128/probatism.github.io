@@ -681,7 +681,7 @@ if(!auth.currentUser){
 await addDoc(collection(db,"replies"),{
 postId,
 author: currentUser || "Anonymous",
-authorUID: auth.currentUser.uid,
+authorUID: auth.currentUser.isAnonymous ? null : auth.currentUser.uid,
 authorEmail: auth.currentUser.email || null,
 content: text,
 image: img,
