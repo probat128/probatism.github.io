@@ -1,46 +1,467 @@
 <!DOCTYPE html>
 <html>
+<head>
+<title>Reports</title>
+
+<style>
+body{
+  font-family: Arial;
+  background: rgb(232,224,207);
+  color: rgb(91,46,97);
+  padding:20px;
+}
+
+nav a{
+  color: rgb(91,46,97);
+  margin-right:10px;
+  text-decoration:none;
+}
+
+button{
+  margin-top:5px;
+  padding:5px 10px;
+  cursor:pointer;
+  background: rgb(232,224,207);
+  color: rgb(91,46,97);
+  border:1px solid rgb(91,46,97);
+}
+
+.reportBox{
+  border:1px solid rgb(91,46,97);
+  padding:10px;
+  margin-bottom:15px;
+}
+
+.reportMeta{
+  font-size:12px;
+  margin-bottom:8px;
+}
+
+.postBox{
+  border:1px solid rgb(91,46,97);
+  padding:10px;
+  margin-top:10px;
+  display:flex;
+  gap:10px;
+}
+
+.avatar{
+  width:40px;
+  height:40px;
+  object-fit:cover;
+  border:1px solid rgb(91,46,97);
+}
+
+.postImg{
+  max-width:256px;
+  max-height:256px;
+  margin-top:5px;
+  border:1px solid rgb(91,46,97);
+}
+
+.buttonRow{
+  margin-top:10px;
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+}
+
+.time{
+  font-size:12px;
+  margin-top:5px;
+}
+</style>
+</head>
+
 <body>
 
-<h1>Forums</h1>
+<nav>
+<a href="index.html">Home</a>
+<a href="forums.html">Forums</a>
+<a href="blacklist.html">Blacklist</a>
+</nav>
 
-<textarea id="postText"></textarea><br>
-<button onclick="post()">Post</button>
+<h1>Reports</h1>
 
-<div id="posts"></div>
+<div id="reports">
+Loading...
+</div>
 
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js"></script>
+<script type="module">
 
-<script>
+import { initializeApp, getApps }
+from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+
+import {
+  getFirestore,
+  collection,
+  getDocs,
+  query,
+  orderBy,
+  doc,
+  getDoc,
+  deleteDoc,
+  setDoc,
+  where
+}
+from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+import {
+  getAuth,
+  onAuthStateChanged
+}
+from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+
+/* =========================
+   FIREBASE
+========================= */
+
 const firebaseConfig = {
   apiKey: "AIzaSyAZXfEl3Q68vfJtaLJqODtnQBSVEzWBmc0",
-  projectId: "probatismm"
+  authDomain: "probatismm.firebaseapp.com",
+  projectId: "probatismm",
+  storageBucket: "probatismm.firebasestorage.app",
+  messagingSenderId: "746935651152",
+  appId: "1:746935651152:web:82491ddac346bc654a3a55"
 };
 
-firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
+const app =
+  getApps().length === 0
+    ? initializeApp(firebaseConfig)
+    : getApps()[0];
 
-function post() {
-  let text = document.getElementById("postText").value;
+const db = getFirestore(app);
+const auth = getAuth(app);
 
-  db.collection("posts").add({
-    content: text,
-    time: Date.now()
-  });
+/* =========================
+   ADMINS
+========================= */
+
+const adminUIDs = [
+  "IDlmRGgh2PaLx15krpeq5jGU6SJ3",
+  "yORpmIr7jvgruQt7D8oufNi8shh2"
+];
+
+/* =========================
+   AUTH CHECK
+========================= */
+
+onAuthStateChanged(auth, async (user)=>{
+
+  if(!user || !adminUIDs.includes(user.uid)){
+    window.location.href = "index.html";
+    return;
+  }
+
+  loadReports();
+
+});
+
+/* =========================
+   LOAD REPORTS
+========================= */
+
+async function loadReports(){
+
+  const reportsDiv = document.getElementById("reports");
+
+  reportsDiv.innerHTML = "";
+
+  const q = query(
+    collection(db, "reports"),
+    orderBy("createdAt", "asc")
+  );
+
+  const snap = await getDocs(q);
+
+  if(snap.empty){
+    reportsDiv.innerHTML = "<p>No reports.</p>";
+    return;
+  }
+
+  for(const reportDoc of snap.docs){
+
+    const report = reportDoc.data();
+
+    let contentData = null;
+
+    /* =========================
+       LOAD TARGET CONTENT
+    ========================= */
+
+    try{
+
+      if(report.type === "post"){
+
+        const contentSnap = await getDoc(
+          doc(db, "posts", report.contentId)
+        );
+
+        if(contentSnap.exists()){
+          contentData = contentSnap.data();
+        }
+
+      } else if(report.type === "reply"){
+
+        const contentSnap = await getDoc(
+          doc(db, "replies", report.contentId)
+        );
+
+        if(contentSnap.exists()){
+          contentData = contentSnap.data();
+        }
+
+      }
+
+    } catch(err){
+      console.error(err);
+    }
+
+    /* =========================
+       PROFILE PIC
+    ========================= */
+
+    let profilePic = "";
+
+    if(contentData && contentData.author !== "Anonymous"){
+
+      try{
+
+        const userQuery = query(
+          collection(db, "users"),
+          where("username", "==", contentData.author)
+        );
+
+        const userSnap = await getDocs(userQuery);
+
+        if(!userSnap.empty){
+
+          const userData = userSnap.docs[0].data();
+
+          if(userData.profilePic){
+            profilePic = userData.profilePic;
+          }
+
+        }
+
+      } catch(err){
+        console.error(err);
+      }
+
+    }
+
+    /* =========================
+       BUILD REPORT UI
+    ========================= */
+
+    const div = document.createElement("div");
+
+    div.className = "reportBox";
+
+    if(!contentData){
+
+      div.innerHTML = `
+        <div class="reportMeta">
+          <b>Reported ${report.type}</b><br>
+          Reporter: ${report.reporterUsername}<br>
+          Target: ${report.targetUsername}
+        </div>
+
+        <p>Original content no longer exists.</p>
+
+        <div class="buttonRow">
+          <button onclick="dismissReport('${reportDoc.id}')">
+            Dismiss
+          </button>
+        </div>
+      `;
+
+      reportsDiv.appendChild(div);
+
+      continue;
+    }
+
+    div.innerHTML = `
+      <div class="reportMeta">
+
+        <b>Reported ${report.type}</b><br>
+
+        Reporter:
+        ${report.reporterUsername}
+        (${report.reporterUID || "no uid"})
+
+        <br>
+
+        Target:
+        ${report.targetUsername}
+        (${report.targetUID || "no uid"})
+
+      </div>
+
+      <div class="postBox">
+
+        ${
+          profilePic
+            ? `<img class="avatar" src="${profilePic}">`
+            : ``
+        }
+
+        <div>
+
+          <b>
+            ${contentData.author}
+          </b>
+
+          <div>
+            ${contentData.content || ""}
+          </div>
+
+          ${
+            contentData.image
+              ? `<img class="postImg" src="${contentData.image}">`
+              : ``
+          }
+
+          <div class="time">
+            ${new Date(contentData.time).toLocaleString()}
+          </div>
+
+        </div>
+
+      </div>
+
+      <div class="buttonRow">
+
+        <button
+          onclick="deleteContent(
+            '${report.type}',
+            '${report.contentId}'
+          )"
+        >
+          Delete Content
+        </button>
+
+        <button
+          onclick="banUser(
+            '${report.targetUID}',
+            '${report.targetUsername}'
+          )"
+        >
+          Ban Target
+        </button>
+
+        <button
+          onclick="banUser(
+            '${report.reporterUID}',
+            '${report.reporterUsername}'
+          )"
+        >
+          Ban Reporter
+        </button>
+
+        <button
+          onclick="dismissReport('${reportDoc.id}')"
+        >
+          Dismiss
+        </button>
+
+      </div>
+    `;
+
+    reportsDiv.appendChild(div);
+
+  }
+
 }
 
-function loadPosts() {
-  db.collection("posts").get().then(snapshot => {
-    let html = "";
-    snapshot.forEach(doc => {
-      html += "<p>" + doc.data().content + "</p>";
+/* =========================
+   DELETE CONTENT
+========================= */
+
+window.deleteContent = async function(type, id){
+
+  try{
+
+    if(type === "post"){
+
+      await deleteDoc(doc(db, "posts", id));
+
+    } else if(type === "reply"){
+
+      await deleteDoc(doc(db, "replies", id));
+
+    }
+
+    alert("Content deleted.");
+
+    location.reload();
+
+  } catch(err){
+
+    console.error(err);
+
+    alert("Delete failed.");
+
+  }
+
+};
+
+/* =========================
+   BAN USER
+========================= */
+
+window.banUser = async function(uid, username){
+
+  if(!uid){
+    alert("No UID found.");
+    return;
+  }
+
+  try{
+
+    await setDoc(doc(db, "bannedUsers", uid), {
+
+      uid: uid,
+      username: username || "Unknown",
+
+      bannedAt: Date.now()
+
     });
-    document.getElementById("posts").innerHTML = html;
-  });
-}
 
-loadPosts();
+    alert("User banned.");
+
+  } catch(err){
+
+    console.error(err);
+
+    alert("Ban failed.");
+
+  }
+
+};
+
+/* =========================
+   DISMISS REPORT
+========================= */
+
+window.dismissReport = async function(reportId){
+
+  try{
+
+    await deleteDoc(doc(db, "reports", reportId));
+
+    location.reload();
+
+  } catch(err){
+
+    console.error(err);
+
+    alert("Dismiss failed.");
+
+  }
+
+};
+
 </script>
 
 </body>
