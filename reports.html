@@ -288,13 +288,13 @@ async function loadReports(){
 
         Reporter:
         ${report.reporterUsername}
-        (${report.reporterUID || "no uid"})
+        ${report.reporterUID ? `(${report.reporterUID})` : "(Anonymous)"}
 
         <br>
 
         Target:
         ${report.targetUsername}
-        (${report.targetUID || "no uid"})
+        ${report.targetUID ? `(${report.targetUID})` : "(Anonymous)"}
 
       </div>
 
@@ -342,10 +342,7 @@ async function loadReports(){
         </button>
 
         <button
-          onclick="banUser(
-            '${report.targetUID}',
-            '${report.targetUsername}'
-          )"
+          onclick="banTargetUser('${report.targetUID}', '${report.targetUsername}')"
         >
           Ban Target
         </button>
@@ -460,6 +457,30 @@ window.dismissReport = async function(reportId){
 
   }
 
+};
+
+window.banTargetUser = async function(uid, username){
+
+  // 🔥 FIX: handle Anonymous properly
+  if(!uid || username === "Anonymous"){
+    alert("Cannot ban anonymous users (no UID available).");
+    return;
+  }
+
+  try{
+
+    await setDoc(doc(db, "bannedUsers", uid), {
+      uid,
+      username: username || "Unknown",
+      bannedAt: Date.now()
+    });
+
+    alert("User banned.");
+
+  } catch(err){
+    console.error(err);
+    alert("Ban failed.");
+  }
 };
 
 </script>
