@@ -453,17 +453,22 @@ postButton.onclick = async ()=>{
 
   const mentions = extractMentions(text);
 
-  await addDoc(collection(db,"posts"),{
+if(!auth.currentUser){
+  alert("Authentication still loading. Please wait a second and try again.");
+  isPosting = false;
+  postButton.disabled = false;
+  return;
+}
+
+await addDoc(collection(db,"posts"),{
     subforum:"general",
     author: currentUser || "Anonymous",
-    authorUID: auth.currentUser ? auth.currentUser.uid : null,
-    authorEmail: auth.currentUser ? auth.currentUser.email : null,
-
+    authorUID: auth.currentUser.uid,
+    authorEmail: auth.currentUser.email || null,
     content:text,
     image:image,
     fullImage:fullImage,
     time:Date.now(),
-
     mentionedUsers: mentions
   });
 
