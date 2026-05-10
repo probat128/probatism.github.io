@@ -135,7 +135,7 @@ window.setMode = function(newMode){
   showStatus("", "");
 }
 
-async function generateUniqueUsername(baseName){
+async function generateUniqueUsername(baseName, isGoogle = false){
 
   // Clean username
   let username = baseName
@@ -143,15 +143,14 @@ async function generateUniqueUsername(baseName){
     .replace(/\s+/g, "")
     .replace(/[^a-z0-9]/g, "");
 
-  // Limit base name to 12 characters
+  // Limit base name
   username = username.slice(0, 12);
 
-  // Fallback if too short
   if(username.length < 3){
     username = "user";
   }
 
-  // Function to generate random 8-character string
+  // Function for Google only
   function randomString(length = 8){
     const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
     let result = "";
@@ -163,15 +162,31 @@ async function generateUniqueUsername(baseName){
     return result;
   }
 
+  // =========================
+  // NORMAL SIGN UP (NO RANDOM)
+  // =========================
+  if(!isGoogle){
+
+    const userRef = doc(db, "usernames", username);
+    const snap = await getDoc(userRef);
+
+    if(snap.exists()){
+      throw new Error("Username already taken");
+    }
+
+    return username;
+  }
+
+  // =========================
+  // GOOGLE SIGN IN (WITH RANDOM)
+  // =========================
   let finalUsername;
   let isUnique = false;
 
-  // Keep trying until username is unique
   while(!isUnique){
 
     finalUsername = username + randomString(8);
 
-    // Check every user document for matching username
     const userRef = doc(db, "usernames", finalUsername);
     const snap = await getDoc(userRef);
 
@@ -200,7 +215,7 @@ window.submitForm = async function(){
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
-      const uniqueUsername = await generateUniqueUsername(username);
+      const uniqueUsername = await generateUniqueUsername(username, false);
 
       // SAVE USER IN FIRESTORE (IMPORTANT: USE UID AS DOCUMENT ID)
       await setDoc(doc(db, "users", user.uid), {
@@ -270,7 +285,7 @@ window.googleSignIn = async function(){
 
       baseNameRaw = baseNameRaw.replace(/\s+/g, "");
 
-      finalUsername = await generateUniqueUsername(baseNameRaw);
+      finalUsername = await generateUniqueUsername(baseNameRaw, true);
 
       await setDoc(doc(db, "users", user.uid), {
         username: finalUsername,
