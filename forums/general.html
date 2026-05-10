@@ -449,40 +449,46 @@ window.goProfile = function(username){
   }
 };
 
-async function renderMentions(text){
+async function renderMentions(text, mentionedUsers = []){
 
   if(!text) return text;
 
-  const matches = [...text.matchAll(/@([\w]+)/g)];
-
   let rendered = text;
 
-  for(const match of matches){
+  const matches = [...text.matchAll(/@([\w]+)/g)];
 
-    const oldUsername = match[1];
+  for(let i = 0; i < matches.length; i++){
 
-    if(oldUsername === "Anonymous") continue;
+    const match = matches[i];
+
+    const originalUsername = match[1];
+
+    if(originalUsername === "Anonymous"){
+      continue;
+    }
+
+    const mentionData = mentionedUsers[i];
+
+    // if no UID stored → leave plain text
+    if(!mentionData || !mentionData.uid){
+      continue;
+    }
 
     try {
 
-      const usernameSnap = await getDoc(
-        doc(db, "usernames", oldUsername.toLowerCase())
-      );
-
-      if(!usernameSnap.exists()) continue;
-
-      const uid = usernameSnap.data().uid;
-
       const userSnap = await getDoc(
-        doc(db, "users", uid)
+        doc(db, "users", mentionData.uid)
       );
 
-      if(!userSnap.exists()) continue;
+      // user deleted
+      if(!userSnap.exists()){
+        continue;
+      }
 
       const liveUsername = userSnap.data().username;
 
       rendered = rendered.replace(
-        "@" + oldUsername,
+        "@" + originalUsername,
         `<span class="mention" onclick="goProfile('${liveUsername}')">@${liveUsername}</span>`
       );
 
@@ -711,13 +717,19 @@ async function loadPosts(){
     `;
 
     div.querySelector(".post-content").innerHTML =
-      await renderMentions(shortText);
+      await renderMentions(
+        shortText,
+        post.mentionedUsers || []
+      );
 
     if(needsMore){
       div.querySelector(".readMoreBtn").onclick = async ()=>{
 
         div.querySelector(".post-content").innerHTML =
-          await renderMentions(post.content);
+          await renderMentions(
+            post.content,
+            post.mentionedUsers || []
+          );
 
         div.querySelector(".readMoreBtn").remove();
       };
