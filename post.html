@@ -565,7 +565,7 @@ async function renderReplies(){
       <div class="time">${new Date(r.time).toLocaleString()}</div>
 
       ${(
-        (currentUID && r.authorUID && currentUID === r.authorUID) ||
+        (currentUID === r.authorUID) ||
         isAdmin(currentUID)
       ) ? `
 
@@ -681,7 +681,7 @@ if(!auth.currentUser){
 await addDoc(collection(db,"replies"),{
 postId,
 author: currentUser || "Anonymous",
-authorUID: auth.currentUser.isAnonymous ? null : auth.currentUser.uid,
+authorUID: auth.currentUser.uid,
 authorEmail: auth.currentUser.email || null,
 content: text,
 image: img,
@@ -745,7 +745,7 @@ window.reportReply = async function(replyId, author, authorUID){
     reporterUID: currentUID,
     reporterUsername: currentUser || "Anonymous",
 
-    targetUID: authorUID || null,
+    targetUID: authorUID,
     targetUsername: author,
 
     createdAt: Date.now()
