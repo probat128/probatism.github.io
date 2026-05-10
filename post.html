@@ -595,7 +595,6 @@ async function renderReplies(){
         (currentUID === r.authorUID) ||
         isAdmin(currentUID)
       ) ? `
-
         <span
           class="reportBtn"
           onclick="reportReply('${r.id}', '${r.author}', '${r.authorUID}')"
@@ -604,8 +603,7 @@ async function renderReplies(){
         </span>
 
         <button class="deleteBtn" onclick="openDelete('${r.id}')">Delete</button>
-    </div>
-    `;
+      ` : ``}
 
     container.appendChild(el);
 
