@@ -193,7 +193,14 @@ button {
   color: rgb(149,118,141);
   font-size: 14px;
 }
-
+.reportBtn {
+  position:absolute;
+  bottom:8px;
+  right:8px;
+  font-size:12px;
+  text-decoration:underline;
+  cursor:pointer;
+}
 </style>
 </head>
 
@@ -590,13 +597,13 @@ async function renderReplies(){
       ) ? `
 
         <span
-          style="font-size:12px; text-decoration:underline; cursor:pointer; margin-right:10px;"
+          class="reportBtn"
           onclick="reportReply('${r.id}', '${r.author}', '${r.authorUID}')"
         >
           report
         </span>
+
         <button class="deleteBtn" onclick="openDelete('${r.id}')">Delete</button>
-      ` : ``}
     </div>
     `;
 
