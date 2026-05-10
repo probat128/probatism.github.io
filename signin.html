@@ -288,10 +288,12 @@ window.googleSignIn = async function(){
       finalUsername = await generateUniqueUsername(baseNameRaw, true);
 
       await setDoc(doc(db, "users", user.uid), {
-        username: finalUsername,
+        username: uniqueUsername,
         uid: user.uid,
-        email: user.email,
-        joinDate: Date.now()
+        joinDate: Date.now(),
+        usernameChangedAt: 0,
+        description: "",
+        profilePic: ""
       });
 
       // Save username lookup
