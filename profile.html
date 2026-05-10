@@ -205,6 +205,7 @@ let index=0;
 let items = [];
 let deleteTarget=null;
 let deleteType=null;
+const usernameCache = {};
 
 /* AUTH */
 onAuthStateChanged(auth, async (user)=>{
@@ -415,7 +416,7 @@ async function loadAllData(){
 
   index=0;
   document.getElementById("userPosts").innerHTML="";
-  loadMore();
+  await loadMore();
 }
 
 async function loadMentions(){
@@ -495,7 +496,7 @@ function renderMentionsUI(){
 
 
 /* LOAD MORE */
-function loadMore(){
+async function loadMore(){
   const div=document.getElementById("userPosts");
 
   const chunk=items.slice(index,index+10);
@@ -506,14 +507,21 @@ function loadMore(){
 
     const date=new Date(item.time).toLocaleString();
 
-    el.innerHTML=`
-      <b>${item.author}${item.type==="reply"?" (reply)":""}</b>
+    let name = usernameCache[item.authorUID];
+
+    if (!name) {
+      const snap = await getDoc(doc(db, "users", item.authorUID));
+      name = snap.exists() ? snap.data().username : "unknown";
+      usernameCache[item.authorUID] = name;
+    }
+
+    el.innerHTML = `
+      <b>${name}${item.type==="reply"?" (reply)":""}</b>
       ${format(item.content)}
-      ${item.image?`<img src="${item.image}">`:``}
+      ${item.image ? `<img src="${item.image}">` : ``}
       <div class="time">${date}</div>
       <button class="deleteBtn">Delete</button>
     `;
-
     // CLICK TO OPEN POST
     el.onclick=()=>{
       if(item.type==="post"){
@@ -538,7 +546,9 @@ function loadMore(){
     index>=items.length?"none":"block";
 }
 
-document.getElementById("loadMoreBtn").onclick=loadMore;
+document.getElementById("loadMoreBtn").onclick=async () => {
+  await loadMore();
+};
 
 function cleanUsername(name){
   return name
