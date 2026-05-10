@@ -177,11 +177,6 @@ async function generateUniqueUsername(baseName){
 
     if(!snap.exists()){
       isUnique = true;
-
-      // Reserve username immediately
-      await setDoc(userRef, {
-        uid: "reserved"
-      });
     }
   }
 
