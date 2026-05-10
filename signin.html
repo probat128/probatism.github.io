@@ -168,9 +168,16 @@ async function generateUniqueUsername(baseName, isGoogle = false){
   if(!isGoogle){
 
     const userRef = doc(db, "usernames", username);
+
     const snap = await getDoc(userRef);
 
     if(snap.exists()){
+      throw new Error("Username already taken");
+    }
+
+    // 🔥 DOUBLE SAFETY CHECK (IMPORTANT)
+    const reservedCheck = await getDoc(userRef);
+    if(reservedCheck.exists()){
       throw new Error("Username already taken");
     }
 
@@ -217,6 +224,18 @@ window.submitForm = async function(){
 
       const uniqueUsername = await generateUniqueUsername(username, false);
 
+      const existsSnap = await getDoc(doc(db, "usernames", uniqueUsername));
+
+    if(existsSnap.exists()){
+      throw new Error("Username already taken");
+    }
+
+      const existsSnap = await getDoc(doc(db, "usernames", uniqueUsername));
+
+      if(existsSnap.exists()){
+        throw new Error("Username already taken");
+      }
+
       // SAVE USER IN FIRESTORE (IMPORTANT: USE UID AS DOCUMENT ID)
       await setDoc(doc(db, "users", user.uid), {
         username: uniqueUsername,
@@ -228,9 +247,12 @@ window.submitForm = async function(){
       });
 
       // Save username lookup
-      await setDoc(doc(db, "usernames", uniqueUsername), {
+      const usernameRef = doc(db, "usernames", uniqueUsername);
+
+      // 🔥 SAFE WRITE (FAILS IF EXISTS)
+      await setDoc(usernameRef, {
         uid: user.uid
-      });
+      }, { merge: false });
 
       // IMPORTANT: ALWAYS STORE USERNAME ONLY (NOT EMAIL)
       localStorage.setItem("currentUser", uniqueUsername);
