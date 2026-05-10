@@ -219,9 +219,10 @@ window.submitForm = async function(){
 
       // SAVE USER IN FIRESTORE (IMPORTANT: USE UID AS DOCUMENT ID)
       await setDoc(doc(db, "users", user.uid), {
-        username: uniqueUsername,
+        username: finalUsername,
         uid: user.uid,
         joinDate: Date.now(),
+        usernameChangedAt: 0,
         description: "",
         profilePic: ""
       });
@@ -298,7 +299,8 @@ window.googleSignIn = async function(){
 
       // Save username lookup
       await setDoc(doc(db, "usernames", finalUsername), {
-         uid: user.uid
+        uid: user.uid,
+        createdAt: Date.now()
       });
     }
 
