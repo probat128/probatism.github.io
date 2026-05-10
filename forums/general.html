@@ -11,9 +11,11 @@ textarea { width:100%; height:80px; background: rgb(232,224,207); color: rgb(91,
 .post {
   border:1px solid rgb(91,46,97);
   padding:10px;
+  padding-bottom:35px;
   margin:10px 0;
   display:flex;
   gap:10px;
+  position:relative;
 }
 
 .profile-thumb {
@@ -98,6 +100,15 @@ textarea { width:100%; height:80px; background: rgb(232,224,207); color: rgb(91,
 
 .mention:hover {
   color: blue;
+}
+
+.report-btn {
+  position:absolute;
+  bottom:10px;
+  right:10px;
+  font-size:12px;
+  text-decoration:underline;
+  cursor:pointer;
 }
 
 </style>
@@ -573,14 +584,14 @@ async function loadPosts(){
         <div class="time">${date}</div>
         <div class="button-row">
           <button onclick="location.href='../post.html?id=${docSnap.id}'">Replies</button>
-
-          <span
-            style="font-size:12px; text-decoration:underline; cursor:pointer;"
-            onclick="reportPost('${docSnap.id}', '${post.author}', '${post.authorUID}')"
-          >
-            report
-          </span>
         </div>
+
+        <span
+          class="report-btn"
+          onclick="reportPost('${docSnap.id}', '${post.author}', '${post.authorUID}')"
+        >
+          report
+        </span>
       </div>
     `;
 
