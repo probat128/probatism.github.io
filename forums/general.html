@@ -584,16 +584,28 @@ async function loadPosts(){
     const date=new Date(post.time).toLocaleString();
 
     let profilePic = "";
+    let displayName = post.author || "Anonymous";
 
     if(post.authorUID){
-      const userQuery = query(collection(db,"users"), where("username","==",post.author));
-      const userSnap = await getDocs(userQuery);
 
-      if(!userSnap.empty){
-        const userData = userSnap.docs[0].data();
+      const userSnap = await getDoc(doc(db, "users", post.authorUID));
 
+      if(userSnap.exists()){
+
+        const userData = userSnap.data();
+
+        // ALWAYS USE LIVE USERNAME
+        displayName = userData.username || "Anonymous";
+
+        // LIVE PROFILE PIC
         if(userData.profilePic){
-          profilePic = `<img class="profile-thumb" src="${userData.profilePic}" onclick="goProfile('${post.author}')">`;
+          profilePic = `
+            <img
+              class="profile-thumb"
+              src="${userData.profilePic}"
+              onclick="goProfile('${displayName}')"
+            >
+          `;
         }
       }
     }
@@ -608,15 +620,15 @@ async function loadPosts(){
     const needsMore = post.content.length > 400;
 
     const safeAuthorClick =
-      post.author !== "Anonymous"
-        ? `style="cursor:pointer;" onclick="goProfile('${post.author}')"`
+      displayName !== "Anonymous"
+        ? `style="cursor:pointer;" onclick="goProfile('${displayName}')"`
         : "";
 
     div.innerHTML=`
       ${profilePic}
       <div>
         <b ${safeAuthorClick}>
-          ${post.author}${adminUIDs.includes(post.authorUID) ? " (admin)" : ""}
+          ${displayName}${adminUIDs.includes(post.authorUID) ? " (admin)" : ""}
         :</b>
         <div class="post-content">${renderMentions(shortText)}</div>
         ${needsMore ? `<button class="readMoreBtn">Read More</button>` : ""}
@@ -628,7 +640,7 @@ async function loadPosts(){
 
         <span
           class="report-btn"
-          onclick="reportPost('${docSnap.id}', '${post.author}', '${post.authorUID}')"
+          onclick="reportPost('${docSnap.id}', '${displayName}', '${post.authorUID}')"
         >
           report
         </span>
