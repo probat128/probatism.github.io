@@ -176,18 +176,15 @@ let combinedList = [];
 let currentIndex = 0;
 
 /* AUTH */
-const accountLink = document.getElementById("accountLink");
-const logoutBtn = document.getElementById("logoutBtn");
-
 onAuthStateChanged(auth,(user)=>{
+  const accountLink = document.getElementById("accountLink");
+  const logoutBtn = document.getElementById("logoutBtn");
 
   if(user){
-    currentUser = user.email?.replace("@fake.com","") || user.uid;
-
+    currentUser = user.email.replace("@fake.com","");
     accountLink.innerText = "Profile";
     accountLink.href = "profile.html";
     logoutBtn.style.display = "inline";
-
   } else {
     currentUser = null;
     logoutBtn.style.display = "none";
@@ -367,11 +364,9 @@ document.getElementById("loadMoreBtn").onclick = ()=>renderContent(false);
 loadProfile();
 loadAllContent();
 
-window.addEventListener("DOMContentLoaded", ()=>{
-  document.getElementById("signinOkBtn").onclick = ()=>{
-    document.getElementById("signinModal").style.display = "none";
-  };
-});
+document.getElementById("signinOkBtn").onclick = ()=>{
+  document.getElementById("signinModal").style.display = "none";
+};
 
 </script>
 
