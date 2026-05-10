@@ -281,63 +281,72 @@ postImage.addEventListener("click", (e) => {
 
 // AUTH
 onAuthStateChanged(auth, async (user) => {
+
   console.log("Auth state:", user);
 
-  if (user && !user.isAnonymous) {
-    currentUID = user.uid;
+  // no auth yet → create anonymous session
+  if(!user){
 
-    const banned = await checkBan(user.uid);
-
-    if(banned){
-      return;
+    try{
+      await signInAnonymously(auth);
+    } catch(err){
+      console.error(err);
     }
 
-    // 🔥 GET REAL USERNAME FROM FIRESTORE
-    getDoc(doc(db, "users", user.uid)).then(snap => {
-      if(snap.exists()){
-        currentUser = snap.data().username;
+    return;
+  }
+
+  // IMPORTANT:
+  // anonymous users ALSO have UIDs
+  currentUID = user.uid;
+
+  // ALWAYS CHECK BAN
+  const banned = await checkBan(user.uid);
+
+  if(banned){
+    return;
+  }
+
+  // LOGGED-IN USER
+  if(!user.isAnonymous){
+
+    try{
+
+      const userSnap = await getDoc(doc(db, "users", user.uid));
+
+      if(userSnap.exists() && userSnap.data().username){
+        currentUser = userSnap.data().username;
       } else {
-        
         currentUser = "Anonymous";
-        
       }
-    });
+
+    } catch(err){
+
+      console.error(err);
+
+      currentUser = "Anonymous";
+    }
 
     accountLink.innerText = "Profile";
     accountLink.href = "../profile.html";
     logoutBtn.style.display = "inline";
 
   } else {
-    currentUser = null;
-    currentUID = null;
-    signInAnonymously(auth).catch(console.error);
+
+    // ANONYMOUS USER
+    currentUser = "Anonymous";
 
     accountLink.innerText = "Sign In / Sign Up";
     accountLink.href = "../signin.html";
     logoutBtn.style.display = "none";
   }
 
-  // 🔥 THIS IS THE IMPORTANT PART
+  // reload content
   postsDiv.innerHTML = "";
   lastVisible = null;
 
-  if (user && !user.isAnonymous) {
-    // Logged in user → load username
-    getDoc(doc(db, "users", user.uid)).then(snap => {
-      if(snap.exists()){
-        currentUser = snap.data().username;
-      } else {
-        currentUser = "Anonymous";
-      }
-
-      loadPosts();
-    });
-
-  } else {
-    // Anonymous user
-    currentUser = "Anonymous";
-    loadPosts();
-  }
+  loadPosts();
+});
 
   // LOAD ADS
   loadAd("banner",
