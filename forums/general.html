@@ -76,10 +76,15 @@ textarea { width:100%; height:80px; background: rgb(232,224,207); color: rgb(91,
   align-items:center;
 }
 .modal-content {
-  background: rgb(232,224,207);
-  padding:20px;
+  background:rgb(232,224,207);
   border:2px solid rgb(91,46,97);
-  text-align: center;
+  padding:20px;
+  width:160px;
+  text-align:center;
+}
+
+#reportModal .modal-content {
+  width: 320px;
 }
 
 .readMoreBtn {
@@ -169,11 +174,18 @@ textarea { width:100%; height:80px; background: rgb(232,224,207); color: rgb(91,
 </div>
 
 <!-- REPORT MODAL -->
+<!-- REPORT MODAL -->
 <div id="reportModal" class="modal-bg">
   <div class="modal-content">
     <p>
-      Are you sure you want to report this post?<br><br>
-      False reports may lead to a ban.
+      Are you sure you want to report this reply?<br><br>
+
+      Submitting false reports may lead to a ban.<br><br>
+
+      You can check what breaks the rules
+      <a href="rules.html" style="color: inherit; text-decoration: underline;">
+        here
+      </a>.
     </p>
 
     <button id="confirmReportBtn">Report</button>
