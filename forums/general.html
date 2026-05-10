@@ -462,8 +462,15 @@ if(!auth.currentUser){
 
 await addDoc(collection(db,"posts"),{
     subforum:"general",
+
+    // keep display name anonymous
     author: currentUser || "Anonymous",
-    authorUID: auth.currentUser.isAnonymous ? null : auth.currentUser.uid,
+
+    // IMPORTANT:
+    // anonymous users STILL have Firebase UIDs
+    // never store null anymore
+    authorUID: auth.currentUser.uid,
+
     authorEmail: auth.currentUser.email || null,
     content:text,
     image:image,
@@ -577,9 +584,7 @@ async function loadPosts(){
     }
 
       const isOwner =
-      currentUID &&
-      post.authorUID &&
-      currentUID === post.authorUID;
+        currentUID === post.authorUID;
 
     // Anonymous users CAN delete only if they are owner
     if (isOwner || isAdmin()) {
@@ -740,7 +745,7 @@ window.reportPost = async function(postId, author, authorUID){
     reporterUID: currentUID,
     reporterUsername: currentUser || "Anonymous",
 
-    targetUID: authorUID || null,
+    targetUID: authorUID,
     targetUsername: author,
 
     createdAt: Date.now()
