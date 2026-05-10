@@ -497,15 +497,15 @@ function renderMentionsUI(){
 
 /* LOAD MORE */
 async function loadMore(){
-  const div=document.getElementById("userPosts");
+  const div = document.getElementById("userPosts");
 
-  const chunk=items.slice(index,index+10);
+  const chunk = items.slice(index, index + 10);
 
-  chunk.forEach(item=>{
-    const el=document.createElement("div");
-    el.className="post";
+  for (const item of chunk) {
+    const el = document.createElement("div");
+    el.className = "post";
 
-    const date=new Date(item.time).toLocaleString();
+    const date = new Date(item.time).toLocaleString();
 
     let name = usernameCache[item.authorUID];
 
@@ -516,34 +516,33 @@ async function loadMore(){
     }
 
     el.innerHTML = `
-      <b>${name}${item.type==="reply"?" (reply)":""}</b>
+      <b>${name}${item.type === "reply" ? " (reply)" : ""}</b>
       ${format(item.content)}
       ${item.image ? `<img src="${item.image}">` : ``}
       <div class="time">${date}</div>
       <button class="deleteBtn">Delete</button>
     `;
-    // CLICK TO OPEN POST
-    el.onclick=()=>{
-      if(item.type==="post"){
-        location.href=`post.html?id=${item.id}`;
+
+    el.onclick = () => {
+      if (item.type === "post") {
+        location.href = `post.html?id=${item.id}`;
       } else {
-        location.href=`post.html?id=${item.postId}`;
+        location.href = `post.html?id=${item.postId}`;
       }
     };
 
-    // PREVENT DELETE CLICK PROPAGATION
-    el.querySelector(".deleteBtn").onclick=(e)=>{
+    el.querySelector(".deleteBtn").onclick = (e) => {
       e.stopPropagation();
-      askDelete(item.id,item.type);
+      askDelete(item.id, item.type);
     };
 
     div.appendChild(el);
-  });
+  }
 
-  index+=10;
+  index += 10;
 
   document.getElementById("loadMoreBtn").style.display =
-    index>=items.length?"none":"block";
+    index >= items.length ? "none" : "block";
 }
 
 document.getElementById("loadMoreBtn").onclick=async () => {
