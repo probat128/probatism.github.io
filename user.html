@@ -216,18 +216,46 @@ function readMore(text){
 }
 
 /* PROFILE */
+let profileUID = null;
+
 async function loadProfile(){
-  const snap = await getDoc(doc(db,"users",username));
-  if(!snap.exists()) return;
+
+  // username -> uid
+  const usernameSnap = await getDoc(
+    doc(db, "usernames", username.toLowerCase())
+  );
+
+  if(!usernameSnap.exists()){
+    document.getElementById("profileInfo").innerHTML = "User not found.";
+    return;
+  }
+
+  profileUID = usernameSnap.data().uid;
+
+  // load actual user doc
+  const snap = await getDoc(doc(db,"users",profileUID));
+
+  if(!snap.exists()){
+    document.getElementById("profileInfo").innerHTML = "User not found.";
+    return;
+  }
 
   const data = snap.data();
-  const joinDate = new Date(data.joinDate).toLocaleDateString();
+
+  const joinDate = data.joinDate
+    ? new Date(data.joinDate).toLocaleDateString()
+    : "Unknown";
 
   document.getElementById("pageTitle").innerText = data.username;
 
   document.getElementById("profileInfo").innerHTML = `
     <p><b>Joined:</b> ${joinDate}</p>
-    ${data.profilePic ? `<img class="profile-pic" src="${data.profilePic}">` : ""}
+
+    ${data.profilePic
+      ? `<img class="profile-pic" src="${data.profilePic}">`
+      : ""
+    }
+
     <p>${data.description || ""}</p>
 
     <div class="repBox">
@@ -237,25 +265,32 @@ async function loadProfile(){
     </div>
   `;
 
-  loadReputation();
+  loadReputation(data.username);
 }
 
 /* REPUTATION */
-async function loadReputation(){
+async function loadReputation(liveUsername){
+
   const votesSnap = await getDocs(
-    query(collection(db,"reputationVotes"), where("target","==",username))
+    query(
+      collection(db,"reputationVotes"),
+      where("target","==",liveUsername)
+    )
   );
 
   let total = 0;
   let myVote = 0;
 
   votesSnap.forEach(docSnap=>{
+
     const v = docSnap.data();
+
     total += v.value;
 
     if(v.from === currentUser){
       myVote = v.value;
     }
+
   });
 
   document.getElementById("repValue").innerText = total;
@@ -269,54 +304,93 @@ async function loadReputation(){
   if(myVote === 1) upBtn.classList.add("active");
   if(myVote === -1) downBtn.classList.add("active");
 
-upBtn.onclick = ()=>{
-  if(!currentUser){
-    document.getElementById("signinModal").style.display = "flex";
-    return;
-  }
-  vote(1, myVote);
-};
+  upBtn.onclick = ()=>{
 
-downBtn.onclick = ()=>{
-  if(!currentUser){
-    document.getElementById("signinModal").style.display = "flex";
-    return;
-  }
-  vote(-1, myVote);
-};
+    if(!currentUser){
+      document.getElementById("signinModal").style.display = "flex";
+      return;
+    }
+
+    vote(1, myVote, liveUsername);
+  };
+
+  downBtn.onclick = ()=>{
+
+    if(!currentUser){
+      document.getElementById("signinModal").style.display = "flex";
+      return;
+    }
+
+    vote(-1, myVote, liveUsername);
+  };
 }
 
-async function vote(value, currentVote){
-  const voteRef = doc(db,"reputationVotes", currentUser + "_" + username);
+async function vote(value, currentVote, liveUsername){
+
+  const voteRef = doc(
+    db,
+    "reputationVotes",
+    currentUser + "_" + profileUID
+  );
 
   if(currentVote === value){
-    await setDoc(voteRef, { value: 0, from: currentUser, target: username });
+
+    await setDoc(voteRef, {
+      value: 0,
+      from: currentUser,
+      target: liveUsername,
+      targetUID: profileUID
+    });
+
   } else {
-    await setDoc(voteRef, { value:value, from:currentUser, target:username });
+
+    await setDoc(voteRef, {
+      value:value,
+      from:currentUser,
+      target:liveUsername,
+      targetUID:profileUID
+    });
+
   }
 
-  loadReputation();
+  loadReputation(liveUsername);
 }
 
 /* LOAD POSTS + REPLIES */
 async function loadAllContent(){
 
+  if(!profileUID) return;
+
   const postsSnap = await getDocs(
-    query(collection(db,"posts"), where("author","==",username))
+    query(
+      collection(db,"posts"),
+      where("authorUID","==",profileUID)
+    )
   );
 
   const repliesSnap = await getDocs(
-    query(collection(db,"replies"), where("author","==",username))
+    query(
+      collection(db,"replies"),
+      where("authorUID","==",profileUID)
+    )
   );
 
   combinedList = [];
 
   postsSnap.forEach(d=>{
-    combinedList.push({ id:d.id, type:"post", ...d.data() });
+    combinedList.push({
+      id:d.id,
+      type:"post",
+      ...d.data()
+    });
   });
 
   repliesSnap.forEach(d=>{
-    combinedList.push({ id:d.id, type:"reply", ...d.data() });
+    combinedList.push({
+      id:d.id,
+      type:"reply",
+      ...d.data()
+    });
   });
 
   combinedList.sort((a,b)=>b.time - a.time);
@@ -361,8 +435,12 @@ function renderContent(reset=false){
 document.getElementById("loadMoreBtn").onclick = ()=>renderContent(false);
 
 /* INIT */
-loadProfile();
-loadAllContent();
+(async ()=>{
+
+  await loadProfile();
+  await loadAllContent();
+
+})();
 
 window.addEventListener("DOMContentLoaded", ()=>{
   document.getElementById("signinOkBtn").onclick = ()=>{
