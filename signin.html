@@ -136,35 +136,56 @@ window.setMode = function(newMode){
 }
 
 async function generateUniqueUsername(baseName){
+
+  // Clean username
   let username = baseName
     .toLowerCase()
     .replace(/\s+/g, "")
     .replace(/[^a-z0-9]/g, "");
-    username = username.slice(0, 18); // reserve space for numbers
-  
+
+  // Limit base name to 12 characters
+  username = username.slice(0, 12);
+
+  // Fallback if too short
   if(username.length < 3){
-    username = "user" + Math.floor(Math.random() * 10000);
+    username = "user";
   }
 
-  let finalUsername = username;
-  let counter = 0;
+  // Function to generate random 8-character string
+  function randomString(length = 8){
+    const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
+    let result = "";
 
-  while(counter < 20){
-    const userRef = doc(db, "users", finalUsername);
+    for(let i = 0; i < length; i++){
+      result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+
+    return result;
+  }
+
+  let finalUsername;
+  let isUnique = false;
+
+  // Keep trying until username is unique
+  while(!isUnique){
+
+    finalUsername = username + randomString(8);
+
+    // Check every user document for matching username
+    const userRef = doc(db, "usernames", finalUsername);
     const snap = await getDoc(userRef);
 
     if(!snap.exists()){
-      return finalUsername.slice(0, 24);
+      isUnique = true;
+
+      // Reserve username immediately
+      await setDoc(userRef, {
+        uid: "reserved"
+      });
     }
-
-    finalUsername = (username.slice(0, 18) + Math.floor(100000 + Math.random() * 900000))
-      .slice(0, 24);
-
-    counter++;
   }
 
-  // fallback (very unlikely)
-  return (username.slice(0, 18) + Date.now()).slice(0, 24);
+  return finalUsername;
 }
 
 window.submitForm = async function(){
@@ -193,6 +214,11 @@ window.submitForm = async function(){
         joinDate: Date.now(),
         description: "",
         profilePic: ""
+      });
+
+      // Save username lookup
+      await setDoc(doc(db, "usernames", uniqueUsername), {
+        uid: user.uid
       });
 
       // IMPORTANT: ALWAYS STORE USERNAME ONLY (NOT EMAIL)
@@ -256,6 +282,11 @@ window.googleSignIn = async function(){
         uid: user.uid,
         email: user.email,
         joinDate: Date.now()
+      });
+
+      // Save username lookup
+      await setDoc(doc(db, "usernames", finalUsername), {
+         uid: user.uid
       });
     }
 
