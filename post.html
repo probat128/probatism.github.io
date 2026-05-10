@@ -247,6 +247,15 @@ button {
 </div>
 
 <!-- IMAGE LOCK MODAL -->
+<div class="modal-bg" id="modal">
+  <div class="modal-content">
+    <p id="modalText"></p>
+    <button id="confirmBtn">Yes</button>
+    <button id="cancelBtn">No</button>
+  </div>
+</div>
+
+<!-- IMAGE LOCK MODAL -->
 <div id="imageLockModal" class="modal-bg">
   <div class="modal-content">
     <p>You must be signed in to attach images</p>
@@ -254,8 +263,7 @@ button {
   </div>
 </div>
 
-<script type="module">
-
+<!-- REPORT MODAL -->
 <div id="reportModal" class="modal-bg">
   <div class="modal-content">
     <p>
@@ -275,6 +283,8 @@ button {
     <button id="reportSuccessOkBtn">OK</button>
   </div>
 </div>
+
+<script type="module">
 
 import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import {
