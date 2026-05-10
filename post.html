@@ -375,44 +375,64 @@ replyImgInput.addEventListener("click", (e) => {
 /* AUTH */
 onAuthStateChanged(auth, async (user)=>{
 
-if(user && !user.isAnonymous){
-document.getElementById("logoutBtn").style.display = "inline";
+  // no auth yet → create anonymous session
+  if(!user){
+
+    try{
+      await signInAnonymously(auth);
+    } catch(err){
+      console.error(err);
+    }
+
+    return;
+  }
+
+  // IMPORTANT:
+  // anonymous users ALSO have UIDs
   currentUID = user.uid;
 
+  // ALWAYS CHECK BAN
   const banned = await checkBan(user.uid);
 
   if(banned){
     return;
   }
 
-  // 🔥 GET REAL USERNAME FROM FIRESTORE
-  try {
-    const userSnap = await getDoc(doc(db, "users", user.uid));
+  // SIGNED-IN USER
+  if(!user.isAnonymous){
 
-    if(userSnap.exists() && userSnap.data().username){
-      currentUser = userSnap.data().username;
-    } else {
+    document.getElementById("logoutBtn").style.display = "inline";
+
+    try {
+
+      const userSnap = await getDoc(doc(db, "users", user.uid));
+
+      if(userSnap.exists() && userSnap.data().username){
+        currentUser = userSnap.data().username;
+      } else {
+        currentUser = "Anonymous";
+      }
+
+    } catch(e){
+
+      console.error("User fetch error:", e);
+
       currentUser = "Anonymous";
     }
 
-  } catch(e){
-    console.error("User fetch error:", e);
+    document.getElementById("accountLink").innerText = "Profile";
+    document.getElementById("accountLink").href = "profile.html";
+
+  } else {
+
+    // ANONYMOUS USER
     currentUser = "Anonymous";
+
+    document.getElementById("accountLink").innerText = "Sign In / Sign Up";
+    document.getElementById("accountLink").href = "signin.html";
+    document.getElementById("logoutBtn").style.display = "none";
   }
 
-  document.getElementById("accountLink").innerText="Profile";
-  document.getElementById("accountLink").href="profile.html";
-
-} else {
-  currentUser = "Anonymous";
-  currentUID = null;
-
-  document.getElementById("accountLink").innerText = "Sign In / Sign Up";
-  document.getElementById("accountLink").href = "signin.html";
-  document.getElementById("logoutBtn").style.display = "none";
-
-  signInAnonymously(auth).catch(console.error);
-}
 });
 
 document.getElementById("logoutBtn").onclick=async()=>{
