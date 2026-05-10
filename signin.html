@@ -227,19 +227,13 @@ window.submitForm = async function(){
 
       const existsSnap = await getDoc(doc(db, "usernames", uniqueUsername));
 
-    if(existsSnap.exists()){
-      throw new Error("Username already taken");
-    }
-
-      const existsSnap = await getDoc(doc(db, "usernames", uniqueUsername));
-
       if(existsSnap.exists()){
         throw new Error("Username already taken");
       }
 
       // SAVE USER IN FIRESTORE (IMPORTANT: USE UID AS DOCUMENT ID)
       await setDoc(doc(db, "users", user.uid), {
-        username: uniqueUsername,
+        username: finalUsername,
         uid: user.uid,
         joinDate: Date.now(),
         usernameChangedAt: 0,
@@ -312,7 +306,7 @@ window.googleSignIn = async function(){
       finalUsername = await generateUniqueUsername(baseNameRaw, true);
 
       await setDoc(doc(db, "users", user.uid), {
-        username: uniqueUsername,
+        username: finalUsername,
         uid: user.uid,
         joinDate: Date.now(),
         usernameChangedAt: 0,
