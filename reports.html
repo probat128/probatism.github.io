@@ -461,26 +461,32 @@ window.dismissReport = async function(reportId){
 
 window.banTargetUser = async function(uid, username){
 
-  // 🔥 FIX: handle Anonymous properly
-  if(!uid || username === "Anonymous"){
-    alert("Cannot ban anonymous users (no UID available).");
+  if(!uid){
+    alert("No UID found.");
     return;
   }
 
   try{
 
     await setDoc(doc(db, "bannedUsers", uid), {
-      uid,
-      username: username || "Unknown",
+      uid: uid,
+
+      // keep visible name
+      username: username || "Anonymous",
+
       bannedAt: Date.now()
     });
 
     alert("User banned.");
 
   } catch(err){
+
     console.error(err);
+
     alert("Ban failed.");
+
   }
+
 };
 
 </script>
