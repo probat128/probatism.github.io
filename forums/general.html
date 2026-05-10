@@ -207,13 +207,35 @@ import { getFirestore, collection, addDoc, getDocs, query, where, orderBy, delet
 import { getAuth, onAuthStateChanged, signOut, signInAnonymously } 
 from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
-function extractMentions(text){
+async function extractMentions(text){
   if(!text) return [];
 
   const matches = text.match(/@[\w]+/g) || [];
-  const cleaned = matches.map(m => m.replace("@",""));
 
-  return [...new Set(cleaned)].filter(u => u !== "Anonymous");
+  const usernames = [
+    ...new Set(
+      matches.map(m => m.replace("@",""))
+    )
+  ].filter(u => u !== "Anonymous");
+
+  const results = [];
+
+  for(const username of usernames){
+
+    const usernameSnap = await getDoc(
+      doc(db, "usernames", username.toLowerCase())
+    );
+
+    if(usernameSnap.exists()){
+
+      results.push({
+        uid: usernameSnap.data().uid
+      });
+
+    }
+  }
+
+  return results;
 }
 
 /* ✅ FIXED CONFIG (THIS WAS THE BUG) */
@@ -427,14 +449,49 @@ window.goProfile = function(username){
   }
 };
 
-function renderMentions(text){
-  if(!text) return "";
+async function renderMentions(text){
 
-  return text.replace(/@([\w]+)/g, (match, username) => {
-    if(username === "Anonymous") return match;
+  if(!text) return text;
 
-    return `<span class="mention" onclick="goProfile('${username}')">@${username}</span>`;
-  });
+  const matches = [...text.matchAll(/@([\w]+)/g)];
+
+  let rendered = text;
+
+  for(const match of matches){
+
+    const oldUsername = match[1];
+
+    if(oldUsername === "Anonymous") continue;
+
+    try {
+
+      const usernameSnap = await getDoc(
+        doc(db, "usernames", oldUsername.toLowerCase())
+      );
+
+      if(!usernameSnap.exists()) continue;
+
+      const uid = usernameSnap.data().uid;
+
+      const userSnap = await getDoc(
+        doc(db, "users", uid)
+      );
+
+      if(!userSnap.exists()) continue;
+
+      const liveUsername = userSnap.data().username;
+
+      rendered = rendered.replace(
+        "@" + oldUsername,
+        `<span class="mention" onclick="goProfile('${liveUsername}')">@${liveUsername}</span>`
+      );
+
+    } catch(err){
+      console.error(err);
+    }
+  }
+
+  return rendered;
 }
 
 /* EVERYTHING ELSE UNCHANGED BELOW */
@@ -510,7 +567,7 @@ postButton.onclick = async ()=>{
     fullImage = await getFullImage(file);
   }
 
-  const mentions = extractMentions(text);
+  const mentions = await extractMentions(text);
 
 if(!auth.currentUser){
   alert("Authentication still loading. Please wait a second and try again.");
@@ -630,12 +687,18 @@ async function loadPosts(){
         <b ${safeAuthorClick}>
           ${displayName}${adminUIDs.includes(post.authorUID) ? " (admin)" : ""}
         :</b>
-        <div class="post-content">${renderMentions(shortText)}</div>
+
+        <div class="post-content"></div>
+     
         ${needsMore ? `<button class="readMoreBtn">Read More</button>` : ""}
         ${post.image ? `<img class="post-img" src="${post.image}" data-full="${post.fullImage || post.image}">` : ""}
+    
         <div class="time">${date}</div>
+
         <div class="button-row">
-          <button onclick="location.href='../post.html?id=${docSnap.id}'">Replies</button>
+          <button onclick="location.href='../post.html?id=${docSnap.id}'">
+            Replies
+          </button>
         </div>
 
         <span
@@ -647,9 +710,15 @@ async function loadPosts(){
       </div>
     `;
 
+    div.querySelector(".post-content").innerHTML =
+      await renderMentions(shortText);
+
     if(needsMore){
-      div.querySelector(".readMoreBtn").onclick=()=>{
-        div.querySelector(".post-content").innerHTML = renderMentions(post.content);
+      div.querySelector(".readMoreBtn").onclick = async ()=>{
+
+        div.querySelector(".post-content").innerHTML =
+          await renderMentions(post.content);
+
         div.querySelector(".readMoreBtn").remove();
       };
     }
