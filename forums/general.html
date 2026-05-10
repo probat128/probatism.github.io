@@ -168,6 +168,27 @@ textarea { width:100%; height:80px; background: rgb(232,224,207); color: rgb(91,
   </div>
 </div>
 
+<!-- REPORT MODAL -->
+<div id="reportModal" class="modal-bg">
+  <div class="modal-content">
+    <p>
+      Are you sure you want to report this post?<br><br>
+      False reports may lead to a ban.
+    </p>
+
+    <button id="confirmReportBtn">Report</button>
+    <button id="cancelReportBtn">Cancel</button>
+  </div>
+</div>
+
+<!-- REPORT SUCCESS MODAL -->
+<div id="reportSuccessModal" class="modal-bg">
+  <div class="modal-content">
+    <p>Report submitted.</p>
+    <button id="reportSuccessOkBtn">OK</button>
+  </div>
+</div>
+
 <script type="module">
 import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getFirestore, collection, addDoc, getDocs, query, where, orderBy, deleteDoc, doc, getDoc, limit, startAfter, updateDoc, increment } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
@@ -215,6 +236,11 @@ const confirmDeleteBtn = document.getElementById("confirmDeleteBtn");
 const cancelDeleteBtn = document.getElementById("cancelDeleteBtn");
 const imageLockModal = document.getElementById("imageLockModal");
 const imageLockOkBtn = document.getElementById("imageLockOkBtn");
+const reportModal = document.getElementById("reportModal");
+const confirmReportBtn = document.getElementById("confirmReportBtn");
+const cancelReportBtn = document.getElementById("cancelReportBtn");
+const reportSuccessModal = document.getElementById("reportSuccessModal");
+const reportSuccessOkBtn = document.getElementById("reportSuccessOkBtn");
 const accountLink = document.getElementById("accountLink");
 const logoutBtn = document.getElementById("logoutBtn");
 const adminUIDs = [
@@ -281,6 +307,8 @@ let lastVisible = null;
 let isPosting = false;
 let lastPostTime = 0;
 let postToDelete = null;
+let pendingReport = null;
+
 
 postImage.addEventListener("click", (e) => {
   if (!auth.currentUser || auth.currentUser.isAnonymous) {
@@ -749,30 +777,61 @@ async function loadAd(type, imgEl, linkEl) {
   }
 }
 
-window.reportPost = async function(postId, author, authorUID){
+window.reportPost = function(postId, author, authorUID){
 
-  const confirmBox = confirm(
-    "Are you sure you want to report this post? False reports will lead to a ban. You can check what breaks the rules here."
-  );
-
-  if(!confirmBox) return;
-
-  const report = {
-    type: "post",
-    contentId: postId,
-
-    reporterUID: currentUID,
-    reporterUsername: currentUser || "Anonymous",
-
-    targetUID: authorUID,
-    targetUsername: author,
-
-    createdAt: Date.now()
+  pendingReport = {
+    postId,
+    author,
+    authorUID
   };
 
-  await addDoc(collection(db, "reports"), report);
+  reportModal.style.display = "flex";
+};
 
-  alert("Report submitted.");
+confirmReportBtn.onclick = async () => {
+
+  if(!pendingReport) return;
+
+  try {
+
+    const report = {
+      type: "post",
+      contentId: pendingReport.postId,
+
+      reporterUID: currentUID,
+      reporterUsername: currentUser || "Anonymous",
+
+      targetUID: pendingReport.authorUID,
+      targetUsername: pendingReport.author,
+
+      createdAt: Date.now()
+    };
+
+    await addDoc(collection(db, "reports"), report);
+
+    pendingReport = null;
+
+    reportModal.style.display = "none";
+    reportSuccessModal.style.display = "flex";
+
+  } catch(err){
+
+    console.error("Report failed:", err);
+
+    pendingReport = null;
+    reportModal.style.display = "none";
+
+    alert("Failed to submit report.");
+  }
+};
+
+cancelReportBtn.onclick = () => {
+  pendingReport = null;
+  reportModal.style.display = "none";
+};
+
+reportSuccessOkBtn.onclick = () => {
+  reportSuccessModal.style.display = "none";
 };
 
 </script>
