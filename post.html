@@ -256,6 +256,27 @@ button {
 
 <script type="module">
 
+<!-- REPORT MODAL -->
+<div id="reportModal" class="modal-bg">
+  <div class="modal-content">
+    <p>
+      Are you sure you want to report this reply?<br><br>
+      Submitting false reports may lead to a ban.
+    </p>
+
+    <button id="confirmReportBtn">Report</button>
+    <button id="cancelReportBtn">Cancel</button>
+  </div>
+</div>
+
+<!-- REPORT SUCCESS MODAL -->
+<div id="reportSuccessModal" class="modal-bg">
+  <div class="modal-content">
+    <p>Report submitted.</p>
+    <button id="reportSuccessOkBtn">OK</button>
+  </div>
+</div>
+
 import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import {
 getFirestore,
@@ -295,7 +316,11 @@ const auth = getAuth(app);
 const imageLockModal = document.getElementById("imageLockModal");
 const imageLockOkBtn = document.getElementById("imageLockOkBtn");
 const replyImgInput = document.getElementById("replyImg");
-
+const reportModal = document.getElementById("reportModal");
+const confirmReportBtn = document.getElementById("confirmReportBtn");
+const cancelReportBtn = document.getElementById("cancelReportBtn");
+const reportSuccessModal = document.getElementById("reportSuccessModal");
+const reportSuccessOkBtn = document.getElementById("reportSuccessOkBtn");
 const postId = new URLSearchParams(location.search).get("id");
 let postAuthor = null;
 let postAuthorUID = null;
@@ -303,6 +328,7 @@ let postAuthorUID = null;
 /* STATE */
 let currentUser=null;
 let deleteTarget=null;
+let pendingReport=null;
 let replyList=[];
 let currentUID = null;
 
@@ -758,28 +784,59 @@ imageLockOkBtn.onclick = () => {
 loadPost();
 fetchReplies();
 
-window.reportReply = async function(replyId, author, authorUID){
+window.reportReply = function(replyId, author, authorUID){
 
-  const confirmBox = confirm(
-    "Are you sure you want to report this post? False reports will lead to a ban. You can check what breaks the rules here."
-  );
+  pendingReport = {
+    replyId,
+    author,
+    authorUID
+  };
 
-  if(!confirmBox) return;
+  reportModal.style.display = "flex";
+};
 
-  await addDoc(collection(db, "reports"), {
-    type: "reply",
-    contentId: replyId,
+confirmReportBtn.onclick = async () => {
 
-    reporterUID: currentUID,
-    reporterUsername: currentUser || "Anonymous",
+  if(!pendingReport) return;
 
-    targetUID: authorUID,
-    targetUsername: author,
+  try {
 
-    createdAt: Date.now()
-  });
+    await addDoc(collection(db, "reports"), {
+      type: "reply",
+      contentId: pendingReport.replyId,
 
-  alert("Report submitted.");
+      reporterUID: currentUID,
+      reporterUsername: currentUser || "Anonymous",
+
+      targetUID: pendingReport.authorUID,
+      targetUsername: pendingReport.author,
+
+      createdAt: Date.now()
+    });
+
+    pendingReport = null;
+
+    reportModal.style.display = "none";
+    reportSuccessModal.style.display = "flex";
+
+  } catch(err){
+
+    console.error("Report failed:", err);
+
+    pendingReport = null;
+    reportModal.style.display = "none";
+
+    alert("Failed to submit report.");
+  }
+};
+
+cancelReportBtn.onclick = () => {
+  pendingReport = null;
+  reportModal.style.display = "none";
+};
+
+reportSuccessOkBtn.onclick = () => {
+  reportSuccessModal.style.display = "none";
 };
 
    
