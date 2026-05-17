@@ -43,6 +43,26 @@ button{
   margin-top:10px;
   display:flex;
   gap:10px;
+
+  /* NEW */
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
+.reportContent{
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
+.readMoreBtn{
+  background:none;
+  border:none;
+  padding:0;
+  margin-top:5px;
+  cursor:pointer;
+  color:rgb(91,46,97);
+  text-decoration:underline;
 }
 
 .avatar{
@@ -156,6 +176,53 @@ onAuthStateChanged(auth, async (user)=>{
   loadReports();
 
 });
+
+
+function renderReportContent(text){
+
+  if(!text) return "";
+
+  if(text.length <= 800){
+    return `
+      <div class="reportContent">
+        ${text}
+      </div>
+    `;
+  }
+
+  const shortText = text.slice(0, 800);
+
+  const id = Math.random().toString(36).slice(2);
+
+  return `
+    <div
+      class="reportContent"
+      id="short_${id}"
+    >
+      ${shortText}
+    </div>
+
+    <button
+      class="readMoreBtn"
+      onclick="
+        document.getElementById('short_${id}').style.display='none';
+        document.getElementById('full_${id}').style.display='block';
+        this.remove();
+      "
+    >
+      Read More
+    </button>
+
+    <div
+      class="reportContent"
+      id="full_${id}"
+      style="display:none;"
+    >
+      ${text}
+    </div>
+  `;
+}
+
 
 /* =========================
    LOAD REPORTS
@@ -312,9 +379,7 @@ async function loadReports(){
             ${contentData.author}
           </b>
 
-          <div>
-            ${contentData.content || ""}
-          </div>
+          ${renderReportContent(contentData.content || "")}
 
           ${
             contentData.image
