@@ -246,9 +246,20 @@ async function loadReports(){
     return;
   }
 
+  const shownContentIds = new Set();
+
   for(const reportDoc of snap.docs){
 
     const report = reportDoc.data();
+
+    // prevent duplicate reports for same content
+    const uniqueKey = `${report.type}_${report.contentId}`;
+
+    if(shownContentIds.has(uniqueKey)){
+      continue;
+    }
+
+    shownContentIds.add(uniqueKey);
 
     let contentData = null;
 
