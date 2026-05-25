@@ -178,7 +178,7 @@ textarea { width:100%; height:80px; background: rgb(232,224,207); color: rgb(91,
 <div id="reportModal" class="modal-bg">
   <div class="modal-content">
     <p>
-      Are you sure you want to report this reply?<br><br>
+      Are you sure you want to report this post?<br><br>
 
       Submitting false reports may lead to a ban.<br><br>
 
@@ -449,11 +449,20 @@ window.goProfile = function(username){
   }
 };
 
+function escapeHtml(text){
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
 async function renderMentions(text, mentionedUsers = []){
 
-  if(!text) return text;
+  if(!text) return "";
 
-  let rendered = text;
+  let rendered = escapeHtml(text);
 
   const matches = [...text.matchAll(/@([\w]+)/g)];
 
@@ -469,7 +478,6 @@ async function renderMentions(text, mentionedUsers = []){
 
     const mentionData = mentionedUsers[i];
 
-    // if no UID stored → leave plain text
     if(!mentionData || !mentionData.uid){
       continue;
     }
@@ -480,7 +488,6 @@ async function renderMentions(text, mentionedUsers = []){
         doc(db, "users", mentionData.uid)
       );
 
-      // user deleted
       if(!userSnap.exists()){
         continue;
       }
@@ -582,36 +589,55 @@ if(!auth.currentUser){
   return;
 }
 
-await addDoc(collection(db,"posts"),{
+try{
+
+  await addDoc(collection(db,"posts"),{
     subforum:"general",
 
-    // keep display name anonymous
     author: currentUser || "Anonymous",
 
-    // IMPORTANT:
-    // anonymous users STILL have Firebase UIDs
-    // never store null anymore
     authorUID: auth.currentUser.uid,
 
     authorEmail: auth.currentUser.email || null,
+
     content:text,
+
     image:image,
+
     fullImage:fullImage,
+
     time:Date.now(),
+
     mentionedUsers: mentions
   });
 
   lastPostTime=Date.now();
+
   document.getElementById("cooldownMsg").style.display = "none";
+
   postText.value="";
+
   postImage.value="";
-  isPosting=false;
-  postButton.disabled=false;
 
   postsDiv.innerHTML="";
+
   lastVisible=null;
+
   loadPosts();
-};
+
+} catch(err){
+
+  console.error("Post failed:", err);
+
+  alert("Failed to create post.");
+
+} finally {
+
+  isPosting=false;
+
+  postButton.disabled=false;
+}
+  // add "};" perhaps
 
 async function loadPosts(){
   
@@ -638,9 +664,19 @@ async function loadPosts(){
     postsDiv.innerHTML = "";
   }
 
-  if(snap.empty) return;
+  if(snap.empty){
+
+    loadMoreBtn.style.display = "none";
+
+    return;
+  }
 
   lastVisible=snap.docs[snap.docs.length-1];
+  if(snap.docs.length < 10){
+    loadMoreBtn.style.display = "none";
+  } else {
+    loadMoreBtn.style.display = "inline-block";
+  }
 
   for(const docSnap of snap.docs){
     const post=docSnap.data();
@@ -697,7 +733,17 @@ async function loadPosts(){
         <div class="post-content"></div>
      
         ${needsMore ? `<button class="readMoreBtn">Read More</button>` : ""}
-        ${post.image ? `<img class="post-img" src="${post.image}" data-full="${post.fullImage || post.image}">` : ""}
+        ${post.image ? `
+          <img
+            class="post-img"
+            src="${post.image}"
+            data-full="${post.fullImage || post.image}"
+            onclick="
+              document.getElementById('modalImg').src=this.dataset.full;
+              document.getElementById('imgModal').style.display='flex';
+            "
+          >
+`         : ""}
     
         <div class="time">${date}</div>
 
@@ -752,12 +798,6 @@ async function loadPosts(){
       div.querySelector(".button-row").appendChild(btn);
     }
 
-document.querySelectorAll(".post-img").forEach(img=>{
-  img.onclick=()=>{
-    document.getElementById("modalImg").src = img.dataset.full;
-    document.getElementById("imgModal").style.display="flex";
-  };
-});
 
 postsDiv.appendChild(div);
 
