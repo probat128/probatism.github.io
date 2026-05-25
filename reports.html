@@ -246,20 +246,9 @@ async function loadReports(){
     return;
   }
 
-  const shownContentIds = new Set();
-
   for(const reportDoc of snap.docs){
 
     const report = reportDoc.data();
-
-    // prevent duplicate reports for same content
-    const uniqueKey = `${report.type}_${report.contentId}`;
-
-    if(shownContentIds.has(uniqueKey)){
-      continue;
-    }
-
-    shownContentIds.add(uniqueKey);
 
     let contentData = null;
 
@@ -338,25 +327,9 @@ async function loadReports(){
 
     if(!contentData){
 
-      div.innerHTML = `
-        <div class="reportMeta">
-          <b>Reported ${report.type}</b><br>
-          Reporter: ${report.reporterUsername}<br>
-          Target: ${report.targetUsername}
-        </div>
-
-        <p>Original content no longer exists.</p>
-
-        <div class="buttonRow">
-          <button onclick="dismissReport('${reportDoc.id}')">
-            Dismiss
-          </button>
-        </div>
-      `;
-
-      reportsDiv.appendChild(div);
-
+      // automatically hide reports for deleted content
       continue;
+
     }
 
     div.innerHTML = `
