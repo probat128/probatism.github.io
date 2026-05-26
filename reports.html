@@ -270,35 +270,59 @@ async function loadReports(){
   const dismissedSnap = await getDocs(dismissedQ);
 
   /* combine */
-    /* combine */
-    const combinedDocs = [
-      ...snap.docs
-    ];
+    const weekAgo =
+      Date.now() - (7 * 24 * 60 * 60 * 1000);
+
+    /* store dismissed contentIds */
+    const dismissedContentIds = new Set();
+
+    /* dismissed reports to display */
+    const dismissedDocsToShow = [];
+
+    dismissedSnap.docs.forEach(docSnap => {
+
+      const data = docSnap.data();
+
+      if(data.dismissedAt >= weekAgo){
+
+        dismissedContentIds.add(data.contentId);
+
+        dismissedDocsToShow.push({
+          id: docSnap.id,
+          data: () => ({
+            ...data,
+            dismissedHistory: true
+          })
+        });
+
+      }
+
+    });
+
+    /* active reports */
+    const combinedDocs = [];
+
+    snap.docs.forEach(docSnap => {
+
+      const data = docSnap.data();
+
+      /*
+        hide active reports
+        if content was dismissed
+      */
+      if(!dismissedContentIds.has(data.contentId)){
+
+        combinedDocs.push(docSnap);
+
+      }
+  
+    });
 
     /* optionally show dismissed */
     if(showDismissed){
 
-      const weekAgo =
-        Date.now() - (7 * 24 * 60 * 60 * 1000);
+      combinedDocs.push(...dismissedDocsToShow);
 
-      dismissedSnap.docs.forEach(docSnap => {
-
-        const data = docSnap.data();
-
-        if(data.dismissedAt >= weekAgo){
-
-          combinedDocs.push({
-            id: docSnap.id,
-            data: () => ({
-              ...data,
-              dismissedHistory: true
-            })
-          });
-  
-        }
-
-      });
-  
     }
   if(snap.empty){
     reportsDiv.innerHTML = "<p>No reports.</p>";
