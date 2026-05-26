@@ -286,7 +286,93 @@ async function loadReports(){
     const reportsSnap =
       await getDocs(reportsQuery);
 
-    let combinedDocs = [...reportsSnap.docs];
+    let combinedDocs = [];
+
+/* =========================
+   LOAD DISMISSED IDS
+========================= */
+
+const dismissedContentIds = new Set();
+
+const dismissedDocsToShow = [];
+
+if(showDismissed){
+
+  const dismissedQuery = query(
+    collection(db, "dismissedReports"),
+    orderBy("dismissedAt", "desc")
+  );
+
+  const dismissedSnap =
+    await getDocs(dismissedQuery);
+
+  const weekAgo =
+    Date.now() -
+    (7 * 24 * 60 * 60 * 1000);
+
+  dismissedSnap.docs.forEach(docSnap => {
+
+    const data = docSnap.data();
+
+    /* remember dismissed content */
+    dismissedContentIds.add(data.contentId);
+
+    /* only SHOW recent dismissed */
+    if(data.dismissedAt >= weekAgo){
+
+      dismissedDocsToShow.push({
+        id: docSnap.id,
+        data: () => ({
+          ...data,
+          dismissedHistory: true
+        })
+      });
+
+    }
+
+  });
+
+} else {
+
+  /* still load dismissed ids
+     so active reports stay hidden */
+  const dismissedSnap = await getDocs(
+    collection(db, "dismissedReports")
+  );
+
+  dismissedSnap.docs.forEach(docSnap => {
+
+    const data = docSnap.data();
+
+    dismissedContentIds.add(data.contentId);
+
+  });
+
+}
+
+/* =========================
+   ACTIVE REPORTS
+========================= */
+
+reportsSnap.docs.forEach(docSnap => {
+
+  const data = docSnap.data();
+
+  /* hide reports already dismissed */
+  if(!dismissedContentIds.has(data.contentId)){
+
+    combinedDocs.push(docSnap);
+
+  }
+
+});
+
+/* optionally show dismissed */
+if(showDismissed){
+
+  combinedDocs.push(...dismissedDocsToShow);
+
+}
 
     /* optionally load dismissed */
     if(showDismissed){
