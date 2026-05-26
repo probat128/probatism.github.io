@@ -559,23 +559,48 @@ window.dismissReport = async function(reportId){
 
     const reportSnap = await getDoc(reportRef);
 
-    if(reportSnap.exists()){
-
-      const reportData = reportSnap.data();
-
-      /* save dismissal history */
-      await addDoc(collection(db, "dismissedReports"), {
-
-        ...reportData,
-
-        dismissedAt: Date.now()
-
-      });
-
+    if(!reportSnap.exists()){
+      alert("Report not found.");
+      return;
     }
 
-    /* remove active report */
-    await deleteDoc(reportRef);
+    const reportData = reportSnap.data();
+
+    /* =========================
+       FIND ALL REPORTS
+       FOR SAME CONTENT
+    ========================= */
+
+    const relatedReportsQuery = query(
+      collection(db, "reports"),
+      where("contentId", "==", reportData.contentId)
+    );
+
+    const relatedReportsSnap =
+      await getDocs(relatedReportsQuery);
+
+    /* =========================
+       MOVE ALL TO DISMISSED
+    ========================= */
+
+    for(const relatedDoc of relatedReportsSnap.docs){
+
+      const relatedData = relatedDoc.data();
+
+      await addDoc(
+        collection(db, "dismissedReports"),
+        {
+          ...relatedData,
+          dismissedAt: Date.now()
+        }
+      );
+
+      /* delete active report */
+      await deleteDoc(
+        doc(db, "reports", relatedDoc.id)
+      );
+
+    }
 
     location.reload();
 
