@@ -103,6 +103,11 @@ button{
 
 <h1>Reports</h1>
 
+<label style="display:block; margin-bottom:15px;">
+  <input type="checkbox" id="showDismissed">
+  Show dismissed reports from the past week
+</label>
+
 <div id="reports">
 Loading...
 </div>
@@ -155,6 +160,10 @@ const db = getFirestore(app);
 const auth = getAuth(app);
 const showDismissedCheckbox =
   document.getElementById("showDismissed");
+
+if(!showDismissedCheckbox){
+  console.error("Missing #showDismissed checkbox");
+}
 /* =========================
    ADMINS
 ========================= */
@@ -242,8 +251,9 @@ async function loadReports(){
   reportsDiv.innerHTML = "";
 
   const showDismissed =
-    showDismissedCheckbox.checked;
-
+    showDismissedCheckbox
+      ? showDismissedCheckbox.checked
+      : false;
   const q = query(
     collection(db, "reports"),
     orderBy("createdAt", "asc")
