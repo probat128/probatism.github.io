@@ -194,10 +194,31 @@ showDismissedCheckbox.onchange = () => {
 
 });
 
+function escapeHTML(str = ""){
+
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+
+}
+
+function escapeAttr(str = ""){
+
+  return String(str)
+    .replace(/\\/g, "\\\\")
+    .replace(/'/g, "\\'")
+    .replace(/"/g, '&quot;');
+
+}
+
 
 function renderReportContent(text){
 
   if(!text) return "";
+  text = escapeHTML(text);
 
   if(text.length <= 800){
     return `
@@ -419,7 +440,7 @@ async function loadReports(){
               </b><br>
 
               Reporter:
-              ${report.reporterUsername}
+              ${escapeHTML(report.reporterUsername || "")}
               ${
                 report.reporterUID
                   ? `(${report.reporterUID})`
@@ -429,7 +450,7 @@ async function loadReports(){
               <br>
 
               Target:
-              ${report.targetUsername}
+              ${escapeHTML(report.targetUsername || "")}
               ${
                 report.targetUID
                   ? `(${report.targetUID})`
@@ -455,7 +476,7 @@ async function loadReports(){
               <div>
 
                 <b>
-                  ${contentData.author}
+                  ${escapeHTML(contentData.author || "")}
                 </b>
 
                 ${renderReportContent(
@@ -467,8 +488,9 @@ async function loadReports(){
                     ? `
                       <img
                         class="postImg"
-                        src="${contentData.image}"
+                        src="${escapeAttr(contentData.image)}"
                         loading="lazy"
+                        onerror="this.style.display='none'"
                       >
                     `
                     : ""
@@ -488,8 +510,8 @@ async function loadReports(){
 
               <button
                 onclick="deleteContent(
-                  '${report.type}',
-                  '${report.contentId}'
+                  '${escapeAttr(report.type)}',
+                  '${escapeAttr(report.contentId)}'
                 )"
               >
                 Delete Content
@@ -498,8 +520,8 @@ async function loadReports(){
               <button
                 onclick="
                   banTargetUser(
-                    '${report.targetUID}',
-                    '${report.targetUsername}'
+                    '${escapeAttr(report.targetUID)}',
+                    '${escapeAttr(report.targetUsername)}'
                   )
                 "
               >
@@ -509,8 +531,8 @@ async function loadReports(){
               <button
                 onclick="
                   banUser(
-                    '${report.reporterUID}',
-                    '${report.reporterUsername}'
+                    '${escapeAttr(report.reporterUID)}',
+                    '${escapeAttr(report.reporterUsername)}'
                   )
                 "
               >
@@ -520,7 +542,7 @@ async function loadReports(){
               <button
                 onclick="
                   dismissReport(
-                    '${reportDoc.id}'
+                    '${escapeAttr(reportDoc.id)}'
                   )
                 "
               >
