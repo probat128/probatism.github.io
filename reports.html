@@ -158,6 +158,7 @@ const app =
 
 const db = getFirestore(app);
 const auth = getAuth(app);
+const profilePicCache = {};
 const showDismissedCheckbox =
   document.getElementById("showDismissed");
 
@@ -246,261 +247,304 @@ function renderReportContent(text){
 
 async function loadReports(){
 
-  const reportsDiv = document.getElementById("reports");
+  const reportsDiv =
+    document.getElementById("reports");
 
-  reportsDiv.innerHTML = "";
+  reportsDiv.innerHTML = "Loading...";
 
-  const showDismissed =
-    showDismissedCheckbox
-      ? showDismissedCheckbox.checked
-      : false;
-  const q = query(
-    collection(db, "reports"),
-    orderBy("createdAt", "asc")
-  );
+  try{
 
-  const snap = await getDocs(q);
+    const showDismissed =
+      showDismissedCheckbox?.checked;
 
-  /* dismissed history */
-  const dismissedQ = query(
-    collection(db, "dismissedReports"),
-    orderBy("dismissedAt", "desc")
-  );
+    const reportsQuery = query(
+      collection(db, "reports"),
+      orderBy("createdAt", "asc")
+    );
 
-  const dismissedSnap = await getDocs(dismissedQ);
+    const reportsSnap =
+      await getDocs(reportsQuery);
 
-  /* combine */
-    const weekAgo =
-      Date.now() - (7 * 24 * 60 * 60 * 1000);
+    let combinedDocs = [...reportsSnap.docs];
 
-    /* store dismissed contentIds */
-    const dismissedContentIds = new Set();
-
-    /* dismissed reports to display */
-    const dismissedDocsToShow = [];
-
-    dismissedSnap.docs.forEach(docSnap => {
-
-      const data = docSnap.data();
-
-      if(data.dismissedAt >= weekAgo){
-
-        dismissedContentIds.add(data.contentId);
-
-        dismissedDocsToShow.push({
-          id: docSnap.id,
-          data: () => ({
-            ...data,
-            dismissedHistory: true
-          })
-        });
-
-      }
-
-    });
-
-    /* active reports */
-    const combinedDocs = [];
-
-    snap.docs.forEach(docSnap => {
-
-      const data = docSnap.data();
-
-      /*
-        hide active reports
-        if content was dismissed
-      */
-      if(!dismissedContentIds.has(data.contentId)){
-
-        combinedDocs.push(docSnap);
-
-      }
-  
-    });
-
-    /* optionally show dismissed */
+    /* optionally load dismissed */
     if(showDismissed){
 
-      combinedDocs.push(...dismissedDocsToShow);
+      const dismissedQuery = query(
+        collection(db, "dismissedReports"),
+        orderBy("dismissedAt", "desc")
+      );
 
-    }
-  if(snap.empty){
-    reportsDiv.innerHTML = "<p>No reports.</p>";
-    return;
-  }
+      const dismissedSnap =
+        await getDocs(dismissedQuery);
 
-  for(const reportDoc of combinedDocs){
+      const weekAgo =
+        Date.now() -
+        (7 * 24 * 60 * 60 * 1000);
 
-    const report = reportDoc.data();
+      dismissedSnap.docs.forEach(docSnap => {
 
-    let contentData = null;
+        const data = docSnap.data();
 
-    /* =========================
-       LOAD TARGET CONTENT
-    ========================= */
+        if(data.dismissedAt >= weekAgo){
 
-    try{
+          combinedDocs.push({
+            id: docSnap.id,
+            data: () => ({
+              ...data,
+              dismissedHistory: true
+            })
+          });
 
-      if(report.type === "post"){
-
-        const contentSnap = await getDoc(
-          doc(db, "posts", report.contentId)
-        );
-
-        if(contentSnap.exists()){
-          contentData = contentSnap.data();
         }
 
-      } else if(report.type === "reply"){
+      });
 
-        const contentSnap = await getDoc(
-          doc(db, "replies", report.contentId)
-        );
-
-        if(contentSnap.exists()){
-          contentData = contentSnap.data();
-        }
-
-      }
-
-    } catch(err){
-      console.error(err);
     }
 
-    /* =========================
-       PROFILE PIC
-    ========================= */
+    if(combinedDocs.length === 0){
+      reportsDiv.innerHTML =
+        "<p>No reports.</p>";
+      return;
+    }
 
-    let profilePic = "";
+    /* build all reports in parallel */
+    const htmlArray = await Promise.all(
 
-    if(contentData && contentData.author !== "Anonymous"){
+      combinedDocs.map(async (reportDoc) => {
 
-      try{
+        const report = reportDoc.data();
 
-        const userQuery = query(
-          collection(db, "users"),
-          where("username", "==", contentData.author)
-        );
+        let contentData = null;
 
-        const userSnap = await getDocs(userQuery);
+        try{
 
-        if(!userSnap.empty){
+          if(report.type === "post"){
 
-          const userData = userSnap.docs[0].data();
+            const snap = await getDoc(
+              doc(db, "posts", report.contentId)
+            );
 
-          if(userData.profilePic){
-            profilePic = userData.profilePic;
+            if(snap.exists()){
+              contentData = snap.data();
+            }
+
+          } else if(report.type === "reply"){
+
+            const snap = await getDoc(
+              doc(db, "replies", report.contentId)
+            );
+
+            if(snap.exists()){
+              contentData = snap.data();
+            }
+
+          }
+
+        } catch(err){
+
+          console.error(err);
+
+        }
+
+        if(!contentData){
+          return "";
+        }
+
+        /* profile pic cache */
+        let profilePic = "";
+
+        if(
+          contentData.author &&
+          contentData.author !== "Anonymous"
+        ){
+
+          if(profilePicCache[contentData.author]){
+
+            profilePic =
+              profilePicCache[contentData.author];
+
+          } else {
+
+            try{
+
+              const userQuery = query(
+                collection(db, "users"),
+                where(
+                  "username",
+                  "==",
+                  contentData.author
+                )
+              );
+
+              const userSnap =
+                await getDocs(userQuery);
+
+              if(!userSnap.empty){
+
+                const userData =
+                  userSnap.docs[0].data();
+
+                profilePic =
+                  userData.profilePic || "";
+
+                profilePicCache[
+                  contentData.author
+                ] = profilePic;
+
+              }
+
+            } catch(err){
+
+              console.error(err);
+
+            }
+
           }
 
         }
 
-      } catch(err){
-        console.error(err);
-      }
+        return `
+          <div class="reportBox">
 
-    }
+            <div class="reportMeta">
 
-    /* =========================
-       BUILD REPORT UI
-    ========================= */
+              <b>
+                Reported ${report.type}
+                ${
+                  report.dismissedHistory
+                    ? "(dismissed)"
+                    : ""
+                }
+              </b><br>
 
-    const div = document.createElement("div");
+              Reporter:
+              ${report.reporterUsername}
+              ${
+                report.reporterUID
+                  ? `(${report.reporterUID})`
+                  : "(Anonymous)"
+              }
 
-    div.className = "reportBox";
+              <br>
 
-    if(!contentData){
+              Target:
+              ${report.targetUsername}
+              ${
+                report.targetUID
+                  ? `(${report.targetUID})`
+                  : "(Anonymous)"
+              }
 
-      // automatically hide reports for deleted content
-      continue;
+            </div>
 
-    }
+            <div class="postBox">
 
-    div.innerHTML = `
-      <div class="reportMeta">
+              ${
+                profilePic
+                  ? `
+                    <img
+                      class="avatar"
+                      src="${profilePic}"
+                      loading="lazy"
+                    >
+                  `
+                  : ""
+              }
 
-        <b>
-          Reported ${report.type}
-          ${report.dismissedHistory ? "(dismissed)" : ""}
-        </b><br>
+              <div>
 
-        Reporter:
-        ${report.reporterUsername}
-        ${report.reporterUID ? `(${report.reporterUID})` : "(Anonymous)"}
+                <b>
+                  ${contentData.author}
+                </b>
 
-        <br>
+                ${renderReportContent(
+                  contentData.content || ""
+                )}
 
-        Target:
-        ${report.targetUsername}
-        ${report.targetUID ? `(${report.targetUID})` : "(Anonymous)"}
+                ${
+                  contentData.image
+                    ? `
+                      <img
+                        class="postImg"
+                        src="${contentData.image}"
+                        loading="lazy"
+                      >
+                    `
+                    : ""
+                }
 
-      </div>
+                <div class="time">
+                  ${new Date(
+                    contentData.time
+                  ).toLocaleString()}
+                </div>
 
-      <div class="postBox">
+              </div>
 
-        ${
-          profilePic
-            ? `<img class="avatar" src="${profilePic}">`
-            : ``
-        }
+            </div>
 
-        <div>
+            <div class="buttonRow">
 
-          <b>
-            ${contentData.author}
-          </b>
+              <button
+                onclick="deleteContent(
+                  '${report.type}',
+                  '${report.contentId}'
+                )"
+              >
+                Delete Content
+              </button>
 
-          ${renderReportContent(contentData.content || "")}
+              <button
+                onclick="
+                  banTargetUser(
+                    '${report.targetUID}',
+                    '${report.targetUsername}'
+                  )
+                "
+              >
+                Ban Target
+              </button>
 
-          ${
-            contentData.image
-              ? `<img class="postImg" src="${contentData.image}">`
-              : ``
-          }
+              <button
+                onclick="
+                  banUser(
+                    '${report.reporterUID}',
+                    '${report.reporterUsername}'
+                  )
+                "
+              >
+                Ban Reporter
+              </button>
 
-          <div class="time">
-            ${new Date(contentData.time).toLocaleString()}
+              <button
+                onclick="
+                  dismissReport(
+                    '${reportDoc.id}'
+                  )
+                "
+              >
+                Dismiss
+              </button>
+
+            </div>
+
           </div>
+        `;
 
-        </div>
+      })
 
-      </div>
+    );
 
-      <div class="buttonRow">
+    reportsDiv.innerHTML =
+      htmlArray.join("");
 
-        <button
-          onclick="deleteContent(
-            '${report.type}',
-            '${report.contentId}'
-          )"
-        >
-          Delete Content
-        </button>
+  } catch(err){
 
-        <button
-          onclick="banTargetUser('${report.targetUID}', '${report.targetUsername}')"
-        >
-          Ban Target
-        </button>
+    console.error(err);
 
-        <button
-          onclick="banUser(
-            '${report.reporterUID}',
-            '${report.reporterUsername}'
-          )"
-        >
-          Ban Reporter
-        </button>
-
-        <button
-          onclick="dismissReport('${reportDoc.id}')"
-        >
-          Dismiss
-        </button>
-
-      </div>
-    `;
-
-    reportsDiv.appendChild(div);
+    reportsDiv.innerHTML =
+      "<p>Failed to load reports.</p>";
 
   }
 
