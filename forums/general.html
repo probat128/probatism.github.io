@@ -98,13 +98,13 @@ textarea { width:100%; height:80px; background: rgb(232,224,207); color: rgb(91,
 }
 
 .mention {
-  color: inherit;
+  color: blue;
   cursor: pointer;
   text-decoration: underline;
 }
 
 .mention:hover {
-  color: blue;
+  opacity: 0.8;
 }
 
 .report-btn {
@@ -502,7 +502,7 @@ async function renderMentions(text, mentionedUsers = []){
 
     const mentionData = mentionedUsers[i];
 
-    if(!mentionData || !mentionData.uid){
+    if(!mentionData?.uid){
       continue;
     }
 
