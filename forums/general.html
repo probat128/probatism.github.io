@@ -707,24 +707,7 @@ async function loadPosts(){
 
     const post=docSnap.data();
 
-    // SEARCH FILTER
-    if(currentSearch){
 
-      const searchText = currentSearch.toLowerCase();
-
-      const content =
-        (post.content || "").toLowerCase();
-
-      const author =
-        (post.author || "").toLowerCase();
-
-      if(
-        !content.includes(searchText) &&
-        !author.includes(searchText)
-      ){
-        continue;
-      }
-    }
         // SEARCH FILTER
     if(currentSearch){
 
@@ -743,7 +726,6 @@ async function loadPosts(){
         continue;
       }
     }
-    const post=docSnap.data();
     const date=new Date(post.time).toLocaleString();
 
     let profilePic = "";
