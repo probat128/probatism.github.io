@@ -234,11 +234,10 @@ async function extractMentions(text){
 
   const matches = text.match(/@[\w]+/g) || [];
 
-  const usernames = [
-    ...new Set(
-      matches.map(m => m.replace("@",""))
-    )
-  ].filter(u => u !== "Anonymous");
+  const usernames =
+    matches
+      .map(m => m.replace("@",""))
+      .filter(u => u !== "Anonymous");
 
   const results = [];
 
@@ -559,10 +558,50 @@ function resizeImage(file){
 function getFullImage(file){
   return new Promise(resolve=>{
     const reader = new FileReader();
-    reader.onload = e=> resolve(e.target.result);
+
+    reader.onload = e=>{
+      const img = new Image();
+
+      img.onload = ()=>{
+
+        const maxSize = 1280;
+
+        let width = img.width;
+        let height = img.height;
+
+        if(width > height && width > maxSize){
+          height *= maxSize / width;
+          width = maxSize;
+        }
+        else if(height > maxSize){
+          width *= maxSize / height;
+          height = maxSize;
+        }
+
+        const canvas = document.createElement("canvas");
+
+        canvas.width = width;
+        canvas.height = height;
+
+        canvas
+          .getContext("2d")
+          .drawImage(img,0,0,width,height);
+
+        resolve(
+          canvas.toDataURL(
+            "image/jpeg",
+            0.8
+          )
+        );
+      };
+
+      img.src = e.target.result;
+    };
+
     reader.readAsDataURL(file);
   });
 }
+
 
 postButton.onclick = async ()=>{
   if (!auth.currentUser || auth.currentUser.isAnonymous) {
@@ -670,16 +709,24 @@ async function loadPosts(){
     collection(db,"posts"),
     where("subforum","==","general"),
     orderBy("time","desc"),
-    limit(10)
+    limit(
+      currentSearch
+        ? 100
+        : 10
+    )
   );
 
-  if(lastVisible){
+  if(lastVisible && !currentSearch){
     q=query(
       collection(db,"posts"),
       where("subforum","==","general"),
       orderBy("time","desc"),
       startAfter(lastVisible),
-      limit(10)
+    limit(
+      currentSearch
+        ? 100
+        : 10
+    )
     );
   }
 
@@ -967,9 +1014,23 @@ async function loadAd(type, imgEl, linkEl) {
     };
 
     // 8. Decrement impressions
-    await updateDoc(doc(db, "ads", chosen.id), {
-      impressionsLeft: increment(-1)
-    });
+    try{
+
+      await updateDoc(
+        doc(db,"ads",chosen.id),
+        {
+          impressionsLeft: increment(-1)
+        }
+      );
+
+    }catch(err){
+
+      console.error(
+        "Impression update failed:",
+        err
+      );
+
+    }
 
   } catch (err) {
     console.error("Ad load error:", err);
