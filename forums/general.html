@@ -234,25 +234,27 @@ async function extractMentions(text){
 
   const matches = text.match(/@[\w]+/g) || [];
 
-  const usernames =
-    matches
-      .map(m => m.replace("@",""))
-      .filter(u => u !== "Anonymous");
-
   const results = [];
 
-  for(const username of usernames){
+  for(const match of matches){
+
+    const username = match.replace("@","");
+
+    if(username === "Anonymous"){
+      results.push(null);
+      continue;
+    }
 
     const usernameSnap = await getDoc(
       doc(db, "usernames", username.toLowerCase())
     );
 
     if(usernameSnap.exists()){
-
       results.push({
         uid: usernameSnap.data().uid
       });
-
+    } else {
+      results.push(null);
     }
   }
 
@@ -711,7 +713,7 @@ async function loadPosts(){
     orderBy("time","desc"),
     limit(
       currentSearch
-        ? 100
+        ? 500
         : 10
     )
   );
@@ -724,7 +726,7 @@ async function loadPosts(){
       startAfter(lastVisible),
     limit(
       currentSearch
-        ? 100
+        ? 500
         : 10
     )
     );
@@ -743,7 +745,9 @@ async function loadPosts(){
     return;
   }
 
-  lastVisible=snap.docs[snap.docs.length-1];
+  if(!currentSearch){
+    lastVisible = snap.docs[snap.docs.length - 1];
+  }
   if(snap.docs.length < 10){
     loadMoreBtn.style.display = "none";
   } else {
