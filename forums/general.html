@@ -809,11 +809,13 @@ async function loadPosts(){
     const div=document.createElement("div");
     div.className="post";
 
-    const shortText = post.content.length > 400
-      ? post.content.slice(0,400)
-      : post.content;
+    const content = post.content || "";
 
-    const needsMore = post.content.length > 400;
+    const shortText = content.length > 400
+      ? content.slice(0, 400)
+      : content;
+
+    const needsMore = content.length > 400;
 
     const safeAuthorClick =
       displayName !== "Anonymous"
@@ -870,7 +872,7 @@ async function loadPosts(){
 
         div.querySelector(".post-content").innerHTML =
           await renderMentions(
-            post.content,
+            content,
             post.mentionedUsers || []
           );
 
