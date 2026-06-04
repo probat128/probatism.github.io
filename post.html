@@ -683,7 +683,7 @@ async function fetchReplies(){
   document.getElementById("replies").innerHTML = "";
 
   // load first batch
-  renderReplies();
+  await renderReplies();
 }
 
 async function renderReplies(){
@@ -735,8 +735,6 @@ async function renderReplies(){
         </button>
       ` : ``}
 
-        <button class="deleteBtn" onclick="openDelete('${r.id}')">Delete</button>
-      ` : ``}
 
    </div>
    `;
@@ -936,6 +934,13 @@ confirmReportBtn.onclick = async () => {
       createdAt: Date.now()
     });
 
+    lastReportTime = Date.now();
+
+    localStorage.setItem(
+      "lastReportTime",
+      lastReportTime
+    );
+
     pendingReport = null;
 
     reportModal.style.display = "none";
@@ -961,12 +966,7 @@ reportSuccessOkBtn.onclick = () => {
   reportSuccessModal.style.display = "none";
 };
 
-lastReportTime = Date.now();
 
-localStorage.setItem(
-  "lastReportTime",
-  lastReportTime
-);
 
    
 </script>
