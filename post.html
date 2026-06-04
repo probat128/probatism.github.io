@@ -259,13 +259,6 @@ button {
   </div>
 </div>
 
-<!-- IMAGE LOCK MODAL -->
-<div id="imageLockModal" class="modal-bg">
-  <div class="modal-content">
-    <p>You must be signed in to attach images</p>
-    <button id="imageLockOkBtn">OK</button>
-  </div>
-</div>
 
 <!-- REPORT MODAL -->
 <div id="reportModal" class="modal-bg">
@@ -379,6 +372,7 @@ let replyList=[];
 let currentUID = null;
 let lastReportTime =
   Number(localStorage.getItem("lastReportTime")) || 0;
+   
 
 const adminUIDs = [
   "IDlmRGgh2PaLx15krpeq5jGU6SJ3",
@@ -658,12 +652,13 @@ ${p.image?`<br><img class="imgThumb" src="${p.image}" data-full="${p.image}" onc
 </div>
 `;
 
+const postHtml = await renderMentions(
+  p.content,
+  p.mentionedUsers || []
+);
+
 document.getElementById("mainPostContent").innerHTML =
-  await renderMentions(
-    readMore(p.content),
-    p.mentionedUsers || []
-  );
-}
+  readMore(postHtml);
 
 /* REPLIES */
 async function fetchReplies(){
@@ -741,11 +736,13 @@ async function renderReplies(){
 
     container.appendChild(el);
 
+    const mentionHtml = await renderMentions(
+      r.content,
+      r.mentionedUsers || []
+    );
+
     el.querySelector(".reply-content").innerHTML =
-      await renderMentions(
-        readMore(r.content),
-        r.mentionedUsers || []
-      );
+      readMore(mentionHtml);
 
     el.querySelectorAll(".imgThumb").forEach(img => {
       img.onclick = () => showImg(img.dataset.full);
@@ -861,6 +858,7 @@ localStorage.setItem(
   "lastReplyTime",
   lastReplyTime
 );
+
 startCooldownUI(10);
 
 
@@ -899,6 +897,15 @@ imageLockOkBtn.onclick = () => {
 
 loadPost();
 fetchReplies();
+
+const remainingReplyTime =
+  10000 - (Date.now() - lastReplyTime);
+
+if(remainingReplyTime > 0){
+  startCooldownUI(
+    Math.ceil(remainingReplyTime / 1000)
+  );
+}
 
 window.reportReply = function(replyId, author, authorUID){
 
