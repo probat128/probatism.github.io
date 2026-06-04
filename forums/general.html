@@ -368,6 +368,8 @@ let postToDelete = null;
 let pendingReport = null;
 let currentSearch = "";
 
+let lastReportTime = 0;
+
 
 postImage.addEventListener("click", (e) => {
   if (!auth.currentUser || auth.currentUser.isAnonymous) {
@@ -1048,6 +1050,10 @@ async function loadAd(type, imgEl, linkEl) {
 
 window.reportPost = function(postId, author, authorUID){
 
+  if(Date.now() - lastReportTime < 300000){
+    return;
+  }
+
   pendingReport = {
     postId,
     author,
@@ -1077,6 +1083,8 @@ confirmReportBtn.onclick = async () => {
     };
 
     await addDoc(collection(db, "reports"), report);
+
+    lastReportTime = Date.now();
 
     pendingReport = null;
 
