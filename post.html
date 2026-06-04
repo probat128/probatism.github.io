@@ -660,6 +660,8 @@ const postHtml = await renderMentions(
 document.getElementById("mainPostContent").innerHTML =
   readMore(postHtml);
 
+}
+
 /* REPLIES */
 async function fetchReplies(){
   const qSnap = await getDocs(
