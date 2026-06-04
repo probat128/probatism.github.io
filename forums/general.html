@@ -368,7 +368,8 @@ let postToDelete = null;
 let pendingReport = null;
 let currentSearch = "";
 
-let lastReportTime = 0;
+let lastReportTime =
+  parseInt(localStorage.getItem("lastReportTime")) || 0;
 
 
 postImage.addEventListener("click", (e) => {
@@ -1085,6 +1086,10 @@ confirmReportBtn.onclick = async () => {
     await addDoc(collection(db, "reports"), report);
 
     lastReportTime = Date.now();
+    localStorage.setItem(
+      "lastReportTime",
+      lastReportTime
+    );
 
     pendingReport = null;
 
