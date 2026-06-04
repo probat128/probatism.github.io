@@ -443,7 +443,6 @@ async function checkBan(uid){
 
 let replyIndex=0;
 const REPLY_PAGE_SIZE = 10;
-let lastReplyTime = 0; // NEW cooldown
 
 let lastReplyTime =
   Number(localStorage.getItem("lastReplyTime")) || 0;
