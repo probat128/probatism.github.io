@@ -228,7 +228,25 @@ button {
   <textarea id="replyText"></textarea>
   <br>
   <input type="file" id="replyImg">
+
   <br>
+
+  <span id="verificationText"></span>
+
+  <input
+    type="number"
+    id="verificationAnswer"
+    style="
+      width:70px;
+      margin-left:5px;
+      background:rgb(232,224,207);
+      color:rgb(91,46,97);
+      border:1px solid rgb(91,46,97);
+    "
+  >
+
+  <br>
+
   <button id="sendReply">Reply</button>
   <p id="cooldownText" style="font-size:12px; margin-top:5px;"></p>
 </div>
@@ -380,6 +398,8 @@ let deleteTarget=null;
 let pendingReport=null;
 let replyList=[];
 let currentUID = null;
+let verificationSolution = null;
+
 let lastReportTime =
   Number(localStorage.getItem("lastReportTime")) || 0;
    
@@ -391,6 +411,20 @@ const adminUIDs = [
 
 function isAdmin(uid){
   return uid && adminUIDs.includes(uid);
+}
+
+function generateVerification(){
+
+  const a = Math.floor(Math.random() * 9) + 1;
+  const b = Math.floor(Math.random() * 9) + 1;
+  const c = Math.floor(Math.random() * 9) + 1;
+
+  verificationSolution = (a * b) + c;
+
+  document.getElementById("verificationText").textContent =
+    `Verification: Answer (${a} × ${b}) + ${c}`;
+
+  document.getElementById("verificationAnswer").value = "";
 }
 
 async function checkBan(uid){
@@ -859,6 +893,20 @@ const file=document.getElementById("replyImg").files[0];
 
 if(!text && !file) return;
 
+const answer =
+  document.getElementById("verificationAnswer").value.trim();
+
+if(answer === ""){
+  return;
+}
+
+if(Number(answer) !== verificationSolution){
+
+  generateVerification();
+
+  return;
+}
+
 btn.disabled = true;
 
 const img=file?await new Promise(res=>{
@@ -898,7 +946,8 @@ startCooldownUI(10);
 
 
 document.getElementById("replyText").value="";
-document.getElementById("replyImg").value=""; // FIX
+document.getElementById("replyImg").value="";
+generateVerification();
 
 setTimeout(()=>btn.disabled=false,10000);
 
@@ -934,6 +983,7 @@ if (imageLockOkBtn && imageLockModal) {
 
 loadPost();
 fetchReplies();
+generateVerification();
 
 const remainingReplyTime =
   10000 - (Date.now() - lastReplyTime);
