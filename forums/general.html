@@ -145,7 +145,27 @@ textarea { width:100%; height:80px; background: rgb(232,224,207); color: rgb(91,
 
 <h3>Create Post</h3>
 <textarea id="postText" maxlength="8000"></textarea><br>
-<input type="file" id="postImage" accept="image/*"><br>
+
+<input type="file" id="postImage" accept="image/*">
+
+<span id="verificationLabel" style="margin-left:10px;">
+  Verification:
+</span>
+
+<input
+  type="number"
+  id="verificationAnswer"
+  style="
+    width:70px;
+    margin-left:5px;
+    background:rgb(232,224,207);
+    color:rgb(91,46,97);
+    border:1px solid rgb(91,46,97);
+  "
+>
+
+<br>
+
 <button id="postButton">Post</button>
 <p id="cooldownMsg" style="display:none; font-size:12px;"></p>
 
@@ -281,6 +301,7 @@ try {
 
 const db = getFirestore(app);
 const auth = getAuth(app);
+generateVerification();
 
 // ELEMENTS
 const postButton = document.getElementById("postButton");
@@ -367,11 +388,24 @@ let lastPostTime = 0;
 let postToDelete = null;
 let pendingReport = null;
 let currentSearch = "";
+let verificationAnswer = 0;
 
 let lastReportTime =
   parseInt(localStorage.getItem("lastReportTime")) || 0;
 
+function generateVerification(){
 
+  const a = Math.floor(Math.random() * 10);
+  const b = Math.floor(Math.random() * 10);
+  const c = Math.floor(Math.random() * 10);
+
+  verificationAnswer = (a * b) + c;
+
+  document.getElementById("verificationLabel").textContent =
+    `Verification: Answer: (${a} × ${b}) + ${c}`;
+
+  document.getElementById("verificationAnswer").value = "";
+}
 postImage.addEventListener("click", (e) => {
   if (!auth.currentUser || auth.currentUser.isAnonymous) {
     e.preventDefault(); // stop file picker
@@ -633,6 +667,20 @@ postButton.onclick = async ()=>{
   const text=postText.value.trim();
   const file=postImage.files[0];
 
+  const userAnswer =
+    document.getElementById("verificationAnswer").value.trim();
+
+  if(userAnswer === ""){
+    return;
+  }
+
+  if(Number(userAnswer) !== verificationAnswer){
+
+    generateVerification();
+
+    return;
+  }
+
   if (!text && !file) {
     return;
   }
@@ -686,6 +734,8 @@ try{
   postText.value="";
 
   postImage.value="";
+
+  generateVerification();
 
   postsDiv.innerHTML="";
 
