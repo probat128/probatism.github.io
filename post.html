@@ -251,11 +251,13 @@ button {
 </div>
 
 <!-- IMAGE LOCK MODAL -->
-<div class="modal-bg" id="modal">
+<div class="modal-bg" id="imageLockModal">
   <div class="modal-content">
-    <p id="modalText"></p>
-    <button id="confirmBtn">Yes</button>
-    <button id="cancelBtn">No</button>
+    <p>
+      You must be signed in to upload images.
+    </p>
+
+    <button id="imageLockOkBtn">OK</button>
   </div>
 </div>
 
@@ -629,8 +631,15 @@ async function getAvatar(username){
 }
 /* LOAD POST */
 async function loadPost(){
-const snap=await getDoc(doc(db,"posts",postId));
-const p=snap.data();
+const snap = await getDoc(doc(db, "posts", postId));
+
+if (!snap.exists()) {
+  document.getElementById("post").innerHTML =
+    "<p>Post not found.</p>";
+  return;
+}
+
+const p = snap.data();
 postAuthor = p.author;
 postAuthorUID = p.authorUID;
 
@@ -893,8 +902,10 @@ function startCooldownUI(seconds){
   }, 1000);
 }
 
-imageLockOkBtn.onclick = () => {
-  imageLockModal.style.display = "none";
+if (imageLockOkBtn && imageLockModal) {
+  imageLockOkBtn.onclick = () => {
+    imageLockModal.style.display = "none";
+  };
 };
 
 loadPost();
