@@ -696,8 +696,8 @@ const avatar = await getAvatar(p.author);
 document.getElementById("post").innerHTML=`
 <div class="postBox">
 
-${p.author !== "Anonymous"
-  ? `<img class="avatar" src="${avatar || ''}" onclick="goProfile('${p.author}')">`
+${p.author !== "Anonymous" && avatar
+  ? `<img class="avatar" src="${avatar}" onclick="goProfile('${p.author}')">`
   : ``}
 
 <b onclick="${p.author !== "Anonymous" ? `goProfile('${p.author}')` : ''}" style="cursor:${p.author !== "Anonymous" ? "pointer" : "default"}">
@@ -774,8 +774,8 @@ async function renderReplies(){
     el.innerHTML=`
     ${(postAuthorUID && r.authorUID && r.authorUID === postAuthorUID) ? `<div class="opBadge">OP</div>` : ``}
 
-    ${r.author !== "Anonymous"
-      ? `<img class="avatar" src="${avatar || ''}" onclick="goProfile('${r.author}')">`
+    ${r.author !== "Anonymous" && avatar
+      ? `<img class="avatar" src="${avatar}" onclick="goProfile('${r.author}')">`
       : ``}
 
     <div class="contentWrap">
