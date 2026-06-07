@@ -388,6 +388,13 @@ let postToDelete = null;
 let pendingReport = null;
 let currentSearch = "";
 let verificationAnswer = 0;
+
+const BLACKLIST = [
+  "word123abcd",
+  "bit.ly",
+  "telegram"
+];
+
 generateVerification();
 
 let lastReportTime =
@@ -666,6 +673,16 @@ postButton.onclick = async ()=>{
 
   const text=postText.value.trim();
   const file=postImage.files[0];
+
+  const lowerText = text.toLowerCase();
+
+  const containsBlacklistedWord = BLACKLIST.some(word =>
+    new RegExp(`\\b${word}\\b`, "i").test(lowerText)
+  );
+
+  if (containsBlacklistedWord) {
+    return;
+  }
 
   const userAnswer =
     document.getElementById("verificationAnswer").value.trim();
