@@ -234,8 +234,16 @@ button {
 </div>
 
 <h3>Replies</h3>
+
+<div id="noReplies" class="noReplies">
+  No replies yet
+</div>
+
 <div id="replies"></div>
-<button id="loadMoreReplies" class="loadMoreBtn">Load More Replies</button>
+
+<button id="loadMoreReplies" class="loadMoreBtn">
+  Load More Replies
+</button>
 
 <div class="imgOverlay" id="imgOverlay">
 <img id="fullImg">
@@ -685,8 +693,22 @@ async function fetchReplies(){
   // reset pagination
   replyIndex = 0;
 
+const repliesContainer = document.getElementById("replies");
+const noRepliesEl = document.getElementById("noReplies");
+const loadBtn = document.getElementById("loadMoreReplies");
+
   // clear UI
-  document.getElementById("replies").innerHTML = "";
+  repliesContainer.innerHTML = "";
+
+  if(replyList.length === 0){
+
+    noRepliesEl.style.display = "block";
+    loadBtn.style.display = "none";
+
+    return;
+  }
+
+  noRepliesEl.style.display = "none";
 
   // load first batch
   await renderReplies();
