@@ -301,7 +301,6 @@ try {
 
 const db = getFirestore(app);
 const auth = getAuth(app);
-generateVerification();
 
 // ELEMENTS
 const postButton = document.getElementById("postButton");
@@ -389,6 +388,7 @@ let postToDelete = null;
 let pendingReport = null;
 let currentSearch = "";
 let verificationAnswer = 0;
+generateVerification();
 
 let lastReportTime =
   parseInt(localStorage.getItem("lastReportTime")) || 0;
