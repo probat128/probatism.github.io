@@ -400,6 +400,12 @@ let replyList=[];
 let currentUID = null;
 let verificationSolution = null;
 
+const BLACKLIST = [
+  "word1",
+  "word2",
+  "word3"
+];
+
 let lastReportTime =
   Number(localStorage.getItem("lastReportTime")) || 0;
    
@@ -890,6 +896,16 @@ const btn = document.getElementById("sendReply");
 
 const text=document.getElementById("replyText").value.trim();
 const file=document.getElementById("replyImg").files[0];
+
+const lowerText = text.toLowerCase();
+
+const containsBlacklistedWord = BLACKLIST.some(word =>
+  new RegExp(`\\b${word}\\b`, "i").test(lowerText)
+);
+
+if (containsBlacklistedWord) {
+  return;
+}
 
 if(!text && !file) return;
 
