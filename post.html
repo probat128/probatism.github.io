@@ -233,7 +233,7 @@ button {
   <p id="cooldownText" style="font-size:12px; margin-top:5px;"></p>
 </div>
 
-<h3>Replies</h3>
+<h3 id="repliesHeading">Replies (0)</h3>
 
 <div id="noReplies" class="noReplies">
   No replies yet
@@ -686,6 +686,8 @@ async function fetchReplies(){
   );
 
   replyList = qSnap.docs.map(d => ({id:d.id,...d.data()}));
+  document.getElementById("repliesHeading").textContent =
+    `Replies (${replyList.length})`;
 
   // sort once only
   replyList.sort((a,b)=>b.time-a.time);
