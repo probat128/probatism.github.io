@@ -271,17 +271,28 @@ document.getElementById("saveDescBtn").onclick = async () => {
 };
 
 /* UPLOAD PIC */
-document.getElementById("uploadPicBtn").onclick=async()=>{
-  const file=document.getElementById("profilePic").files[0];
-  if(!file) return;
+document.getElementById("uploadPicBtn").onclick = async () => {
+  const file = document.getElementById("profilePic").files[0];
+  if (!file) return;
 
-  const r=new FileReader();
-  r.onload=async()=>{
-    await setDoc(doc(db,"users",uid),{
-      profilePic:r.result
-    },{merge:true});
+  // ✅ 500KB LIMIT (ADD THIS)
+  const MAX_SIZE = 500 * 1024; // 500KB in bytes
+
+  if (file.size > MAX_SIZE) {
+    alert("Image is too large. Maximum size is 500KB.");
+    return;
+  }
+
+  const r = new FileReader();
+
+  r.onload = async () => {
+    await setDoc(doc(db, "users", uid), {
+      profilePic: r.result
+    }, { merge: true });
+
     loadProfile();
   };
+
   r.readAsDataURL(file);
 };
 
