@@ -300,7 +300,8 @@ function format(text){
     return `<div class="content">${text}</div>`;
   }
 
-  const id=Math.random();
+
+  const id = Date.now() + "_" + Math.floor(Math.random() * 100000);
 
   return `
   <div class="content" id="s${id}">
@@ -310,7 +311,10 @@ function format(text){
       document.getElementById('s${id}').style.display='none';
     ">See more</span>
   </div>
-  <div id="f${id}" style="display:none">${text}</div>
+
+  <div class="content" id="f${id}" style="display:none">
+    ${text}
+  </div>
   `;
 }
 
