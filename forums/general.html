@@ -388,6 +388,7 @@ let postToDelete = null;
 let pendingReport = null;
 let currentSearch = "";
 let verificationAnswer = 0;
+let reportSubmitting = false;
 
 const BLACKLIST = [
   "word123abcd",
@@ -762,14 +763,14 @@ postButton.onclick = async ()=>{
     image = await resizeImage(file);
 
     // Firestore limit safety
-    if (image.length > 950000) {
+    if (image.length > 900000) {
       alert("Image could not be compressed enough. Try a smaller image.");
       isPosting = false;
       postButton.disabled = false;
       return;
     }
     
-    fullImage = image;
+    fullImage = null; // REMOVE duplicate storage (prevents Firestore blowups)
   }
 
   const mentions = await extractMentions(text);
@@ -840,11 +841,7 @@ async function loadPosts(){
     collection(db,"posts"),
     where("subforum","==","general"),
     orderBy("time","desc"),
-    limit(
-      currentSearch
-        ? 500
-        : 10
-    )
+    limit(10)
   );
 
   if(lastVisible && !currentSearch){
@@ -853,11 +850,7 @@ async function loadPosts(){
       where("subforum","==","general"),
       orderBy("time","desc"),
       startAfter(lastVisible),
-    limit(
-      currentSearch
-        ? 500
-        : 10
-    )
+    limit(10)
     );
   }
 
@@ -1149,22 +1142,16 @@ async function loadAd(type, imgEl, linkEl) {
     };
 
     // 8. Decrement impressions
-    try{
+    // 8. Decrement impressions ONLY if allowed
+    try {
+      const adRef = doc(db, "ads", chosen.id);
 
-      await updateDoc(
-        doc(db,"ads",chosen.id),
-        {
-          impressionsLeft: increment(-1)
-        }
-      );
+      await updateDoc(adRef, {
+        impressionsLeft: increment(-1)
+      });
 
-    }catch(err){
-
-      console.error(
-        "Impression update failed:",
-        err
-      );
-
+    } catch (err) {
+      console.error("Impression update failed:", err);
     }
 
   } catch (err) {
