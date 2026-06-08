@@ -392,9 +392,14 @@ function renderMentionsUI(){
     div.style.margin = "5px 0";
     div.style.cursor = "pointer";
 
+    const preview =
+      m.content.length > 120
+        ? m.content.slice(0,120) + "..."
+        : m.content;
+
     div.innerHTML = `
-      <b>${m.author}</b><br>
-      ${m.content.slice(0,120)}...
+        <b>${m.author}</b><br>
+      ${preview}
     `;
 
     div.onclick = () => {
@@ -463,6 +468,24 @@ async function loadMore(){
 
 document.getElementById("loadMoreBtn").onclick=async () => {
   await loadMore();
+};
+
+document.getElementById("mentionsPrev").onclick = () => {
+
+  if (mentionsIndex <= 0) return;
+
+  mentionsIndex -= 5;
+
+  renderMentionsUI();
+};
+
+document.getElementById("mentionsNext").onclick = () => {
+
+  if (mentionsIndex + 5 >= mentions.length) return;
+
+  mentionsIndex += 5;
+
+  renderMentionsUI();
 };
 
 
