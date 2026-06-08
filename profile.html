@@ -129,7 +129,8 @@
 <div id="profileInfo">Loading...</div>
 
 <label><b>Description:</b></label>
-<textarea id="description"></textarea>
+<textarea id="description" maxlength="400"></textarea>
+<div id="descCounter">0 / 400</div>
 <button id="saveDescBtn">Save Description</button>
 
 <br><br>
@@ -250,13 +251,22 @@ async function loadProfile(){
     ${d.profilePic?`<img class="profile-pic" src="${d.profilePic}">`:``}
   `;
 
-  document.getElementById("description").value=d.description||"";
+  document.getElementById("description").value = d.description || "";
+  updateDescCounter();
 }
 
 /* SAVE DESC */
-document.getElementById("saveDescBtn").onclick=async()=>{
+document.getElementById("saveDescBtn").onclick = async () => {
+
+  const desc = document.getElementById("description").value;
+
+  if (desc.length > 400) {
+    alert("Description cannot exceed 400 characters.");
+    return;
+  }
+
   await setDoc(doc(db,"users",uid),{
-    description:document.getElementById("description").value
+    description: desc
   },{merge:true});
 };
 
@@ -487,6 +497,16 @@ document.getElementById("mentionsNext").onclick = () => {
 
   renderMentionsUI();
 };
+
+const descriptionBox = document.getElementById("description");
+const descCounter = document.getElementById("descCounter");
+
+function updateDescCounter() {
+  descCounter.textContent =
+    descriptionBox.value.length + " / 400";
+}
+
+descriptionBox.addEventListener("input", updateDescCounter);
 
 
 </script>
