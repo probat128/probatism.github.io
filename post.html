@@ -404,6 +404,7 @@ let postAuthorUID = null;
 /* STATE */
 let currentUser=null;
 let deleteTarget=null;
+let reportSubmitting=false;
 let pendingReport=null;
 let replyList=[];
 let currentUID = null;
@@ -526,6 +527,21 @@ onAuthStateChanged(auth, async (user)=>{
   // IMPORTANT:
   // anonymous users ALSO have UIDs
   currentUID = user.uid;
+
+   try{
+
+     const cooldownSnap = await getDoc(
+       doc(db, "reportCooldowns", user.uid)
+     );
+
+     if(cooldownSnap.exists()){
+       lastReportTime =
+         cooldownSnap.data().lastReportAt || 0;
+     }
+
+   }catch(err){
+     console.error(err);
+   }
 
   // ALWAYS CHECK BAN
   const banned = await checkBan(user.uid);
@@ -978,7 +994,7 @@ btn.disabled = true;
 
 const img = file ? await compressImage(file) : null;
 
-if(img && img.length > 1400000){
+if(img && img.length > 1300000){
   alert("Compressed image is still too large.");
   btn.disabled = false;
   return;
@@ -1080,6 +1096,9 @@ window.reportReply = function(replyId, author, authorUID){
 
 confirmReportBtn.onclick = async () => {
 
+   if(reportSubmitting) return;
+   reportSubmitting = true;
+
   if(!pendingReport) return;
 
   try {
@@ -1113,12 +1132,16 @@ const now = Date.now();
       lastReportTime
     );
 
+    reportSubmitting = false;
+
     pendingReport = null;
 
     reportModal.style.display = "none";
     reportSuccessModal.style.display = "flex";
 
   } catch(err){
+
+    reportSubmitting = false;
 
     console.error("Report failed:", err);
 
