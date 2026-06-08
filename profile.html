@@ -134,12 +134,6 @@
 
 <br><br>
 
-<label><b>Change Username (once per week):</b></label><br>
-<input id="newUsername" placeholder="New username">
-<br>
-<button id="changeUsernameBtn">Change Username</button>
-
-<p id="usernameStatus" style="margin-top:10px;font-weight:bold;"></p>
 
 <br><br>
 
@@ -230,88 +224,6 @@ document.getElementById("logoutBtn").onclick=async()=>{
   location.href="index.html";
 };
 
-document.getElementById("changeUsernameBtn").onclick = async () => {
-  const newNameRaw = document.getElementById("newUsername").value.trim();
-  const status = document.getElementById("usernameStatus");
-
-  if(!newNameRaw){
-    status.innerText = "Enter a username.";
-    status.style.color = "red";
-    return;
-  }
-
-  const newUsername = cleanUsername(newNameRaw);
-
-  if(newUsername.length < 3){
-    status.innerText = "Username too short.";
-    status.style.color = "red";
-    return;
-  }
-
-  try {
-    const userRef = doc(db, "users", uid);
-    const snap = await getDoc(userRef);
-
-    if(!snap.exists()) return;
-
-    const data = snap.data();
-
-    // ⛔ COOLDOWN CHECK
-    const lastChange = data.usernameChangedAt || 0;
-    const now = Date.now();
-    const oneWeek = 7 * 24 * 60 * 60 * 1000;
-
-    if(now - lastChange < oneWeek){
-      const daysLeft = Math.ceil((oneWeek - (now - lastChange)) / (1000*60*60*24));
-      status.innerText = `You can change your username again in ${daysLeft} day(s).`;
-      status.style.color = "red";
-      return;
-    }
-
-    // ⛔ CHECK IF TAKEN
-    const takenSnap = await getDoc(doc(db, "usernames", newUsername));
-
-    if(takenSnap.exists()){
-      status.innerText = "Username already taken.";
-      status.style.color = "red";
-      return;
-    }
-
-    const oldUsername = data.username;
-
-    // 🔁 UPDATE USER DOC
-    await updateDoc(userRef, {
-      username: newUsername,
-      usernameChangedAt: now
-    });
-
-    // 🔁 REMOVE OLD LOOKUP
-    await deleteDoc(doc(db, "usernames", oldUsername));
-
-    // 🔁 ADD NEW LOOKUP
-    await setDoc(doc(db, "usernames", newUsername), {
-      uid: uid
-    });
-
-    // 🔁 UPDATE UI STATE
-    username = newUsername;
-    localStorage.setItem("currentUser", newUsername);
-
-    status.innerText = "Username updated successfully!";
-    status.style.color = "green";
-
-    document.getElementById("profileInfo").innerHTML = `
-      <p><b>${newUsername}</b></p>
-      <p>${new Date(data.joinDate).toLocaleString()}</p>
-      ${data.profilePic ? `<img class="profile-pic" src="${data.profilePic}">` : ``}
-    `;
-
-  } catch(err){
-    console.error(err);
-    status.innerText = err.message;
-    status.style.color = "red";
-  }
-};
 
 /* PROFILE */
 async function loadProfile(){
@@ -549,13 +461,6 @@ document.getElementById("loadMoreBtn").onclick=async () => {
   await loadMore();
 };
 
-function cleanUsername(name){
-  return name
-    .toLowerCase()
-    .replace(/\s+/g, "")
-    .replace(/[^a-z0-9]/g, "")
-    .slice(0, 12);
-}
 
 </script>
 
