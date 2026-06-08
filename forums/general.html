@@ -581,22 +581,49 @@ async function renderMentions(text, mentionedUsers = []){
 function resizeImage(file){
   return new Promise(resolve=>{
     const reader = new FileReader();
+
     reader.onload = e=>{
       const img = new Image();
+
       img.onload = ()=>{
-        const canvas=document.createElement("canvas");
-        canvas.width=256; canvas.height=256;
-        const ctx=canvas.getContext("2d");
 
-        const size=Math.min(img.width,img.height);
-        const sx=(img.width-size)/2;
-        const sy=(img.height-size)/2;
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d");
 
-        ctx.drawImage(img,sx,sy,size,size,0,0,256,256);
-        resolve(canvas.toDataURL("image/png"));
+        // start with reasonable size
+        let width = img.width;
+        let height = img.height;
+
+        const MAX_DIM = 1280;
+
+        if (width > height && width > MAX_DIM) {
+          height *= MAX_DIM / width;
+          width = MAX_DIM;
+        } else if (height > MAX_DIM) {
+          width *= MAX_DIM / height;
+          height = MAX_DIM;
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+
+        ctx.drawImage(img, 0, 0, width, height);
+
+        // 🔥 COMPRESSION LOOP TO GUARANTEE ≤ 700KB
+        let quality = 0.85;
+        let output = canvas.toDataURL("image/jpeg", quality);
+
+        while (output.length > 700 * 1024 && quality > 0.3) {
+          quality -= 0.1;
+          output = canvas.toDataURL("image/jpeg", quality);
+        }
+
+        resolve(output);
       };
-      img.src=e.target.result;
+
+      img.src = e.target.result;
     };
+
     reader.readAsDataURL(file);
   });
 }
@@ -674,6 +701,13 @@ postButton.onclick = async ()=>{
   const text=postText.value.trim();
   const file=postImage.files[0];
 
+  const MAX_UPLOAD_SIZE = 10 * 1024 * 1024; // 10MB
+
+  if (file && file.size > MAX_UPLOAD_SIZE) {
+    alert("Image too large. Maximum allowed size is 10MB.");
+    return;
+  }
+
   const lowerText = text.toLowerCase();
 
   const containsBlacklistedWord = BLACKLIST.some(word =>
@@ -709,8 +743,18 @@ postButton.onclick = async ()=>{
   let fullImage=null;
 
   if(file){
+
     image = await resizeImage(file);
-    fullImage = await getFullImage(file);
+
+    // safety fallback: if still too big (rare)
+    if (image.length > 750 * 1024) {
+      alert("Image could not be compressed enough. Try a smaller image.");
+      isPosting = false;
+      postButton.disabled = false;
+      return;
+    }
+
+    fullImage = image; // optional: reuse compressed version OR keep your fullImage system
   }
 
   const mentions = await extractMentions(text);
