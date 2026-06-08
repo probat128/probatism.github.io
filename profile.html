@@ -378,7 +378,9 @@ async function loadMentions(){
 
   repliesSnap.forEach(d=>{
     const data = d.data();
-    if(data.content && data.content.includes("@"+username)){
+    const mentionRegex = new RegExp(`@${username}\\b`);
+
+    if (data.content && mentionRegex.test(data.content)){
       all.push({
         id:d.id,
         type:"reply",
