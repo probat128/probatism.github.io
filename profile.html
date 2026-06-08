@@ -302,29 +302,40 @@ confirmDelete.onclick=async()=>{
   loadMentions();
 };
 
+function escapeHTML(str) {
+  if (!str) return "";
+  return str
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
 /* FORMAT TEXT */
-function format(text){
-  if(!text) return "";
+function format(text) {
+  if (!text) return "";
 
-  if(text.length<=400){
-    return `<div class="content">${text}</div>`;
+  const safeText = escapeHTML(text);
+
+  if (safeText.length <= 400) {
+    return `<div class="content">${safeText}</div>`;
   }
-
 
   const id = Date.now() + "_" + Math.floor(Math.random() * 100000);
 
   return `
-  <div class="content" id="s${id}">
-    ${text.slice(0,400)}...
-    <span class="readMore" onclick="
-      document.getElementById('f${id}').style.display='block';
-      document.getElementById('s${id}').style.display='none';
-    ">Read more</span>
-  </div>
+    <div class="content" id="s${id}">
+      ${safeText.slice(0, 400)}...
+      <span class="readMore" onclick="
+        document.getElementById('f${id}').style.display='block';
+        document.getElementById('s${id}').style.display='none';
+      ">Read more</span>
+    </div>
 
-  <div class="content" id="f${id}" style="display:none">
-    ${text}
-  </div>
+    <div class="content" id="f${id}" style="display:none">
+      ${safeText}
+    </div>
   `;
 }
 
@@ -354,7 +365,8 @@ async function loadMentions(){
 
   postsSnap.forEach(d=>{
     const data = d.data();
-    if(data.content && data.content.includes("@"+username)){
+    const mentionRegex = new RegExp(`@${username}\\b`);
+    if (data.content && mentionRegex.test(data.content)){
       all.push({
         id:d.id,
         type:"post",
@@ -365,7 +377,9 @@ async function loadMentions(){
 
   repliesSnap.forEach(d=>{
     const data = d.data();
-    if(data.content && data.content.includes("@"+username)){
+    const mentionRegex = new RegExp(`@${username}\\b`);
+
+    if (data.content && mentionRegex.test(data.content))
       all.push({
         id:d.id,
         type:"reply",
