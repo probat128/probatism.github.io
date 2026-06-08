@@ -246,7 +246,7 @@ async function loadProfile(){
   const date=new Date(d.joinDate);
 
   document.getElementById("profileInfo").innerHTML=`
-    <p><b>${d.username}</b></p>
+    <p><b>${escapeHTML(d.username)}</b></p>
     <p>${date.toLocaleString()}</p>
     ${d.profilePic?`<img class="profile-pic" src="${d.profilePic}">`:``}
   `;
