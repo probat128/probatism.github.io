@@ -269,10 +269,10 @@ async function extractMentions(text){
       doc(db, "usernames", username.toLowerCase())
     );
 
-    results.push({
-      uid: usernameSnap.data().uid,
-      username
-    });
+    if(usernameSnap.exists()){
+      results.push({
+        uid: usernameSnap.data().uid
+      });
     } else {
       results.push(null);
     }
@@ -445,6 +445,9 @@ onAuthStateChanged(auth, async (user) => {
 
   try{
 
+    const cooldownSnap = await getDoc(
+      doc(db, "reportCooldowns", user.uid)
+    );
 
     if(cooldownSnap.exists()){
       lastReportTime =
@@ -467,8 +470,7 @@ onAuthStateChanged(auth, async (user) => {
 
     try{
 
-      let displayName = post.author || "Anonymous";
-      let profilePic = post.profilePic || "";
+      const userSnap = await getDoc(doc(db, "users", user.uid));
 
       if(userSnap.exists() && userSnap.data().username){
         currentUser = userSnap.data().username;
@@ -565,10 +567,26 @@ async function renderMentions(text, mentionedUsers = []){
       continue;
     }
 
-    rendered = rendered.replace(
-      "@" + originalUsername,
-      `<span class="mention" onclick="goProfile('${mentionData.username}')">@${mentionData.username}</span>`
-    );
+    try {
+
+      const userSnap = await getDoc(
+        doc(db, "users", mentionData.uid)
+      );
+
+      if(!userSnap.exists()){
+        continue;
+      }
+
+      const liveUsername = userSnap.data().username;
+
+      rendered = rendered.replace(
+        "@" + originalUsername,
+        `<span class="mention" onclick="goProfile('${liveUsername}')">@${liveUsername}</span>`
+      );
+
+    } catch(err){
+      console.error(err);
+    }
   }
 
   return rendered;
@@ -771,8 +789,6 @@ try{
 
     author: currentUser || "Anonymous",
 
-    profilePic: currentProfilePic || null,
-
     authorUID: auth.currentUser.uid,
 
     authorEmail: auth.currentUser.email || null,
@@ -890,8 +906,7 @@ async function loadPosts(){
 
     if(post.authorUID){
 
-      let displayName = post.author || "Anonymous";
-      let profilePic = post.profilePic || "";
+      const userSnap = await getDoc(doc(db, "users", post.authorUID));
 
       if(userSnap.exists()){
 
@@ -1185,6 +1200,12 @@ confirmReportBtn.onclick = async () => {
 
     await addDoc(collection(db, "reports"), report);
 
+    await setDoc(
+      doc(db, "reportCooldowns", currentUID),
+      {
+        lastReportAt: Date.now()
+      }
+    );
 
     lastReportTime = Date.now();
     localStorage.setItem(
