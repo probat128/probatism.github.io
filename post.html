@@ -331,7 +331,12 @@ addDoc,
 getDocs,
 query,
 where,
-deleteDoc
+deleteDoc,
+
+orderBy,
+limit,
+startAfter
+
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 import {
@@ -365,7 +370,8 @@ async function extractMentions(text){
     if(usernameSnap.exists()){
 
       results.push({
-        uid: usernameSnap.data().uid
+        uid: usernameSnap.data().uid,
+        username: username
       });
 
     } else {
@@ -495,8 +501,10 @@ async function checkBan(uid){
 }
 
 
-let replyIndex=0;
 const REPLY_PAGE_SIZE = 10;
+
+let lastReplyDoc = null;
+let allRepliesLoaded = false;
 
 let lastReplyTime =
   Number(localStorage.getItem("lastReplyTime")) || 0;
@@ -634,26 +642,12 @@ async function renderMentions(text, mentionedUsers = []){
       continue;
     }
 
-    try{
+   const liveUsername = mentionData.username;
 
-      const userSnap = await getDoc(
-        doc(db, "users", mentionData.uid)
-      );
-
-      if(!userSnap.exists()){
-        continue;
-      }
-
-      const liveUsername = userSnap.data().username;
-
-      rendered = rendered.replace(
-        "@" + originalUsername,
-        `<span class="mention" onclick="goProfile('${liveUsername}')">@${liveUsername}</span>`
-      );
-
-    }catch(err){
-      console.error(err);
-    }
+   rendered = rendered.replace(
+     "@" + originalUsername,
+     `<span class="mention" onclick="goProfile('${liveUsername}')">@${liveUsername}</span>`
+   );
   }
 
   return rendered;
@@ -716,7 +710,7 @@ const p = snap.data();
 postAuthor = p.author;
 postAuthorUID = p.authorUID;
 
-const avatar = await getAvatar(p.author);
+const avatar = p.profilePic || null;
 
 document.getElementById("post").innerHTML=`
 <div class="postBox">
@@ -745,40 +739,82 @@ document.getElementById("mainPostContent").innerHTML =
 }
 
 /* REPLIES */
-async function fetchReplies(){
-  const qSnap = await getDocs(
-    query(collection(db,"replies"), where("postId","==",postId))
-  );
+async function fetchReplies(reset = false){
 
-  replyList = qSnap.docs.map(d => ({id:d.id,...d.data()}));
-  document.getElementById("repliesHeading").textContent =
-    `Replies (${replyList.length})`;
+  const repliesContainer =
+    document.getElementById("replies");
 
-  // sort once only
-  replyList.sort((a,b)=>b.time-a.time);
+  const noRepliesEl =
+    document.getElementById("noReplies");
 
-  // reset pagination
-  replyIndex = 0;
+  const loadBtn =
+    document.getElementById("loadMoreReplies");
 
-const repliesContainer = document.getElementById("replies");
-const noRepliesEl = document.getElementById("noReplies");
-const loadBtn = document.getElementById("loadMoreReplies");
+  if(reset){
 
-  // clear UI
-  repliesContainer.innerHTML = "";
+    repliesContainer.innerHTML = "";
 
-  if(replyList.length === 0){
+    lastReplyDoc = null;
+    allRepliesLoaded = false;
+  }
 
-    noRepliesEl.style.display = "block";
+  let q;
+
+  if(lastReplyDoc){
+
+    q = query(
+      collection(db,"replies"),
+      where("postId","==",postId),
+      orderBy("time","desc"),
+      startAfter(lastReplyDoc),
+      limit(REPLY_PAGE_SIZE)
+    );
+
+  } else {
+
+    q = query(
+      collection(db,"replies"),
+      where("postId","==",postId),
+      orderBy("time","desc"),
+      limit(REPLY_PAGE_SIZE)
+    );
+  }
+
+  const snap = await getDocs(q);
+
+  if(snap.empty){
+
+    allRepliesLoaded = true;
+
+    if(repliesContainer.children.length === 0){
+      noRepliesEl.style.display = "block";
+    }
+
     loadBtn.style.display = "none";
-
     return;
   }
 
   noRepliesEl.style.display = "none";
 
-  // load first batch
+  lastReplyDoc =
+    snap.docs[snap.docs.length - 1];
+
+  replyList = snap.docs.map(d => ({
+    id:d.id,
+    ...d.data()
+  }));
+
   await renderReplies();
+
+  if(snap.docs.length < REPLY_PAGE_SIZE){
+
+    allRepliesLoaded = true;
+    loadBtn.style.display = "none";
+
+  } else {
+
+    loadBtn.style.display = "block";
+  }
 }
 
 async function renderReplies(){
@@ -787,11 +823,11 @@ async function renderReplies(){
   const loadBtn = document.getElementById("loadMoreReplies");
 
   // get next batch
-  const chunk = replyList.slice(replyIndex, replyIndex + REPLY_PAGE_SIZE);
+  const chunk = replyList;
 
   for(const r of chunk){
 
-    const avatar = await getAvatar(r.author);
+    const avatar = r.profilePic || null;
 
     const el=document.createElement("div");
     el.className="replyBox";
@@ -851,27 +887,9 @@ async function renderReplies(){
   }
 
   // 🔥 MOVE INDEX AFTER RENDER (IMPORTANT FIX)
-  replyIndex += chunk.length;
-
-  // show/hide button
-  if(replyIndex >= replyList.length){
-    loadBtn.style.display = "none";
-  } else {
-    loadBtn.style.display = "block";
-  }
-
-  loadBtn.onclick = () => renderReplies();
+   loadBtn.onclick = () => fetchReplies(true);
 }
 
-const loadBtn = document.getElementById("loadMoreReplies");
-
-if(replyIndex >= replyList.length){
-  loadBtn.style.display = "none";
-} else {
-  loadBtn.style.display = "block";
-}
-
-loadBtn.onclick = () => renderReplies();
 
 
 /* DELETE MODAL */
@@ -898,7 +916,7 @@ document.getElementById("confirmBtn").onclick = async () => {
     deleteTarget = null;
     modal.style.display = "none";
 
-    fetchReplies();
+    fetchReplies(true);
 
   } catch (err) {
     console.error("Delete failed:", err);
@@ -1008,11 +1026,26 @@ if(!auth.currentUser){
   return;
 }
 
+let profilePic = null;
+
+if(!auth.currentUser.isAnonymous){
+  const userSnap = await getDoc(
+    doc(db, "users", auth.currentUser.uid)
+  );
+
+  if(userSnap.exists()){
+    profilePic = userSnap.data().profilePic || null;
+  }
+}
+
 await addDoc(collection(db,"replies"),{
 postId,
 author: currentUser || "Anonymous",
 authorUID: auth.currentUser.uid,
 authorEmail: auth.currentUser.email || null,
+
+profilePic,
+
 content: text,
 image: img,
 time: Date.now(),
@@ -1067,7 +1100,7 @@ if (imageLockOkBtn && imageLockModal) {
 };
 
 loadPost();
-fetchReplies();
+fetchReplies(true);
 generateVerification();
 
 const remainingReplyTime =
