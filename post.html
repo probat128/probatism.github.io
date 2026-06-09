@@ -365,7 +365,8 @@ async function extractMentions(text){
     if(usernameSnap.exists()){
 
       results.push({
-        uid: usernameSnap.data().uid
+        uid: usernameSnap.data().uid,
+        username
       });
 
     } else {
@@ -530,9 +531,6 @@ onAuthStateChanged(auth, async (user)=>{
 
    try{
 
-     const cooldownSnap = await getDoc(
-       doc(db, "reportCooldowns", user.uid)
-     );
 
      if(cooldownSnap.exists()){
        lastReportTime =
@@ -634,26 +632,10 @@ async function renderMentions(text, mentionedUsers = []){
       continue;
     }
 
-    try{
-
-      const userSnap = await getDoc(
-        doc(db, "users", mentionData.uid)
-      );
-
-      if(!userSnap.exists()){
-        continue;
-      }
-
-      const liveUsername = userSnap.data().username;
-
       rendered = rendered.replace(
         "@" + originalUsername,
-        `<span class="mention" onclick="goProfile('${liveUsername}')">@${liveUsername}</span>`
+        `<span class="mention" onclick="goProfile('${mentionData.username}')">@${mentionData.username}</span>`
       );
-
-    }catch(err){
-      console.error(err);
-    }
   }
 
   return rendered;
@@ -690,18 +672,6 @@ this.style.display='none';
 `;
 }
 
-/* LOAD USER AVATAR */
-async function getAvatar(username){
-  if(!username || username==="Anonymous") return null;
-
-  const q = query(collection(db,"users"), where("username","==",username));
-  const snap = await getDocs(q);
-
-  if(snap.empty) return null;
-
-  const data = snap.docs[0].data();
-  return data.profilePic || null;
-}
 /* LOAD POST */
 async function loadPost(){
 const snap = await getDoc(doc(db, "posts", postId));
@@ -716,7 +686,7 @@ const p = snap.data();
 postAuthor = p.author;
 postAuthorUID = p.authorUID;
 
-const avatar = await getAvatar(p.author);
+const avatar = p.profilePic;
 
 document.getElementById("post").innerHTML=`
 <div class="postBox">
@@ -747,8 +717,14 @@ document.getElementById("mainPostContent").innerHTML =
 /* REPLIES */
 async function fetchReplies(){
   const qSnap = await getDocs(
-    query(collection(db,"replies"), where("postId","==",postId))
-  );
+      query(
+        collection(db,"replies"),
+        where("postId","==",postId),
+        orderBy("time","desc"),
+        limit(10)
+      )
+
+     startAfter(lastReplyDoc)
 
   replyList = qSnap.docs.map(d => ({id:d.id,...d.data()}));
   document.getElementById("repliesHeading").textContent =
@@ -791,7 +767,7 @@ async function renderReplies(){
 
   for(const r of chunk){
 
-    const avatar = await getAvatar(r.author);
+    const avatar = r.profilePic;
 
     const el=document.createElement("div");
     el.className="replyBox";
@@ -1011,6 +987,7 @@ if(!auth.currentUser){
 await addDoc(collection(db,"replies"),{
 postId,
 author: currentUser || "Anonymous",
+profilePic: currentProfilePic || null,
 authorUID: auth.currentUser.uid,
 authorEmail: auth.currentUser.email || null,
 content: text,
@@ -1118,12 +1095,6 @@ const now = Date.now();
      createdAt: now
    });
 
-   await setDoc(
-     doc(db, "reportCooldowns", currentUID),
-     {
-       lastReportAt: now
-     }
-   );
 
     lastReportTime = Date.now();
 
