@@ -358,17 +358,47 @@ async function extractMentions(text){
       continue;
     }
 
+    const key = username.toLowerCase();
+
+    if(mentionLookupCache.has(key)){
+
+      const cachedUID =
+        mentionLookupCache.get(key);
+
+      results.push(
+        cachedUID
+          ? { uid: cachedUID }
+          : null
+      );
+
+      continue;
+    }
+
     const usernameSnap = await getDoc(
-      doc(db, "usernames", username.toLowerCase())
+      doc(db, "usernames", key)
     );
 
     if(usernameSnap.exists()){
 
+      const uid =
+        usernameSnap.data().uid;
+
+      mentionLookupCache.set(
+        key,
+        uid
+      );
+
       results.push({
-        uid: usernameSnap.data().uid
+        uid,
+        username
       });
 
-    } else {
+    }else{
+
+      mentionLookupCache.set(
+        key,
+        null
+      );
 
       results.push(null);
     }
@@ -411,6 +441,7 @@ let currentUID = null;
 let verificationSolution = null;
 const avatarCache = new Map();
 const usernameCache = new Map();
+const mentionLookupCache = new Map();
 
 const BLACKLIST = [
   "word1",
@@ -647,7 +678,10 @@ async function preloadMentionUsernames(items){
 
     for(const mention of (item.mentionedUsers || [])){
 
-      if(mention?.uid){
+      if(
+        mention?.uid &&
+        !mention?.username
+      ){
         uniqueUIDs.add(mention.uid);
       }
     }
@@ -692,6 +726,7 @@ async function renderMentions(text, mentionedUsers = []){
     }else{
 
       const liveUsername =
+        mentionData.username ||
         await getUsernameFromUID(
           mentionData.uid
         );
