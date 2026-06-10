@@ -410,6 +410,7 @@ let replyList=[];
 let currentUID = null;
 let verificationSolution = null;
 const avatarCache = new Map();
+const usernameCache = new Map();
 
 const BLACKLIST = [
   "word1",
@@ -613,6 +614,52 @@ function escapeHtml(text){
     .replace(/'/g,"&#039;");
 }
 
+async function getUsernameFromUID(uid){
+
+  if(!uid){
+    return null;
+  }
+
+  if(usernameCache.has(uid)){
+    return usernameCache.get(uid);
+  }
+
+  const userSnap = await getDoc(
+    doc(db, "users", uid)
+  );
+
+  let username = null;
+
+  if(userSnap.exists()){
+    username = userSnap.data().username || null;
+  }
+
+  usernameCache.set(uid, username);
+
+  return username;
+}
+
+async function preloadMentionUsernames(items){
+
+  const uniqueUIDs = new Set();
+
+  for(const item of items){
+
+    for(const mention of (item.mentionedUsers || [])){
+
+      if(mention?.uid){
+        uniqueUIDs.add(mention.uid);
+      }
+    }
+  }
+
+  await Promise.all(
+    [...uniqueUIDs].map(uid =>
+      getUsernameFromUID(uid)
+    )
+  );
+}
+
 async function renderMentions(text, mentionedUsers = []){
 
   if(!text) return "";
@@ -635,26 +682,23 @@ async function renderMentions(text, mentionedUsers = []){
       continue;
     }
 
-    try{
+   try{
 
-      const userSnap = await getDoc(
-        doc(db, "users", mentionData.uid)
-      );
+     const liveUsername =
+       await getUsernameFromUID(mentionData.uid);
 
-      if(!userSnap.exists()){
-        continue;
-      }
+     if(!liveUsername){
+       continue;
+     }
 
-      const liveUsername = userSnap.data().username;
+     rendered = rendered.replace(
+       "@" + originalUsername,
+       `<span class="mention" onclick="goProfile('${liveUsername}')">@${liveUsername}</span>`
+     );
 
-      rendered = rendered.replace(
-        "@" + originalUsername,
-        `<span class="mention" onclick="goProfile('${liveUsername}')">@${liveUsername}</span>`
-      );
-
-    }catch(err){
-      console.error(err);
-    }
+   }catch(err){
+     console.error(err);
+   }
   }
 
   return rendered;
@@ -748,6 +792,7 @@ if (!snap.exists()) {
 }
 
 const p = snap.data();
+await preloadMentionUsernames([p]);
 postAuthor = p.author;
 postAuthorUID = p.authorUID;
 
@@ -796,6 +841,7 @@ async function fetchReplies(){
   replyIndex = 0;
 
   await preloadAvatars(replyList);
+  await preloadMentionUsernames(replyList);
 
 const repliesContainer = document.getElementById("replies");
 const noRepliesEl = document.getElementById("noReplies");
