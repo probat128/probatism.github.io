@@ -664,7 +664,9 @@ async function renderMentions(text, mentionedUsers = []){
 
   if(!text) return "";
 
-  const matches = [...text.matchAll(/@([\w]+)/g)];
+  const escapedText = escapeHtml(text);
+
+  const matches = [...escapedText.matchAll(/@([\w]+)/g)];
 
   let result = "";
   let lastIndex = 0;
@@ -675,48 +677,41 @@ async function renderMentions(text, mentionedUsers = []){
 
     const originalUsername = match[1];
 
-    result += escapeHtml(
-      text.slice(lastIndex, match.index)
-    );
-
-    lastIndex = match.index + match[0].length;
-
-    if(originalUsername === "Anonymous"){
-      result += escapeHtml(match[0]);
-      continue;
-    }
-
     const mentionData = mentionedUsers[i];
 
-    if(!mentionData?.uid){
-      result += escapeHtml(match[0]);
-      continue;
-    }
+    result += escapedText.slice(
+      lastIndex,
+      match.index
+    );
 
-    try{
+    if(
+      originalUsername === "Anonymous" ||
+      !mentionData?.uid
+    ){
+      result += match[0];
+    }else{
 
       const liveUsername =
-        await getUsernameFromUID(mentionData.uid);
+        await getUsernameFromUID(
+          mentionData.uid
+        );
 
-      if(!liveUsername){
-        result += escapeHtml(match[0]);
-        continue;
+      if(liveUsername){
+
+        result +=
+          `<span class="mention" onclick="goProfile('${liveUsername}')">@${liveUsername}</span>`;
+
+      }else{
+
+        result += match[0];
       }
-
-      result +=
-        `<span class="mention" onclick="goProfile('${liveUsername}')">@${liveUsername}</span>`;
-
-    }catch(err){
-
-      console.error(err);
-
-      result += escapeHtml(match[0]);
     }
+
+    lastIndex =
+      match.index + match[0].length;
   }
 
-  result += escapeHtml(
-    text.slice(lastIndex)
-  );
+  result += escapedText.slice(lastIndex);
 
   return result;
 }
@@ -752,6 +747,21 @@ this.style.display='none';
 `;
 }
 
+
+async function renderTextWithMentions(
+  text,
+  mentionedUsers = []
+){
+
+  const html = await renderMentions(
+    text,
+    mentionedUsers
+  );
+
+  return html;
+}
+
+   
 /* LOAD USER AVATAR */
 async function getAvatar(username){
 
@@ -831,13 +841,52 @@ ${p.image?`<br><img class="imgThumb" src="${p.image}" data-full="${p.image}" onc
 </div>
 `;
 
-const postHtml = await renderMentions(
-  p.content,
-  p.mentionedUsers || []
-);
+const truncatedContent =
+  p.content.length > 400
+    ? p.content.slice(0,400)
+    : p.content;
 
-document.getElementById("mainPostContent").innerHTML =
-  readMore(postHtml);
+const truncatedHtml =
+  await renderMentions(
+    truncatedContent,
+    p.mentionedUsers || []
+  );
+
+if(p.content.length <= 400){
+
+  document.getElementById(
+    "mainPostContent"
+  ).innerHTML = truncatedHtml;
+
+}else{
+
+  const fullHtml =
+    await renderMentions(
+      p.content,
+      p.mentionedUsers || []
+    );
+
+  const id =
+    Math.random()
+      .toString(36)
+      .slice(2);
+
+  document.getElementById(
+    "mainPostContent"
+  ).innerHTML = `
+    <span id="t_${id}">
+      ${truncatedHtml}...
+      <span class="readMore" onclick="
+        document.getElementById('full_${id}').style.display='inline';
+        document.getElementById('t_${id}').style.display='none';
+      ">read more</span>
+    </span>
+
+    <span id="full_${id}" style="display:none">
+      ${fullHtml}
+    </span>
+  `;
+}
 
 }
 
@@ -936,13 +985,50 @@ async function renderReplies(){
 
     container.appendChild(el);
 
-    const mentionHtml = await renderMentions(
+if(r.content.length <= 400){
+
+  el.querySelector(".reply-content").innerHTML =
+    await renderMentions(
       r.content,
       r.mentionedUsers || []
     );
 
-    el.querySelector(".reply-content").innerHTML =
-      readMore(mentionHtml);
+}else{
+
+  const truncatedContent =
+    r.content.slice(0,400);
+
+  const truncatedHtml =
+    await renderMentions(
+      truncatedContent,
+      r.mentionedUsers || []
+    );
+
+  const fullHtml =
+    await renderMentions(
+      r.content,
+      r.mentionedUsers || []
+    );
+
+  const id =
+    Math.random()
+      .toString(36)
+      .slice(2);
+
+  el.querySelector(".reply-content").innerHTML = `
+    <span id="t_${id}">
+      ${truncatedHtml}...
+      <span class="readMore" onclick="
+        document.getElementById('full_${id}').style.display='inline';
+        document.getElementById('t_${id}').style.display='none';
+      ">read more</span>
+    </span>
+
+    <span id="full_${id}" style="display:none">
+      ${fullHtml}
+    </span>
+  `;
+}
 
     el.querySelectorAll(".imgThumb").forEach(img => {
       img.onclick = () => showImg(img.dataset.full);
