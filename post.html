@@ -1114,6 +1114,24 @@ async function renderReplies(chunk){
   }
 }
 
+    el.querySelectorAll(".imgThumb").forEach(img => {
+      img.onclick = () => showImg(img.dataset.full);
+    });
+
+  }
+
+  // 🔥 MOVE INDEX AFTER RENDER (IMPORTANT FIX)
+  replyIndex += chunk.length; ////
+
+  // show/hide button
+  if(replyIndex >= replyList.length){
+    loadBtn.style.display = "none";
+  } else {
+    loadBtn.style.display = "block";
+  }
+
+  loadBtn.onclick = () => renderReplies();
+}   ///
 
 const loadBtn =
   document.getElementById("loadMoreReplies");
