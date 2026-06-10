@@ -409,6 +409,7 @@ let pendingReport=null;
 let replyList=[];
 let currentUID = null;
 let verificationSolution = null;
+const avatarCache = new Map();
 
 const BLACKLIST = [
   "word1",
@@ -692,16 +693,50 @@ this.style.display='none';
 
 /* LOAD USER AVATAR */
 async function getAvatar(username){
-  if(!username || username==="Anonymous") return null;
 
-  const q = query(collection(db,"users"), where("username","==",username));
+  if(!username || username === "Anonymous"){
+    return null;
+  }
+
+  // already loaded?
+  if(avatarCache.has(username)){
+    return avatarCache.get(username);
+  }
+
+  const q = query(
+    collection(db, "users"),
+    where("username", "==", username)
+  );
+
   const snap = await getDocs(q);
 
-  if(snap.empty) return null;
+  let avatar = null;
 
-  const data = snap.docs[0].data();
-  return data.profilePic || null;
+  if(!snap.empty){
+    avatar = snap.docs[0].data().profilePic || null;
+  }
+
+  avatarCache.set(username, avatar);
+
+  return avatar;
 }
+
+async function preloadAvatars(replies){
+
+  const uniqueUsers = [
+    ...new Set(
+      replies
+        .map(r => r.author)
+        .filter(name => name && name !== "Anonymous")
+    )
+  ];
+
+  await Promise.all(
+    uniqueUsers.map(username => getAvatar(username))
+  );
+}
+
+
 /* LOAD POST */
 async function loadPost(){
 const snap = await getDoc(doc(db, "posts", postId));
@@ -759,6 +794,8 @@ async function fetchReplies(){
 
   // reset pagination
   replyIndex = 0;
+
+  await preloadAvatars(replyList);
 
 const repliesContainer = document.getElementById("replies");
 const noRepliesEl = document.getElementById("noReplies");
