@@ -664,44 +664,61 @@ async function renderMentions(text, mentionedUsers = []){
 
   if(!text) return "";
 
-  let rendered = escapeHtml(text);
-
   const matches = [...text.matchAll(/@([\w]+)/g)];
+
+  let result = "";
+  let lastIndex = 0;
 
   for(let i = 0; i < matches.length; i++){
 
-    const originalUsername = matches[i][1];
+    const match = matches[i];
+
+    const originalUsername = match[1];
+
+    result += escapeHtml(
+      text.slice(lastIndex, match.index)
+    );
+
+    lastIndex = match.index + match[0].length;
 
     if(originalUsername === "Anonymous"){
+      result += escapeHtml(match[0]);
       continue;
     }
 
     const mentionData = mentionedUsers[i];
 
     if(!mentionData?.uid){
+      result += escapeHtml(match[0]);
       continue;
     }
 
-   try{
+    try{
 
-     const liveUsername =
-       await getUsernameFromUID(mentionData.uid);
+      const liveUsername =
+        await getUsernameFromUID(mentionData.uid);
 
-     if(!liveUsername){
-       continue;
-     }
+      if(!liveUsername){
+        result += escapeHtml(match[0]);
+        continue;
+      }
 
-     rendered = rendered.replace(
-       "@" + originalUsername,
-       `<span class="mention" onclick="goProfile('${liveUsername}')">@${liveUsername}</span>`
-     );
+      result +=
+        `<span class="mention" onclick="goProfile('${liveUsername}')">@${liveUsername}</span>`;
 
-   }catch(err){
-     console.error(err);
-   }
+    }catch(err){
+
+      console.error(err);
+
+      result += escapeHtml(match[0]);
+    }
   }
 
-  return rendered;
+  result += escapeHtml(
+    text.slice(lastIndex)
+  );
+
+  return result;
 }
 
 /* IMAGE VIEW */
