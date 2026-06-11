@@ -6,7 +6,7 @@
 <style>
 
 /* =========================
-   BASE UI (MATCH GENERAL.HTML) 
+   BASE UI (MATCH GENERAL.HTML)
 ========================= */
 
 body {
@@ -331,9 +331,11 @@ addDoc,
 getDocs,
 query,
 where,
-deleteDoc
+deleteDoc,
+orderBy,
+limit,
+startAfter
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-
 import {
 getAuth,
 onAuthStateChanged,
@@ -358,17 +360,47 @@ async function extractMentions(text){
       continue;
     }
 
+    const key = username.toLowerCase();
+
+    if(mentionLookupCache.has(key)){
+
+      const cachedUID =
+        mentionLookupCache.get(key);
+
+      results.push(
+        cachedUID
+          ? { uid: cachedUID }
+          : null
+      );
+
+      continue;
+    }
+
     const usernameSnap = await getDoc(
-      doc(db, "usernames", username.toLowerCase())
+      doc(db, "usernames", key)
     );
 
     if(usernameSnap.exists()){
 
+      const uid =
+        usernameSnap.data().uid;
+
+      mentionLookupCache.set(
+        key,
+        uid
+      );
+
       results.push({
-        uid: usernameSnap.data().uid
+        uid,
+        username
       });
 
-    } else {
+    }else{
+
+      mentionLookupCache.set(
+        key,
+        null
+      );
 
       results.push(null);
     }
@@ -411,6 +443,7 @@ let currentUID = null;
 let verificationSolution = null;
 const avatarCache = new Map();
 const usernameCache = new Map();
+const mentionLookupCache = new Map();
 
 const BLACKLIST = [
   "word1",
@@ -497,8 +530,10 @@ async function checkBan(uid){
 }
 
 
-let replyIndex=0;
 const REPLY_PAGE_SIZE = 10;
+
+let lastVisibleReply = null;
+let allRepliesLoaded = false;
 
 let lastReplyTime =
   Number(localStorage.getItem("lastReplyTime")) || 0;
@@ -647,7 +682,10 @@ async function preloadMentionUsernames(items){
 
     for(const mention of (item.mentionedUsers || [])){
 
-      if(mention?.uid){
+      if(
+        mention?.uid &&
+        !mention?.username
+      ){
         uniqueUIDs.add(mention.uid);
       }
     }
@@ -692,6 +730,7 @@ async function renderMentions(text, mentionedUsers = []){
     }else{
 
       const liveUsername =
+        mentionData.username ||
         await getUsernameFromUID(
           mentionData.uid
         );
@@ -891,62 +930,102 @@ if(p.content.length <= 400){
 }
 
 /* REPLIES */
-async function fetchReplies(){
-  const qSnap = await getDocs(
-    query(collection(db,"replies"), where("postId","==",postId))
-  );
+async function fetchReplies(reset = true){
 
-  replyList = qSnap.docs.map(d => ({id:d.id,...d.data()}));
-  document.getElementById("repliesHeading").textContent =
-    `Replies (${replyList.length})`;
+  const repliesContainer =
+    document.getElementById("replies");
 
-  // sort once only
-  replyList.sort((a,b)=>b.time-a.time);
+  const noRepliesEl =
+    document.getElementById("noReplies");
 
-  // reset pagination
-  replyIndex = 0;
+  const loadBtn =
+    document.getElementById("loadMoreReplies");
 
-  await preloadAvatars(replyList);
-  await preloadMentionUsernames(replyList);
+  if(reset){
 
-const repliesContainer = document.getElementById("replies");
-const noRepliesEl = document.getElementById("noReplies");
-const loadBtn = document.getElementById("loadMoreReplies");
+    repliesContainer.innerHTML = "";
 
-  // clear UI
-  repliesContainer.innerHTML = "";
+    lastVisibleReply = null;
+    allRepliesLoaded = false;
+  }
 
-  if(replyList.length === 0){
+  let q;
 
-    noRepliesEl.style.display = "block";
-    loadBtn.style.display = "none";
+  if(lastVisibleReply){
+
+    q = query(
+      collection(db,"replies"),
+      where("postId","==",postId),
+      orderBy("time","desc"),
+      startAfter(lastVisibleReply),
+      limit(REPLY_PAGE_SIZE)
+    );
+
+  }else{
+
+    q = query(
+      collection(db,"replies"),
+      where("postId","==",postId),
+      orderBy("time","desc"),
+      limit(REPLY_PAGE_SIZE)
+    );
+  }
+
+  const snap = await getDocs(q);
+
+  if(snap.empty){
+
+    allRepliesLoaded = true;
+
+    if(repliesContainer.children.length === 0){
+
+      noRepliesEl.style.display = "block";
+      loadBtn.style.display = "none";
+    }
 
     return;
   }
 
-  noRepliesEl.style.display = "none";
+  lastVisibleReply =
+    snap.docs[snap.docs.length - 1];
 
-  // load first batch
-  await renderReplies();
+  const replies =
+    snap.docs.map(d => ({
+      id:d.id,
+      ...d.data()
+    }));
+
+  await preloadAvatars(replies);
+  await preloadMentionUsernames(replies);
+
+  await renderReplies(replies);
+
+  if(snap.docs.length < REPLY_PAGE_SIZE){
+    allRepliesLoaded = true;
+  }
+
+  loadBtn.style.display =
+    allRepliesLoaded
+      ? "none"
+      : "block";
 }
+async function renderReplies(chunk){
 
-async function renderReplies(){
-
-  const container = document.getElementById("replies");
-  const loadBtn = document.getElementById("loadMoreReplies");
-
-  // get next batch
-  const chunk = replyList.slice(replyIndex, replyIndex + REPLY_PAGE_SIZE);
+  const container =
+    document.getElementById("replies");
 
   for(const r of chunk){
 
-    const avatar = await getAvatar(r.author);
+    const avatar =
+      await getAvatar(r.author);
 
     const el=document.createElement("div");
     el.className="replyBox";
 
     el.innerHTML=`
-    ${(postAuthorUID && r.authorUID && r.authorUID === postAuthorUID) ? `<div class="opBadge">OP</div>` : ``}
+    ${(postAuthorUID && r.authorUID && r.authorUID === postAuthorUID)
+      ? `<div class="opBadge">OP</div>`
+      : ``}
 
     ${r.author !== "Anonymous" && avatar
       ? `<img class="avatar" src="${avatar}" onclick="goProfile('${r.author}')">`
@@ -979,86 +1058,67 @@ async function renderReplies(){
         </button>
       ` : ``}
 
-
    </div>
    `;
 
     container.appendChild(el);
 
-if(r.content.length <= 400){
+    if(r.content.length <= 400){
 
-  el.querySelector(".reply-content").innerHTML =
-    await renderMentions(
-      r.content,
-      r.mentionedUsers || []
-    );
+      el.querySelector(".reply-content").innerHTML =
+        await renderMentions(
+          r.content,
+          r.mentionedUsers || []
+        );
 
-}else{
+    }else{
 
-  const truncatedContent =
-    r.content.slice(0,400);
+      const truncatedContent =
+        r.content.slice(0,400);
 
-  const truncatedHtml =
-    await renderMentions(
-      truncatedContent,
-      r.mentionedUsers || []
-    );
+      const truncatedHtml =
+        await renderMentions(
+          truncatedContent,
+          r.mentionedUsers || []
+        );
 
-  const fullHtml =
-    await renderMentions(
-      r.content,
-      r.mentionedUsers || []
-    );
+      const fullHtml =
+        await renderMentions(
+          r.content,
+          r.mentionedUsers || []
+        );
 
-  const id =
-    Math.random()
-      .toString(36)
-      .slice(2);
+      const id =
+        Math.random()
+          .toString(36)
+          .slice(2);
 
-  el.querySelector(".reply-content").innerHTML = `
-    <span id="t_${id}">
-      ${truncatedHtml}...
-      <span class="readMore" onclick="
-        document.getElementById('full_${id}').style.display='inline';
-        document.getElementById('t_${id}').style.display='none';
-      ">read more</span>
-    </span>
+      el.querySelector(".reply-content").innerHTML = `
+        <span id="t_${id}">
+          ${truncatedHtml}...
+          <span class="readMore" onclick="
+            document.getElementById('full_${id}').style.display='inline';
+            document.getElementById('t_${id}').style.display='none';
+          ">read more</span>
+        </span>
 
-    <span id="full_${id}" style="display:none">
-      ${fullHtml}
-    </span>
-  `;
-}
+        <span id="full_${id}" style="display:none">
+          ${fullHtml}
+        </span>
+      `;
+    }
 
     el.querySelectorAll(".imgThumb").forEach(img => {
       img.onclick = () => showImg(img.dataset.full);
     });
-
   }
-
-  // 🔥 MOVE INDEX AFTER RENDER (IMPORTANT FIX)
-  replyIndex += chunk.length;
-
-  // show/hide button
-  if(replyIndex >= replyList.length){
-    loadBtn.style.display = "none";
-  } else {
-    loadBtn.style.display = "block";
-  }
-
-  loadBtn.onclick = () => renderReplies();
 }
 
-const loadBtn = document.getElementById("loadMoreReplies");
 
-if(replyIndex >= replyList.length){
-  loadBtn.style.display = "none";
-} else {
-  loadBtn.style.display = "block";
-}
+const loadBtn =
+  document.getElementById("loadMoreReplies");
 
-loadBtn.onclick = () => renderReplies();
-
+loadBtn.onclick = () => fetchReplies(false);
 
 /* DELETE MODAL */
 const modal=document.getElementById("modal");
