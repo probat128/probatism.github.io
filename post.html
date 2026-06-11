@@ -331,10 +331,7 @@ addDoc,
 getDocs,
 query,
 where,
-deleteDoc,
-orderBy,
-limit,
-startAfter
+deleteDoc
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 import {
@@ -531,10 +528,8 @@ async function checkBan(uid){
 }
 
 
+let replyIndex=0;
 const REPLY_PAGE_SIZE = 10;
-
-let lastVisibleReply = null;
-let allRepliesLoaded = false;
 
 let lastReplyTime =
   Number(localStorage.getItem("lastReplyTime")) || 0;
@@ -928,118 +923,55 @@ if(p.content.length <= 400){
   `;
 }
 
-} // possibly delete
-
-async function updateReplyCount(){
-
-  const countSnap = await getDocs(
-    query(
-      collection(db,"replies"),
-      where("postId","==",postId)
-    )
-  );
-
-  document.getElementById(
-    "repliesHeading"
-  ).textContent =
-    `Replies (${countSnap.size})`;
 }
 
 /* REPLIES */
-async function fetchReplies(reset = true){
+async function fetchReplies(){
+  const qSnap = await getDocs(
+    query(collection(db,"replies"), where("postId","==",postId))
+  );
 
-   if(reset){
-     await updateReplyCount();
-   }
+  replyList = qSnap.docs.map(d => ({id:d.id,...d.data()}));
+  document.getElementById("repliesHeading").textContent =
+    `Replies (${replyList.length})`;
 
-  const repliesContainer =
-    document.getElementById("replies");
+  // sort once only
+  replyList.sort((a,b)=>b.time-a.time);
 
-  const noRepliesEl =
-    document.getElementById("noReplies");
+  // reset pagination
+  replyIndex = 0;
 
-  const loadBtn =
-    document.getElementById("loadMoreReplies");
+  await preloadAvatars(replyList);
+  await preloadMentionUsernames(replyList);
 
-  if(reset){
+const repliesContainer = document.getElementById("replies");
+const noRepliesEl = document.getElementById("noReplies");
+const loadBtn = document.getElementById("loadMoreReplies");
 
-    repliesContainer.innerHTML = "";
+  // clear UI
+  repliesContainer.innerHTML = "";
 
-    lastVisibleReply = null;
-    allRepliesLoaded = false;
-  }
+  if(replyList.length === 0){
 
-  let q;
-
-  if(lastVisibleReply){
-
-    q = query(
-      collection(db,"replies"),
-      where("postId","==",postId),
-      orderBy("time","desc"),
-      startAfter(lastVisibleReply),
-      limit(REPLY_PAGE_SIZE)
-    );
-
-  }else{
-
-    q = query(
-      collection(db,"replies"),
-      where("postId","==",postId),
-      orderBy("time","desc"),
-      limit(REPLY_PAGE_SIZE)
-    );
-  }
-
-  const snap = await getDocs(q);
-
-  if(snap.empty){
-
-    allRepliesLoaded = true;
-
-    if(reset){
-      noRepliesEl.style.display = "block";
-    }
-
+    noRepliesEl.style.display = "block";
     loadBtn.style.display = "none";
 
     return;
   }
 
-  lastVisibleReply =
-    snap.docs[snap.docs.length - 1];
-
-  const replies =
-    snap.docs.map(d => ({
-      id:d.id,
-      ...d.data()
-    }));
-
-  await preloadAvatars(replies);
-  await preloadMentionUsernames(replies);
-
   noRepliesEl.style.display = "none";
 
-  await renderReplies(replies);
-
-  if(snap.docs.length < REPLY_PAGE_SIZE){
-
-    allRepliesLoaded = true;
-    loadBtn.style.display = "none";
-
-  }else{
-
-    loadBtn.style.display = "block";
-  }
+  // load first batch
+  await renderReplies();
 }
 
-async function renderReplies(chunk){
+async function renderReplies(){
 
-  const container =
-    document.getElementById("replies");
+  const container = document.getElementById("replies");
+  const loadBtn = document.getElementById("loadMoreReplies");
 
-  const loadBtn =
-    document.getElementById("loadMoreReplies");
+  // get next batch
+  const chunk = replyList.slice(replyIndex, replyIndex + REPLY_PAGE_SIZE);
 
   for(const r of chunk){
 
@@ -1049,25 +981,20 @@ async function renderReplies(chunk){
     el.className="replyBox";
 
     el.innerHTML=`
-    ${(postAuthorUID && r.authorUID && r.authorUID === postAuthorUID)
-      ? `<div class="opBadge">OP</div>`
-      : ``}
+    ${(postAuthorUID && r.authorUID && r.authorUID === postAuthorUID) ? `<div class="opBadge">OP</div>` : ``}
 
     ${r.author !== "Anonymous" && avatar
       ? `<img class="avatar" src="${avatar}" onclick="goProfile('${r.author}')">`
       : ``}
 
     <div class="contentWrap">
-      <b onclick="${r.author !== "Anonymous" ? `goProfile('${r.author}')` : ''}"
-         style="cursor:${r.author !== "Anonymous" ? "pointer" : "default"}">
+      <b onclick="${r.author !== "Anonymous" ? `goProfile('${r.author}')` : ''}" style="cursor:${r.author !== "Anonymous" ? "pointer" : "default"}">
         ${r.author}${adminUIDs.includes(r.authorUID) ? " (admin)" : ""}
       </b><br>
 
       <div class="reply-content"></div>
 
-      ${r.image
-        ? `<br><img class="imgThumb" src="${r.image}" data-full="${r.image}">`
-        : ``}
+      ${r.image?`<br><img class="imgThumb" src="${r.image}" data-full="${r.image}">`:``}
 
       <div class="time">${new Date(r.time).toLocaleString()}</div>
 
@@ -1087,59 +1014,85 @@ async function renderReplies(chunk){
         </button>
       ` : ``}
 
-    </div>
-    `;
+
+   </div>
+   `;
 
     container.appendChild(el);
 
-    if(r.content.length <= 400){
+if(r.content.length <= 400){
 
-      el.querySelector(".reply-content").innerHTML =
-        await renderMentions(
-          r.content,
-          r.mentionedUsers || []
-        );
+  el.querySelector(".reply-content").innerHTML =
+    await renderMentions(
+      r.content,
+      r.mentionedUsers || []
+    );
 
-    }else{
+}else{
 
-      const truncatedHtml =
-        await renderMentions(
-          r.content.slice(0,400),
-          r.mentionedUsers || []
-        );
+  const truncatedContent =
+    r.content.slice(0,400);
 
-      const fullHtml =
-        await renderMentions(
-          r.content,
-          r.mentionedUsers || []
-        );
+  const truncatedHtml =
+    await renderMentions(
+      truncatedContent,
+      r.mentionedUsers || []
+    );
 
-      const id =
-        Math.random().toString(36).slice(2);
+  const fullHtml =
+    await renderMentions(
+      r.content,
+      r.mentionedUsers || []
+    );
 
-      el.querySelector(".reply-content").innerHTML = `
-        <span id="t_${id}">
-          ${truncatedHtml}...
-          <span class="readMore" onclick="
-            document.getElementById('full_${id}').style.display='inline';
-            document.getElementById('t_${id}').style.display='none';
-          ">read more</span>
-        </span>
+  const id =
+    Math.random()
+      .toString(36)
+      .slice(2);
 
-        <span id="full_${id}" style="display:none">
-          ${fullHtml}
-        </span>
-      `;
-    }
+  el.querySelector(".reply-content").innerHTML = `
+    <span id="t_${id}">
+      ${truncatedHtml}...
+      <span class="readMore" onclick="
+        document.getElementById('full_${id}').style.display='inline';
+        document.getElementById('t_${id}').style.display='none';
+      ">read more</span>
+    </span>
 
-    el.querySelectorAll(".imgThumb").forEach(img=>{
-      img.onclick=()=>showImg(img.dataset.full);
-    });
-  }
-
-  loadBtn.onclick = () => fetchReplies(false);
+    <span id="full_${id}" style="display:none">
+      ${fullHtml}
+    </span>
+  `;
 }
 
+    el.querySelectorAll(".imgThumb").forEach(img => {
+      img.onclick = () => showImg(img.dataset.full);
+    });
+
+  }
+
+  // 🔥 MOVE INDEX AFTER RENDER (IMPORTANT FIX)
+  replyIndex += chunk.length;
+
+  // show/hide button
+  if(replyIndex >= replyList.length){
+    loadBtn.style.display = "none";
+  } else {
+    loadBtn.style.display = "block";
+  }
+
+  loadBtn.onclick = () => renderReplies();
+}
+
+const loadBtn = document.getElementById("loadMoreReplies");
+
+if(replyIndex >= replyList.length){
+  loadBtn.style.display = "none";
+} else {
+  loadBtn.style.display = "block";
+}
+
+loadBtn.onclick = () => renderReplies();
 
 
 /* DELETE MODAL */
