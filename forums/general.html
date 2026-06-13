@@ -784,12 +784,37 @@ if(!auth.currentUser){
 
 try{
 
+  let authorProfilePic = "";
+
+  if(
+    auth.currentUser &&
+    !auth.currentUser.isAnonymous
+  ){
+
+    try{
+
+      const userSnap = await getDoc(
+        doc(db, "users", auth.currentUser.uid)
+      );
+
+      if(userSnap.exists()){
+        authorProfilePic =
+          userSnap.data().profilePic || "";
+      }
+
+    }catch(err){
+      console.error(err);
+    }
+  }
+
   await addDoc(collection(db,"posts"),{
     subforum:"general",
 
     author: currentUser || "Anonymous",
 
     authorUID: auth.currentUser.uid,
+
+    authorProfilePic: authorProfilePic,
 
     authorEmail: auth.currentUser.email || null,
 
@@ -901,31 +926,23 @@ async function loadPosts(){
     }
     const date=new Date(post.time).toLocaleString();
 
+    let displayName =
+      post.author || "Anonymous";
+
     let profilePic = "";
-    let displayName = post.author || "Anonymous";
 
-    if(post.authorUID){
+    if(
+      post.authorProfilePic &&
+      post.authorProfilePic.trim() !== ""
+    ){
 
-      const userSnap = await getDoc(doc(db, "users", post.authorUID));
-
-      if(userSnap.exists()){
-
-        const userData = userSnap.data();
-
-        // ALWAYS USE LIVE USERNAME
-        displayName = userData.username || "Anonymous";
-
-        // LIVE PROFILE PIC
-        if(userData.profilePic){
-          profilePic = `
-            <img
-              class="profile-thumb"
-              src="${userData.profilePic}"
-              onclick="goProfile('${displayName}')"
-            >
-          `;
-        }
-      }
+      profilePic = `
+        <img
+          class="profile-thumb"
+          src="${post.authorProfilePic}"
+          onclick="goProfile('${displayName}')"
+        >
+      `;
     }
 
     const div=document.createElement("div");
