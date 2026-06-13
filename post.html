@@ -395,6 +395,51 @@ async function preloadUsersByUIDs(uids){
   }));
 }
 
+async function batchFetchUsernames(usernameList){
+
+  if(!usernameList.length) return;
+
+  const lower = [...new Set(usernameList.map(u => u.toLowerCase()))];
+
+  const missing = lower.filter(u => !mentionLookupCache.has(u));
+
+  if(!missing.length) return;
+
+  // Firestore "in" queries max = 30
+  const chunks = [];
+
+  for(let i = 0; i < missing.length; i += 30){
+    chunks.push(missing.slice(i, i + 30));
+  }
+
+  await Promise.all(chunks.map(async (chunk) => {
+
+    const q = query(
+      collection(db, "usernames"),
+      where(documentId(), "in", chunk)
+    );
+
+    const snap = await getDocs(q);
+
+    const found = new Set();
+
+    snap.forEach(docSnap => {
+      const uid = docSnap.data().uid;
+      const key = docSnap.id.toLowerCase();
+
+      mentionLookupCache.set(key, uid);
+      found.add(key);
+    });
+
+    // cache misses
+    chunk.forEach(name => {
+      if(!found.has(name)){
+        mentionLookupCache.set(name, null);
+      }
+    });
+
+  }));
+}
 
 async function extractMentions(text){
 
@@ -465,6 +510,7 @@ let replyList=[];
 let currentUID = null;
 let verificationSolution = null;
 const avatarCache = new Map();
+const usernameCache = new Map();
 const userCache = new Map(); 
 // uid -> { username, avatar }
 const mentionLookupCache = new Map();
@@ -673,6 +719,34 @@ function escapeHtml(text){
     .replace(/'/g,"&#039;");
 }
 
+function getUsernameFromUID(uid){
+  return userCache.get(uid)?.username || null;
+}
+
+async function preloadMentionUsernames(items){
+
+  const uniqueUIDs = new Set();
+
+  for(const item of items){
+
+    for(const mention of (item.mentionedUsers || [])){
+
+      if(
+        mention?.uid &&
+        !mention?.username
+      ){
+        uniqueUIDs.add(mention.uid);
+      }
+    }
+  }
+
+  await Promise.all(
+    [...uniqueUIDs].map(uid =>
+      getUsernameFromUID(uid)
+    )
+  );
+}
+
 async function renderMentions(text, mentionedUsers = []){
 
   if(!text) return "";
@@ -706,9 +780,11 @@ async function renderMentions(text, mentionedUsers = []){
 
       const liveUsername =
         mentionData.username ||
-        userCache.get(mentionData.uid)?.username;
+        await getUsernameFromUID(
+          mentionData.uid
+        );
 
-            if(liveUsername){
+      if(liveUsername){
 
         result +=
           `<span class="mention" onclick="goProfile('${liveUsername}')">@${liveUsername}</span>`;
