@@ -334,7 +334,8 @@ where,
 deleteDoc,
 orderBy,
 limit,
-startAfter
+startAfter,
+documentId
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 import {
@@ -344,17 +345,66 @@ signOut,
 signInAnonymously
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
+async function batchFetchUsernames(usernameList){
+
+  if(!usernameList.length) return;
+
+  const lower = [...new Set(usernameList.map(u => u.toLowerCase()))];
+
+  const missing = lower.filter(u => !mentionLookupCache.has(u));
+
+  if(!missing.length) return;
+
+  // Firestore "in" queries max = 30
+  const chunks = [];
+
+  for(let i = 0; i < missing.length; i += 30){
+    chunks.push(missing.slice(i, i + 30));
+  }
+
+  await Promise.all(chunks.map(async (chunk) => {
+
+    const q = query(
+      collection(db, "usernames"),
+      where(documentId(), "in", chunk)
+    );
+
+    const snap = await getDocs(q);
+
+    const found = new Set();
+
+    snap.forEach(docSnap => {
+      const uid = docSnap.data().uid;
+      const key = docSnap.id.toLowerCase();
+
+      mentionLookupCache.set(key, uid);
+      found.add(key);
+    });
+
+    // cache misses
+    chunk.forEach(name => {
+      if(!found.has(name)){
+        mentionLookupCache.set(name, null);
+      }
+    });
+
+  }));
+}
+
 async function extractMentions(text){
 
   if(!text) return [];
 
   const matches = text.match(/@[\w]+/g) || [];
 
+  const usernames = matches.map(m => m.replace("@",""));
+
+  // 🔥 batch fetch missing usernames ONCE
+  await batchFetchUsernames(usernames);
+
   const results = [];
 
-  for(const match of matches){
-
-    const username = match.replace("@","");
+  for(const username of usernames){
 
     if(username === "Anonymous"){
       results.push(null);
@@ -362,47 +412,14 @@ async function extractMentions(text){
     }
 
     const key = username.toLowerCase();
+    const cachedUID = mentionLookupCache.get(key);
 
-    if(mentionLookupCache.has(key)){
-
-      const cachedUID =
-        mentionLookupCache.get(key);
-
-      results.push(
-        cachedUID
-          ? { uid: cachedUID }
-          : null
-      );
-
-      continue;
-    }
-
-    const usernameSnap = await getDoc(
-      doc(db, "usernames", key)
-    );
-
-    if(usernameSnap.exists()){
-
-      const uid =
-        usernameSnap.data().uid;
-
-      mentionLookupCache.set(
-        key,
-        uid
-      );
-
+    if(cachedUID){
       results.push({
-        uid,
+        uid: cachedUID,
         username
       });
-
-    }else{
-
-      mentionLookupCache.set(
-        key,
-        null
-      );
-
+    } else {
       results.push(null);
     }
   }
@@ -988,6 +1005,20 @@ async function fetchReplies(reset = true){
 
   await preloadAvatars(chunk);
   await preloadMentionUsernames(chunk);
+
+   // prefetch ALL usernames from all replies at once
+   const allUsernames = [];
+
+   for(const r of chunk){
+     const matches = r.content.match(/@[\w]+/g) || [];
+     allUsernames.push(...matches.map(m => m.replace("@","")));
+
+     (r.mentionedUsers || []).forEach(u => {
+       if(u?.username) allUsernames.push(u.username);
+     });
+   }
+
+   await batchFetchUsernames(allUsernames);
 
   await renderReplies(chunk);
 
