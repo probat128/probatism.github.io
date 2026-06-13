@@ -345,6 +345,56 @@ signOut,
 signInAnonymously
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
+async function preloadUsersByUIDs(uids){
+
+  const missing = [...new Set(uids)].filter(uid => {
+    const cached = userCache.get(uid);
+    return !cached;
+  });
+
+  if(!missing.length) return;
+
+  // Firestore "in" max 30
+  const chunks = [];
+  for(let i = 0; i < missing.length; i += 30){
+    chunks.push(missing.slice(i, i + 30));
+  }
+
+  await Promise.all(chunks.map(async (chunk) => {
+
+    const snap = await getDocs(
+      query(
+        collection(db, "users"),
+        where(documentId(), "in", chunk)
+      )
+    );
+
+    const found = new Set();
+
+    snap.forEach(docSnap => {
+      const data = docSnap.data();
+
+      userCache.set(docSnap.id, {
+        username: data.username || null,
+        avatar: data.profilePic || null
+      });
+
+      found.add(docSnap.id);
+    });
+
+    // cache misses
+    chunk.forEach(uid => {
+      if(!found.has(uid)){
+        userCache.set(uid, {
+          username: null,
+          avatar: null
+        });
+      }
+    });
+
+  }));
+}
+
 async function batchFetchUsernames(usernameList){
 
   if(!usernameList.length) return;
@@ -461,6 +511,8 @@ let currentUID = null;
 let verificationSolution = null;
 const avatarCache = new Map();
 const usernameCache = new Map();
+const userCache = new Map(); 
+// uid -> { username, avatar }
 const mentionLookupCache = new Map();
 
 const BLACKLIST = [
@@ -667,29 +719,8 @@ function escapeHtml(text){
     .replace(/'/g,"&#039;");
 }
 
-async function getUsernameFromUID(uid){
-
-  if(!uid){
-    return null;
-  }
-
-  if(usernameCache.has(uid)){
-    return usernameCache.get(uid);
-  }
-
-  const userSnap = await getDoc(
-    doc(db, "users", uid)
-  );
-
-  let username = null;
-
-  if(userSnap.exists()){
-    username = userSnap.data().username || null;
-  }
-
-  usernameCache.set(uid, username);
-
-  return username;
+function getUsernameFromUID(uid){
+  return userCache.get(uid)?.username || null;
 }
 
 async function preloadMentionUsernames(items){
@@ -820,25 +851,8 @@ async function renderTextWithMentions(
 
    
 /* LOAD USER AVATAR */
-async function getAvatarByUID(uid){
-
-  if(!uid) return null;
-
-  if(avatarCache.has(uid)){
-    return avatarCache.get(uid);
-  }
-
-  const snap = await getDoc(doc(db, "users", uid));
-
-  let avatar = null;
-
-  if(snap.exists()){
-    avatar = snap.data().profilePic || null;
-  }
-
-  avatarCache.set(uid, avatar);
-
-  return avatar;
+function getAvatarByUID(uid){
+  return userCache.get(uid)?.avatar || null;
 }
 
 async function preloadAvatars(items){
@@ -868,11 +882,12 @@ if (!snap.exists()) {
 }
 
 const p = snap.data();
-await preloadMentionUsernames([p]);
+await preloadUsersByUIDs([p.authorUID]);
+
 postAuthor = p.author;
 postAuthorUID = p.authorUID;
 
-const avatar = await getAvatarByUID(p.authorUID);
+const avatar = userCache.get(p.authorUID)?.avatar;
 
 document.getElementById("post").innerHTML=`
 <div class="postBox">
@@ -1003,8 +1018,21 @@ async function fetchReplies(reset = true){
       ...d.data()
     }));
 
-  await preloadAvatars(chunk);
-  await preloadMentionUsernames(chunk);
+  const uidSet = new Set();
+
+  // reply authors
+  chunk.forEach(r => {
+    if(r.authorUID) uidSet.add(r.authorUID);
+  });
+
+  // mentioned users (if present)
+  chunk.forEach(r => {
+    (r.mentionedUsers || []).forEach(u => {
+      if(u?.uid) uidSet.add(u.uid);
+    });
+  });
+
+  await preloadUsersByUIDs([...uidSet]);
 
    // prefetch ALL usernames from all replies at once
    const allUsernames = [];
@@ -1049,7 +1077,7 @@ async function renderReplies(chunk){
 
   for(const r of chunk){
 
-    const avatar = await getAvatarByUID(r.authorUID);
+    const avatar = userCache.get(r.authorUID)?.avatar;
 
     const el=document.createElement("div");
     el.className="replyBox";
