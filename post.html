@@ -331,7 +331,10 @@ addDoc,
 getDocs,
 query,
 where,
-deleteDoc
+deleteDoc,
+orderBy,
+limit,
+startAfter
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 import {
@@ -528,8 +531,10 @@ async function checkBan(uid){
 }
 
 
-let replyIndex=0;
 const REPLY_PAGE_SIZE = 10;
+
+let lastReplyDoc = null;
+let allRepliesLoaded = false;
 
 let lastReplyTime =
   Number(localStorage.getItem("lastReplyTime")) || 0;
@@ -926,52 +931,98 @@ if(p.content.length <= 400){
 }
 
 /* REPLIES */
-async function fetchReplies(){
-  const qSnap = await getDocs(
-    query(collection(db,"replies"), where("postId","==",postId))
-  );
+async function fetchReplies(reset = true){
 
-  replyList = qSnap.docs.map(d => ({id:d.id,...d.data()}));
-  document.getElementById("repliesHeading").textContent =
-    `Replies (${replyList.length})`;
+  const repliesContainer =
+    document.getElementById("replies");
 
-  // sort once only
-  replyList.sort((a,b)=>b.time-a.time);
+  const noRepliesEl =
+    document.getElementById("noReplies");
 
-  // reset pagination
-  replyIndex = 0;
+  const loadBtn =
+    document.getElementById("loadMoreReplies");
 
-  await preloadAvatars(replyList);
-  await preloadMentionUsernames(replyList);
+  if(reset){
 
-const repliesContainer = document.getElementById("replies");
-const noRepliesEl = document.getElementById("noReplies");
-const loadBtn = document.getElementById("loadMoreReplies");
+    repliesContainer.innerHTML = "";
 
-  // clear UI
-  repliesContainer.innerHTML = "";
+    lastReplyDoc = null;
+    allRepliesLoaded = false;
+  }
 
-  if(replyList.length === 0){
+  let q;
+
+  if(lastReplyDoc){
+
+    q = query(
+      collection(db,"replies"),
+      where("postId","==",postId),
+      orderBy("time","desc"),
+      startAfter(lastReplyDoc),
+      limit(REPLY_PAGE_SIZE)
+    );
+
+  }else{
+
+    q = query(
+      collection(db,"replies"),
+      where("postId","==",postId),
+      orderBy("time","desc"),
+      limit(REPLY_PAGE_SIZE)
+    );
+  }
+
+  const snap = await getDocs(q);
+
+  if(reset && snap.empty){
 
     noRepliesEl.style.display = "block";
     loadBtn.style.display = "none";
+
+    document.getElementById(
+      "repliesHeading"
+    ).textContent = "Replies";
 
     return;
   }
 
   noRepliesEl.style.display = "none";
 
-  // load first batch
-  await renderReplies();
+  const chunk =
+    snap.docs.map(d => ({
+      id:d.id,
+      ...d.data()
+    }));
+
+  await preloadAvatars(chunk);
+  await preloadMentionUsernames(chunk);
+
+  await renderReplies(chunk);
+
+  if(snap.docs.length){
+
+    lastReplyDoc =
+      snap.docs[snap.docs.length - 1];
+  }
+
+  if(snap.docs.length < REPLY_PAGE_SIZE){
+
+    allRepliesLoaded = true;
+    loadBtn.style.display = "none";
+
+  }else{
+
+    loadBtn.style.display = "block";
+  }
 }
 
-async function renderReplies(){
+async function renderReplies(chunk){
 
-  const container = document.getElementById("replies");
-  const loadBtn = document.getElementById("loadMoreReplies");
+  const container =
+    document.getElementById("replies");
 
-  // get next batch
-  const chunk = replyList.slice(replyIndex, replyIndex + REPLY_PAGE_SIZE);
+  const loadBtn =
+    document.getElementById("loadMoreReplies");
 
   for(const r of chunk){
 
@@ -1013,87 +1064,58 @@ async function renderReplies(){
           Delete
         </button>
       ` : ``}
-
-
    </div>
    `;
 
     container.appendChild(el);
 
-if(r.content.length <= 400){
+    if(r.content.length <= 400){
 
-  el.querySelector(".reply-content").innerHTML =
-    await renderMentions(
-      r.content,
-      r.mentionedUsers || []
-    );
+      el.querySelector(".reply-content").innerHTML =
+        await renderMentions(
+          r.content,
+          r.mentionedUsers || []
+        );
 
-}else{
+    }else{
 
-  const truncatedContent =
-    r.content.slice(0,400);
+      const truncatedHtml =
+        await renderMentions(
+          r.content.slice(0,400),
+          r.mentionedUsers || []
+        );
 
-  const truncatedHtml =
-    await renderMentions(
-      truncatedContent,
-      r.mentionedUsers || []
-    );
+      const fullHtml =
+        await renderMentions(
+          r.content,
+          r.mentionedUsers || []
+        );
 
-  const fullHtml =
-    await renderMentions(
-      r.content,
-      r.mentionedUsers || []
-    );
+      const id =
+        Math.random().toString(36).slice(2);
 
-  const id =
-    Math.random()
-      .toString(36)
-      .slice(2);
+      el.querySelector(".reply-content").innerHTML = `
+        <span id="t_${id}">
+          ${truncatedHtml}...
+          <span class="readMore" onclick="
+            document.getElementById('full_${id}').style.display='inline';
+            document.getElementById('t_${id}').style.display='none';
+          ">read more</span>
+        </span>
 
-  el.querySelector(".reply-content").innerHTML = `
-    <span id="t_${id}">
-      ${truncatedHtml}...
-      <span class="readMore" onclick="
-        document.getElementById('full_${id}').style.display='inline';
-        document.getElementById('t_${id}').style.display='none';
-      ">read more</span>
-    </span>
-
-    <span id="full_${id}" style="display:none">
-      ${fullHtml}
-    </span>
-  `;
-}
+        <span id="full_${id}" style="display:none">
+          ${fullHtml}
+        </span>
+      `;
+    }
 
     el.querySelectorAll(".imgThumb").forEach(img => {
       img.onclick = () => showImg(img.dataset.full);
     });
-
   }
 
-  // 🔥 MOVE INDEX AFTER RENDER (IMPORTANT FIX)
-  replyIndex += chunk.length;
-
-  // show/hide button
-  if(replyIndex >= replyList.length){
-    loadBtn.style.display = "none";
-  } else {
-    loadBtn.style.display = "block";
-  }
-
-  loadBtn.onclick = () => renderReplies();
+  loadBtn.onclick = () => fetchReplies(false);
 }
-
-const loadBtn = document.getElementById("loadMoreReplies");
-
-if(replyIndex >= replyList.length){
-  loadBtn.style.display = "none";
-} else {
-  loadBtn.style.display = "block";
-}
-
-loadBtn.onclick = () => renderReplies();
-
 
 /* DELETE MODAL */
 const modal=document.getElementById("modal");
@@ -1119,7 +1141,7 @@ document.getElementById("confirmBtn").onclick = async () => {
     deleteTarget = null;
     modal.style.display = "none";
 
-    fetchReplies();
+    fetchReplies(true);
 
   } catch (err) {
     console.error("Delete failed:", err);
@@ -1257,7 +1279,7 @@ generateVerification();
 
 setTimeout(()=>btn.disabled=false,10000);
 
-fetchReplies();
+fetchReplies(true);
 };
 
 function startCooldownUI(seconds){
