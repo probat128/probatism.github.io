@@ -270,10 +270,14 @@ async function extractMentions(text){
     );
 
     if(usernameSnap.exists()){
+
       results.push({
-        uid: usernameSnap.data().uid
+        uid: usernameSnap.data().uid,
+        username: username
       });
+
     } else {
+
       results.push(null);
     }
   }
@@ -553,9 +557,7 @@ async function renderMentions(text, mentionedUsers = []){
 
   for(let i = 0; i < matches.length; i++){
 
-    const match = matches[i];
-
-    const originalUsername = match[1];
+    const originalUsername = matches[i][1];
 
     if(originalUsername === "Anonymous"){
       continue;
@@ -563,30 +565,18 @@ async function renderMentions(text, mentionedUsers = []){
 
     const mentionData = mentionedUsers[i];
 
-    if(!mentionData?.uid){
+    if(!mentionData){
       continue;
     }
 
-    try {
+    const username =
+      mentionData.username ||
+      originalUsername;
 
-      const userSnap = await getDoc(
-        doc(db, "users", mentionData.uid)
-      );
-
-      if(!userSnap.exists()){
-        continue;
-      }
-
-      const liveUsername = userSnap.data().username;
-
-      rendered = rendered.replace(
-        "@" + originalUsername,
-        `<span class="mention" onclick="goProfile('${liveUsername}')">@${liveUsername}</span>`
-      );
-
-    } catch(err){
-      console.error(err);
-    }
+    rendered = rendered.replace(
+      "@" + originalUsername,
+      `<span class="mention" onclick="goProfile('${username}')">@${username}</span>`
+    );
   }
 
   return rendered;
