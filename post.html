@@ -254,7 +254,7 @@ button {
   <p id="cooldownText" style="font-size:12px; margin-top:5px;"></p>
 </div>
 
-<h3 id="repliesHeading">Replies (0)</h3>
+<h3 id="repliesHeading">Replies</h3>
 
 <div id="noReplies" class="noReplies">
   No replies yet
@@ -331,8 +331,13 @@ addDoc,
 getDocs,
 query,
 where,
-deleteDoc
+deleteDoc,
+orderBy,
+limit,
+startAfter
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+   
 
 import {
 getAuth,
@@ -436,7 +441,9 @@ let currentUser=null;
 let deleteTarget=null;
 let reportSubmitting=false;
 let pendingReport=null;
-let replyList=[];
+let replyList = [];
+let lastReplyDoc = null;
+let hasMoreReplies = true;
 let currentUID = null;
 let verificationSolution = null;
 const avatarCache = new Map();
@@ -926,150 +933,193 @@ if(p.content.length <= 400){
 }
 
 /* REPLIES */
-async function fetchReplies(){
-  const qSnap = await getDocs(
-    query(collection(db,"replies"), where("postId","==",postId))
-  );
+async function fetchReplies(reset = true){
 
-  replyList = qSnap.docs.map(d => ({id:d.id,...d.data()}));
-  document.getElementById("repliesHeading").textContent =
-    `Replies (${replyList.length})`;
+  const repliesContainer =
+    document.getElementById("replies");
 
-  // sort once only
-  replyList.sort((a,b)=>b.time-a.time);
+  const noRepliesEl =
+    document.getElementById("noReplies");
 
-  // reset pagination
-  replyIndex = 0;
+  const loadBtn =
+    document.getElementById("loadMoreReplies");
 
-  await preloadAvatars(replyList);
-  await preloadMentionUsernames(replyList);
+  if(reset){
 
-const repliesContainer = document.getElementById("replies");
-const noRepliesEl = document.getElementById("noReplies");
-const loadBtn = document.getElementById("loadMoreReplies");
+    replyList = [];
+    lastReplyDoc = null;
+    hasMoreReplies = true;
 
-  // clear UI
-  repliesContainer.innerHTML = "";
+    repliesContainer.innerHTML = "";
+  }
 
-  if(replyList.length === 0){
+  let q;
 
-    noRepliesEl.style.display = "block";
-    loadBtn.style.display = "none";
+  if(lastReplyDoc){
+
+    q = query(
+      collection(db,"replies"),
+      where("postId","==",postId),
+      orderBy("time","desc"),
+      startAfter(lastReplyDoc),
+      limit(REPLY_PAGE_SIZE)
+    );
+
+  }else{
+
+    q = query(
+      collection(db,"replies"),
+      where("postId","==",postId),
+      orderBy("time","desc"),
+      limit(REPLY_PAGE_SIZE)
+    );
+  }
+
+  const qSnap = await getDocs(q);
+
+  if(qSnap.empty){
+
+    hasMoreReplies = false;
+
+    if(replyList.length === 0){
+
+      noRepliesEl.style.display = "block";
+      loadBtn.style.display = "none";
+    }
 
     return;
   }
 
+  lastReplyDoc =
+    qSnap.docs[qSnap.docs.length - 1];
+
+  const newReplies =
+    qSnap.docs.map(d => ({
+      id:d.id,
+      ...d.data()
+    }));
+
+  replyList.push(...newReplies);
+
+  await preloadAvatars(newReplies);
+  await preloadMentionUsernames(newReplies);
+
   noRepliesEl.style.display = "none";
 
-  // load first batch
-  await renderReplies();
+  await renderReplies(newReplies);
+
+  if(qSnap.docs.length < REPLY_PAGE_SIZE){
+    hasMoreReplies = false;
+  }
+
+  loadBtn.style.display =
+    hasMoreReplies ? "block" : "none";
 }
 
-async function renderReplies(){
+async function renderReplies(chunk){
 
-  const container = document.getElementById("replies");
-  const loadBtn = document.getElementById("loadMoreReplies");
-
-  // get next batch
-  const chunk = replyList.slice(replyIndex, replyIndex + REPLY_PAGE_SIZE);
+  const container =
+    document.getElementById("replies");
 
   for(const r of chunk){
 
-    const avatar = await getAvatar(r.author);
+    const avatar =
+      await getAvatar(r.author);
 
-    const el=document.createElement("div");
-    el.className="replyBox";
+    const el =
+      document.createElement("div");
 
-    el.innerHTML=`
-    ${(postAuthorUID && r.authorUID && r.authorUID === postAuthorUID) ? `<div class="opBadge">OP</div>` : ``}
+    el.className = "replyBox";
 
-    ${r.author !== "Anonymous" && avatar
-      ? `<img class="avatar" src="${avatar}" onclick="goProfile('${r.author}')">`
-      : ``}
+    el.innerHTML = `
+      ${(postAuthorUID && r.authorUID && r.authorUID === postAuthorUID)
+        ? `<div class="opBadge">OP</div>`
+        : ``}
 
-    <div class="contentWrap">
-      <b onclick="${r.author !== "Anonymous" ? `goProfile('${r.author}')` : ''}" style="cursor:${r.author !== "Anonymous" ? "pointer" : "default"}">
-        ${r.author}${adminUIDs.includes(r.authorUID) ? " (admin)" : ""}
-      </b><br>
+      ${r.author !== "Anonymous" && avatar
+        ? `<img class="avatar" src="${avatar}" onclick="goProfile('${r.author}')">`
+        : ``}
 
-      <div class="reply-content"></div>
+      <div class="contentWrap">
+        <b onclick="${r.author !== "Anonymous" ? `goProfile('${r.author}')` : ''}"
+           style="cursor:${r.author !== "Anonymous" ? "pointer" : "default"}">
+          ${r.author}${adminUIDs.includes(r.authorUID) ? " (admin)" : ""}
+        </b><br>
 
-      ${r.image?`<br><img class="imgThumb" src="${r.image}" data-full="${r.image}">`:``}
+        <div class="reply-content"></div>
 
-      <div class="time">${new Date(r.time).toLocaleString()}</div>
+        ${r.image
+          ? `<br><img class="imgThumb" src="${r.image}" data-full="${r.image}">`
+          : ``}
 
-      <span
-        class="reportBtn"
-        onclick="reportReply('${r.id}', '${r.author}', '${r.authorUID}')"
-      >
-        report
-      </span>
+        <div class="time">
+          ${new Date(r.time).toLocaleString()}
+        </div>
 
-      ${(
-        (currentUID === r.authorUID) ||
-        isAdmin(currentUID)
-      ) ? `
-        <button class="deleteBtn" onclick="openDelete('${r.id}')">
-          Delete
-        </button>
-      ` : ``}
+        <span class="reportBtn"
+          onclick="reportReply('${r.id}', '${r.author}', '${r.authorUID}')">
+          report
+        </span>
 
-
-   </div>
-   `;
+        ${(
+          currentUID === r.authorUID ||
+          isAdmin(currentUID)
+        ) ? `
+          <button class="deleteBtn"
+            onclick="openDelete('${r.id}')">
+            Delete
+          </button>
+        ` : ``}
+      </div>
+    `;
 
     container.appendChild(el);
 
-if(r.content.length <= 400){
+    if(r.content.length <= 400){
 
-  el.querySelector(".reply-content").innerHTML =
-    await renderMentions(
-      r.content,
-      r.mentionedUsers || []
-    );
+      el.querySelector(".reply-content").innerHTML =
+        await renderMentions(
+          r.content,
+          r.mentionedUsers || []
+        );
 
-}else{
+    }else{
 
-  const truncatedContent =
-    r.content.slice(0,400);
+      const truncatedHtml =
+        await renderMentions(
+          r.content.slice(0,400),
+          r.mentionedUsers || []
+        );
 
-  const truncatedHtml =
-    await renderMentions(
-      truncatedContent,
-      r.mentionedUsers || []
-    );
+      const fullHtml =
+        await renderMentions(
+          r.content,
+          r.mentionedUsers || []
+        );
 
-  const fullHtml =
-    await renderMentions(
-      r.content,
-      r.mentionedUsers || []
-    );
+      const id =
+        Math.random().toString(36).slice(2);
 
-  const id =
-    Math.random()
-      .toString(36)
-      .slice(2);
+      el.querySelector(".reply-content").innerHTML = `
+        <span id="t_${id}">
+          ${truncatedHtml}...
+          <span class="readMore" onclick="
+            document.getElementById('full_${id}').style.display='inline';
+            document.getElementById('t_${id}').style.display='none';
+          ">read more</span>
+        </span>
 
-  el.querySelector(".reply-content").innerHTML = `
-    <span id="t_${id}">
-      ${truncatedHtml}...
-      <span class="readMore" onclick="
-        document.getElementById('full_${id}').style.display='inline';
-        document.getElementById('t_${id}').style.display='none';
-      ">read more</span>
-    </span>
+        <span id="full_${id}" style="display:none">
+          ${fullHtml}
+        </span>
+      `;
+    }
 
-    <span id="full_${id}" style="display:none">
-      ${fullHtml}
-    </span>
-  `;
-}
-
-    el.querySelectorAll(".imgThumb").forEach(img => {
-      img.onclick = () => showImg(img.dataset.full);
+    el.querySelectorAll(".imgThumb").forEach(img=>{
+      img.onclick=()=>showImg(img.dataset.full);
     });
-
   }
+}
 
   // 🔥 MOVE INDEX AFTER RENDER (IMPORTANT FIX)
   replyIndex += chunk.length;
@@ -1081,7 +1131,7 @@ if(r.content.length <= 400){
     loadBtn.style.display = "block";
   }
 
-  loadBtn.onclick = () => renderReplies();
+  loadBtn.onclick = () => fetchReplies(false);
 }
 
 const loadBtn = document.getElementById("loadMoreReplies");
@@ -1092,7 +1142,7 @@ if(replyIndex >= replyList.length){
   loadBtn.style.display = "block";
 }
 
-loadBtn.onclick = () => renderReplies();
+loadBtn.onclick = () => fetchReplies(false);
 
 
 /* DELETE MODAL */
