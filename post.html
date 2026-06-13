@@ -803,47 +803,39 @@ async function renderTextWithMentions(
 
    
 /* LOAD USER AVATAR */
-async function getAvatar(username){
+async function getAvatarByUID(uid){
 
-  if(!username || username === "Anonymous"){
-    return null;
+  if(!uid) return null;
+
+  if(avatarCache.has(uid)){
+    return avatarCache.get(uid);
   }
 
-  // already loaded?
-  if(avatarCache.has(username)){
-    return avatarCache.get(username);
-  }
-
-  const q = query(
-    collection(db, "users"),
-    where("username", "==", username)
-  );
-
-  const snap = await getDocs(q);
+  const snap = await getDoc(doc(db, "users", uid));
 
   let avatar = null;
 
-  if(!snap.empty){
-    avatar = snap.docs[0].data().profilePic || null;
+  if(snap.exists()){
+    avatar = snap.data().profilePic || null;
   }
 
-  avatarCache.set(username, avatar);
+  avatarCache.set(uid, avatar);
 
   return avatar;
 }
 
-async function preloadAvatars(replies){
+async function preloadAvatars(items){
 
-  const uniqueUsers = [
+  const uniqueUIDs = [
     ...new Set(
-      replies
-        .map(r => r.author)
-        .filter(name => name && name !== "Anonymous")
+      items
+        .map(r => r.authorUID)
+        .filter(uid => uid)
     )
   ];
 
   await Promise.all(
-    uniqueUsers.map(username => getAvatar(username))
+    uniqueUIDs.map(uid => getAvatarByUID(uid))
   );
 }
 
@@ -863,7 +855,7 @@ await preloadMentionUsernames([p]);
 postAuthor = p.author;
 postAuthorUID = p.authorUID;
 
-const avatar = await getAvatar(p.author);
+const avatar = await getAvatarByUID(p.authorUID);
 
 document.getElementById("post").innerHTML=`
 <div class="postBox">
@@ -1026,7 +1018,7 @@ async function renderReplies(chunk){
 
   for(const r of chunk){
 
-    const avatar = await getAvatar(r.author);
+    const avatar = await getAvatarByUID(r.authorUID);
 
     const el=document.createElement("div");
     el.className="replyBox";
