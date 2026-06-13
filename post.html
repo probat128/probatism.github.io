@@ -395,51 +395,6 @@ async function preloadUsersByUIDs(uids){
   }));
 }
 
-async function batchFetchUsernames(usernameList){
-
-  if(!usernameList.length) return;
-
-  const lower = [...new Set(usernameList.map(u => u.toLowerCase()))];
-
-  const missing = lower.filter(u => !mentionLookupCache.has(u));
-
-  if(!missing.length) return;
-
-  // Firestore "in" queries max = 30
-  const chunks = [];
-
-  for(let i = 0; i < missing.length; i += 30){
-    chunks.push(missing.slice(i, i + 30));
-  }
-
-  await Promise.all(chunks.map(async (chunk) => {
-
-    const q = query(
-      collection(db, "usernames"),
-      where(documentId(), "in", chunk)
-    );
-
-    const snap = await getDocs(q);
-
-    const found = new Set();
-
-    snap.forEach(docSnap => {
-      const uid = docSnap.data().uid;
-      const key = docSnap.id.toLowerCase();
-
-      mentionLookupCache.set(key, uid);
-      found.add(key);
-    });
-
-    // cache misses
-    chunk.forEach(name => {
-      if(!found.has(name)){
-        mentionLookupCache.set(name, null);
-      }
-    });
-
-  }));
-}
 
 async function extractMentions(text){
 
@@ -510,7 +465,6 @@ let replyList=[];
 let currentUID = null;
 let verificationSolution = null;
 const avatarCache = new Map();
-const usernameCache = new Map();
 const userCache = new Map(); 
 // uid -> { username, avatar }
 const mentionLookupCache = new Map();
@@ -719,7 +673,60 @@ function escapeHtml(text){
     .replace(/'/g,"&#039;");
 }
 
+async function renderMentions(text, mentionedUsers = []){
 
+  if(!text) return "";
+
+  const escapedText = escapeHtml(text);
+
+  const matches = [...escapedText.matchAll(/@([\w]+)/g)];
+
+  let result = "";
+  let lastIndex = 0;
+
+  for(let i = 0; i < matches.length; i++){
+
+    const match = matches[i];
+
+    const originalUsername = match[1];
+
+    const mentionData = mentionedUsers[i];
+
+    result += escapedText.slice(
+      lastIndex,
+      match.index
+    );
+
+    if(
+      originalUsername === "Anonymous" ||
+      !mentionData?.uid
+    ){
+      result += match[0];
+    }else{
+
+      const liveUsername =
+        mentionData.username ||
+        userCache.get(mentionData.uid)?.username;
+
+            if(liveUsername){
+
+        result +=
+          `<span class="mention" onclick="goProfile('${liveUsername}')">@${liveUsername}</span>`;
+
+      }else{
+
+        result += match[0];
+      }
+    }
+
+    lastIndex =
+      match.index + match[0].length;
+  }
+
+  result += escapedText.slice(lastIndex);
+
+  return result;
+}
 
 /* IMAGE VIEW */
 const overlay=document.getElementById("imgOverlay");
@@ -767,6 +774,36 @@ async function renderTextWithMentions(
 }
 
    
+/* LOAD USER AVATAR */
+function getAvatarByUID(uid){
+  return userCache.get(uid)?.avatar || null;
+}
+
+async function preloadAvatars(items){
+
+  const uniqueUIDs = [
+    ...new Set(
+      items
+        .map(r => r.authorUID)
+        .filter(uid => uid)
+    )
+  ];
+
+  await Promise.all(
+    uniqueUIDs.map(uid => getAvatarByUID(uid))
+  );
+}
+
+
+/* LOAD POST */
+async function loadPost(){
+const snap = await getDoc(doc(db, "posts", postId));
+
+if (!snap.exists()) {
+  document.getElementById("post").innerHTML =
+    "<p>Post not found.</p>";
+  return;
+}
 
 const p = snap.data();
 await preloadUsersByUIDs([p.authorUID]);
