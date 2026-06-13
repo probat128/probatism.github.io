@@ -1121,18 +1121,6 @@ async function renderReplies(chunk){
   }
 }
 
-  // 🔥 MOVE INDEX AFTER RENDER (IMPORTANT FIX)
-  replyIndex += chunk.length;
-
-  // show/hide button
-  if(replyIndex >= replyList.length){
-    loadBtn.style.display = "none";
-  } else {
-    loadBtn.style.display = "block";
-  }
-
-  loadBtn.onclick = () => fetchReplies(false);
-}
 
 const loadBtn = document.getElementById("loadMoreReplies");
 
