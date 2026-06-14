@@ -318,6 +318,14 @@ button {
   </div>
 </div>
 
+<!-- MENTION LIMIT MODAL -->
+<div id="mentionLimitModal" class="modal-bg">
+  <div class="modal-content">
+    <p>You can only have up to 3 mentions per reply.</p>
+    <button id="mentionLimitOkBtn">OK</button>
+  </div>
+</div>
+
 <script type="module">
 
 import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
@@ -497,6 +505,8 @@ const confirmReportBtn = document.getElementById("confirmReportBtn");
 const cancelReportBtn = document.getElementById("cancelReportBtn");
 const reportSuccessModal = document.getElementById("reportSuccessModal");
 const reportSuccessOkBtn = document.getElementById("reportSuccessOkBtn");
+const mentionLimitModal = document.getElementById("mentionLimitModal");
+const mentionLimitOkBtn = document.getElementById("mentionLimitOkBtn");
 const postId = new URLSearchParams(location.search).get("id");
 let postAuthor = null;
 let postAuthorUID = null;
@@ -1296,6 +1306,16 @@ if(img && img.length > 1300000){
 
 const mentions = await extractMentions(text);
 
+const validMentions = mentions.filter(m => m && m.uid);
+
+if (validMentions.length > 3) {
+  mentionLimitModal.style.display = "flex";
+
+  btn.disabled = false;
+
+  return;
+}
+
 if(!auth.currentUser){
   alert("Authentication still loading. Please wait a second and try again.");
   btn.disabled = false;
@@ -1453,6 +1473,10 @@ cancelReportBtn.onclick = () => {
 
 reportSuccessOkBtn.onclick = () => {
   reportSuccessModal.style.display = "none";
+};
+
+mentionLimitOkBtn.onclick = () => {
+  mentionLimitModal.style.display = "none";
 };
 
 
