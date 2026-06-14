@@ -327,7 +327,7 @@ const db = getFirestore(app);
 const auth = getAuth(app);
 // username lookup cache
 const usernameCache = new Map();
-
+const userDocCache = new Map();
 // ELEMENTS
 const postButton = document.getElementById("postButton");
 const postText = document.getElementById("postText");
@@ -805,7 +805,6 @@ try{
   ){
 
     try{
-      const userDocCache = new Map();
 
       let userData;
 
@@ -831,14 +830,9 @@ try{
         );
       }
 
-      authorProfilePic =
-        userData.profilePic || "";
-
-      if(userSnap.exists()){
-        authorProfilePic =
-          userSnap.data().profilePic || "";
-      }
-
+    authorProfilePic =
+      userData.profilePic || "";
+      
     }catch(err){
       console.error(err);
     }
