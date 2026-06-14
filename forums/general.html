@@ -245,24 +245,7 @@ textarea { width:100%; height:80px; background: rgb(232,224,207); color: rgb(91,
 
 <script type="module">
 import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import {
-  getFirestore,
-  collection,
-  addDoc,
-  getDocs,
-  query,
-  where,
-  orderBy,
-  deleteDoc,
-  doc,
-  getDoc,
-  limit,
-  startAfter,
-  updateDoc,
-  increment,
-  setDoc,
-  documentId
-} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { getFirestore, collection, addDoc, getDocs, query, where, orderBy, deleteDoc, doc, getDoc, limit, startAfter, updateDoc, increment, setDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { getAuth, onAuthStateChanged, signOut, signInAnonymously } 
 from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
@@ -550,14 +533,12 @@ onAuthStateChanged(auth, async (user) => {
   loadPosts();
 
   // LOAD ADS
-  loadAd(
-    "top",
+  loadAd("banner",
     document.getElementById("topAdImg"),
     document.getElementById("topAdLink")
   );
 
-  loadAd(
-    "bottom",
+  loadAd("box",
     document.getElementById("bottomAdImg"),
     document.getElementById("bottomAdLink")
   );
@@ -1140,71 +1121,88 @@ imageLockOkBtn.onclick = () => {
 };
 
 // LOAD ADS
-async function loadAd(slotName, imgEl, linkEl) {
-
+async function loadAd(type, imgEl, linkEl) {
   if (!imgEl || !linkEl) return;
 
   try {
-
-    const slotSnap = await getDoc(
-      doc(db, "adSlots", slotName)
+    // 1. Get ALL active ads of this type
+    const q = query(
+      collection(db, "ads"),
+      where("type", "==", type),
+      where("active", "==", true)
     );
 
-    if (!slotSnap.exists()) {
-      throw new Error("Missing slot");
+    const snap = await getDocs(q);
+
+    // 2. If absolutely no ads exist → placeholder
+    if (snap.empty) {
+      imgEl.src = "/probatism.github.io/placeholder-ad.png";
+      linkEl.href = "advertise.html";
+      return;
     }
 
-    const adId = slotSnap.data().adId;
+    // 3. Build STRICT valid ad pool
+    const validAds = [];
 
-    if (!adId) {
-      throw new Error("Missing adId");
+    snap.docs.forEach(docSnap => {
+      const data = docSnap.data();
+
+      // Only allow ads that are truly valid
+      if (
+        data &&
+        typeof data.image === "string" &&
+        data.image.trim() !== "" &&
+        typeof data.link === "string" &&
+        data.link.trim() !== "" &&
+        typeof data.impressionsLeft === "number" &&
+        data.impressionsLeft > 0
+      ) {
+        validAds.push({
+          id: docSnap.id,
+          data
+        });
+      }
+    });
+
+    // 4. If NO valid ads → placeholder
+    if (validAds.length === 0) {
+      imgEl.src = "/probatism.github.io/placeholder-ad.png";
+      linkEl.href = "advertise.html";
+      return;
     }
 
-    const adSnap = await getDoc(
-      doc(db, "ads", adId)
-    );
+    // 5. Pick random VALID ad
+    const chosen = validAds[Math.floor(Math.random() * validAds.length)];
 
-    if (!adSnap.exists()) {
-      throw new Error("Missing ad");
-    }
+    // 6. Apply ad
+    imgEl.src = chosen.data.image;
+    linkEl.href = chosen.data.link;
 
-    const ad = adSnap.data();
-
-    if (
-      !ad.active ||
-      !ad.image ||
-      !ad.link ||
-      ad.impressionsLeft <= 0
-    ) {
-      throw new Error("Invalid ad");
-    }
-
-    imgEl.src = ad.image;
-    linkEl.href = ad.link;
-
+    // 7. If image fails → ONLY THEN fallback
     imgEl.onerror = () => {
-      imgEl.src =
-        "/probatism.github.io/placeholder-ad.png";
-
-      linkEl.href = "../advertise.html";
+      console.log("Image failed → placeholder");
+      imgEl.src = "/probatism.github.io/placeholder-ad.png";
+      linkEl.href = "advertise.html";
     };
 
-    await updateDoc(
-      doc(db, "ads", adId),
-      {
+    // 8. Decrement impressions
+    // 8. Decrement impressions ONLY if allowed
+    try {
+      const adRef = doc(db, "ads", chosen.id);
+
+      await updateDoc(adRef, {
         impressionsLeft: increment(-1)
-      }
-    );
+      });
+
+    } catch (err) {
+      console.error("Impression update failed:", err);
+    }
 
   } catch (err) {
+    console.error("Ad load error:", err);
 
-    console.error(err);
-
-    imgEl.src =
-      "/probatism.github.io/placeholder-ad.png";
-
-    linkEl.href =
-      "../advertise.html";
+    imgEl.src = "/probatism.github.io/placeholder-ad.png";
+    linkEl.href = "advertise.html";
   }
 }
 
