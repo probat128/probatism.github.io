@@ -846,13 +846,13 @@ try{
     authorUID: auth.currentUser.uid,
 
     authorProfilePic: authorProfilePic,
-
+  
     authorEmail: auth.currentUser.email || null,
 
     content:text,
 
     image:image,
-
+  
     fullImage:fullImage,
 
     time:Date.now(),
@@ -860,15 +860,8 @@ try{
     mentionedUsers: mentions
   });
 
-  lastPostTime=Date.now();
-
-  document.getElementById("cooldownMsg").style.display = "none";
-
-  postText.value="";
-
-  postImage.value="";
-
-  generateVerification();
+  window.location.reload();
+  return;
 
 
 } catch(err){
