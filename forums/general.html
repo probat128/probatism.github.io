@@ -254,33 +254,53 @@ async function extractMentions(text){
 
   const matches = text.match(/@[\w]+/g) || [];
 
+  const uniqueUsernames = [
+    ...new Set(
+      matches.map(m => m.slice(1).toLowerCase())
+    )
+  ];
+
   const results = [];
 
-  for(const match of matches){
+  const lookupMap = {};
 
-    const username = match.replace("@","");
+  for(const lower of uniqueUsernames){
 
-    if(username === "Anonymous"){
-      results.push(null);
+    if(lower === "anonymous"){
+      lookupMap[lower] = null;
       continue;
     }
 
-    const usernameSnap = await getDoc(
-      doc(db, "usernames", username.toLowerCase())
+    if(usernameCache.has(lower)){
+      lookupMap[lower] =
+        usernameCache.get(lower);
+      continue;
+    }
+
+    const snap = await getDoc(
+      doc(db, "usernames", lower)
     );
 
-    if(usernameSnap.exists()){
+    let value = null;
 
-      results.push({
-        uid: usernameSnap.data().uid,
-        username: username
-      });
+    if(snap.exists()){
 
-    } else {
-
-      results.push(null);
+      value = {
+        uid: snap.data().uid,
+        username: lower
+      };
     }
+
+    usernameCache.set(lower, value);
+    lookupMap[lower] = value;
   }
+
+  return matches.map(match=>{
+    const lower =
+      match.slice(1).toLowerCase();
+
+    return lookupMap[lower] || null;
+  });
 
   return results;
 }
@@ -305,6 +325,8 @@ try {
 
 const db = getFirestore(app);
 const auth = getAuth(app);
+// username lookup cache
+const usernameCache = new Map();
 
 // ELEMENTS
 const postButton = document.getElementById("postButton");
@@ -393,6 +415,7 @@ let pendingReport = null;
 let currentSearch = "";
 let verificationAnswer = 0;
 let reportSubmitting = false;
+let searchTimer;
 
 const BLACKLIST = [
   "word123abcd",
@@ -782,10 +805,34 @@ try{
   ){
 
     try{
+      const userDocCache = new Map();
 
-      const userSnap = await getDoc(
-        doc(db, "users", auth.currentUser.uid)
-      );
+      let userData;
+
+      if(userDocCache.has(auth.currentUser.uid)){
+
+        userData =
+          userDocCache.get(auth.currentUser.uid);
+
+      } else {
+
+        const userSnap = await getDoc(
+          doc(db, "users", auth.currentUser.uid)
+        );
+
+        userData =
+          userSnap.exists()
+            ? userSnap.data()
+            : {};
+
+        userDocCache.set(
+          auth.currentUser.uid,
+          userData
+        );
+      }
+
+      authorProfilePic =
+        userData.profilePic || "";
 
       if(userSnap.exists()){
         authorProfilePic =
@@ -829,11 +876,6 @@ try{
 
   generateVerification();
 
-  postsDiv.innerHTML="";
-
-  lastVisible=null;
-
-  loadPosts();
 
 } catch(err){
 
@@ -1033,15 +1075,23 @@ postsDiv.appendChild(div);
 }
 searchInput.addEventListener("input", () => {
 
-  currentSearch = searchInput.value.trim();
+  clearTimeout(searchTimer);
 
-  postsDiv.innerHTML = "";
+  searchTimer = setTimeout(() => {
 
-  lastVisible = null;
+    currentSearch =
+      searchInput.value.trim();
 
-  loadMoreBtn.style.display = "inline-block";
+    postsDiv.innerHTML = "";
+    lastVisible = null;
 
-  loadPosts();
+    loadMoreBtn.style.display =
+      "inline-block";
+
+    loadPosts();
+
+  }, 400);
+
 });
 loadMoreBtn.onclick=loadPosts;
 document.getElementById("imgModal").onclick=()=> imgModal.style.display="none";
