@@ -898,10 +898,10 @@ try{
 } catch(err){
 
   console.error("Post failed:", err);
-
   alert("Failed to create post.");
 
-finally {
+} finally {
+
   isPosting = false;
   postButton.disabled = false;
 
