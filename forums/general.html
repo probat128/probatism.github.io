@@ -418,7 +418,7 @@ async function checkBan(uid){
 let currentUID = null;
 let currentUser = null;
 let postLock = false;
-
+let postSessionId = null;
 function unlockPost(){
   postLock = false;
   isPosting = false;
@@ -469,6 +469,12 @@ postImage.addEventListener("click", (e) => {
 
 // AUTH
 onAuthStateChanged(auth, async (user) => {
+
+  // prevent post spam across reloads
+  if (sessionStorage.getItem("postingLock") === "true") {
+    postButton.disabled = true;
+    postButton.innerText = "Posting...";
+  }
 
   console.log("Auth state:", user);
 
@@ -726,9 +732,19 @@ function getFullImage(file){
 postButton.onclick = async ()=>{
   if (postLock) return;
 
+  // HARD GLOBAL LOCK (prevents reload spam)
   postLock = true;
   isPosting = true;
+
+  // persistent lock across reloads
+  sessionStorage.setItem("postingLock", "true");
+
+  // generate idempotency key
+  postSessionId = crypto.randomUUID();
+
+  // immediate UI lock
   postButton.disabled = true;
+  postButton.innerText = "Posting...";
   postButton.style.pointerEvents = "none";
 
   if (!auth.currentUser || auth.currentUser.isAnonymous) {
@@ -882,6 +898,8 @@ try{
   await addDoc(collection(db,"posts"),{
     subforum:"general",
 
+    postSessionId: postSessionId,
+
     author: currentUser || "Anonymous",
 
     authorUID: auth.currentUser.uid,
@@ -901,7 +919,13 @@ try{
     mentionedUsers: mentions
   });
 
-  window.location.reload();
+  sessionStorage.removeItem("postingLock");
+
+  // small delay ensures Firestore commit finishes before UI reset
+  setTimeout(() => {
+    window.location.reload();
+  }, 250);
+
   return;
 
 
@@ -910,6 +934,8 @@ try{
   alert("Failed to create post.");
 } finally {
   unlockPost();
+  sessionStorage.removeItem("postingLock");
+  postButton.innerText = "Post";
 }
 }; 
 
