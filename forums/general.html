@@ -417,6 +417,14 @@ async function checkBan(uid){
 
 let currentUID = null;
 let currentUser = null;
+let postLock = false;
+
+function unlockPost(){
+  postLock = false;
+  isPosting = false;
+  postButton.disabled = false;
+  postButton.style.pointerEvents = "auto";
+}
 let lastVisible = null;
 let isPosting = false;
 let lastPostTime = 0;
@@ -716,12 +724,18 @@ function getFullImage(file){
 
 
 postButton.onclick = async ()=>{
+  if (postLock) return;
+
+  postLock = true;
+  isPosting = true;
+  postButton.disabled = true;
+  postButton.style.pointerEvents = "none";
+
   if (!auth.currentUser || auth.currentUser.isAnonymous) {
     if (postImage.files.length > 0) {
       return;
     }
   }
-  if(isPosting) return;
 
   const now=Date.now();
   if(now-lastPostTime<10000){
@@ -734,6 +748,7 @@ postButton.onclick = async ()=>{
       msg.style.display = "none";
     }, 10000);
 
+    unlockPost();
     return;
   }
 
@@ -754,6 +769,7 @@ postButton.onclick = async ()=>{
   );
 
   if (containsBlacklistedWord) {
+    unlockPost();
     return;
   }
 
@@ -761,17 +777,18 @@ postButton.onclick = async ()=>{
     document.getElementById("verificationAnswer").value.trim();
 
   if(userAnswer === ""){
+    unlockPost();
     return;
   }
 
   if(Number(userAnswer) !== verificationAnswer){
-
     generateVerification();
-
+    unlockPost();
     return;
   }
 
   if (!text && !file) {
+    unlockPost();
     return;
   }
 
@@ -790,6 +807,7 @@ postButton.onclick = async ()=>{
       alert("Image could not be compressed enough. Try a smaller image.");
       isPosting = false;
       postButton.disabled = false;
+      unlockPost();
       return;
     }
     
@@ -806,6 +824,7 @@ postButton.onclick = async ()=>{
     isPosting = false;
     postButton.disabled = false;
 
+    unlockPost();
     return;
   }
 
@@ -813,6 +832,7 @@ if(!auth.currentUser){
   alert("Authentication still loading. Please wait a second and try again.");
   isPosting = false;
   postButton.disabled = false;
+  unlockPost();
   return;
 }
 
@@ -891,12 +911,7 @@ try{
 
   alert("Failed to create post.");
 
-} finally {
 
-  isPosting=false;
-
-  postButton.disabled=false;
-}
 };
   // added "};" 
 
