@@ -3,7 +3,7 @@
 <head> 
 <title>General</title>
 <style>
-body { font-family: Arial; background: rgb(232,224,207); color: rgb(91,46,97); padding:20px; }
+body { font-family: Arial; background: rgb(232,224,207); color: rgb(91,46,97); padding:20px; z}
 nav a { color: rgb(91,46,97); margin-right:10px; text-decoration:none; }
 button { margin-top:5px; padding:5px 10px; cursor:pointer; background: rgb(232,224,207); color: rgb(91,46,97); border: 1px solid rgb(91,46,97); }
 textarea { width:100%; height:80px; background: rgb(232,224,207); color: rgb(91,46,97); border:1px solid rgb(91,46,97); padding:5px; }
@@ -911,9 +911,10 @@ try{
 
   alert("Failed to create post.");
 
+} finally {
+  unlockPost();
+}
 
-};
-  // added "};" 
 
 async function loadPosts(){
   
