@@ -65,6 +65,13 @@ textarea { width:100%; height:80px; background: rgb(232,224,207); color: rgb(91,
   max-height:95%;
 }
 
+#cooldownMsg {
+  background: rgb(232,224,207);
+  border: 1px solid rgb(91,46,97);
+  padding: 6px;
+  display: inline-block;
+}
+
 /* DELETE MODAL */
 .modal-bg {
   display:none;
@@ -956,7 +963,18 @@ try{
 } catch(err){
 
   console.error("Post failed:", err);
-  alert("Failed to create post.");
+
+  postClickLocked = false;
+  isPosting = false;
+  postButton.disabled = false;
+
+  const msg = document.getElementById("cooldownMsg");
+  msg.innerText = "Please wait a few seconds before posting again.";
+  msg.style.display = "block";
+
+  setTimeout(() => {
+    msg.style.display = "none";
+  }, 4000);
 
 } finally {
 
