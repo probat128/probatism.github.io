@@ -768,7 +768,14 @@ function getFullImage(file){
 postButton.onclick = async ()=>{
 
     if (postClickLocked) return;
-    postClickLocked = true;
+
+    const banned = await checkBan(auth.currentUser?.uid);
+
+    if (banned) {
+      postClickLocked = false;
+      return;
+    }
+    postClickLocked = true; //maybe move below if postclicklocked
   
   if (!auth.currentUser || auth.currentUser.isAnonymous) {
     if (postImage.files.length > 0) {
