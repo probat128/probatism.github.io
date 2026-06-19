@@ -284,28 +284,72 @@ window.submitForm = async function(){
 
 window.googleSignIn = async function(){
   try {
+
     const result = await signInWithPopup(auth, provider);
     const user = result.user;
 
-    const usersRef = doc(db, "users", user.uid);
-    const existingUser = await getDoc(usersRef);
+    const userRef = doc(db, "users", user.uid);
+    const existingUser = await getDoc(userRef);
 
     let finalUsername;
 
-    if (existingUser.exists()) {
+    // Existing Google user
+    if(existingUser.exists()){
+
       finalUsername = existingUser.data().username;
+
     } else {
 
-      let baseNameRaw =
-        user.displayName ||
-        user.email?.split("@")[0] ||
-        "user";
+      // ==========================
+      // BRAND NEW GOOGLE ACCOUNT
+      // ==========================
 
-      baseNameRaw = baseNameRaw.replace(/\s+/g, "");
+      while(true){
 
-      finalUsername = await generateUniqueUsername(baseNameRaw, true);
+        let chosenUsername = prompt(
+          "Choose a username. Usernames cannot be changed later."
+        );
 
-      await setDoc(doc(db, "users", user.uid), {
+        // User pressed cancel
+        if(chosenUsername === null){
+          showStatus("Google sign-up cancelled.", "error");
+          return;
+        }
+
+        chosenUsername = chosenUsername.trim();
+
+        if(chosenUsername.length < 3){
+          alert("Username must be at least 3 characters.");
+          continue;
+        }
+
+        // Use same cleanup rules as normal signup
+        chosenUsername = chosenUsername
+          .toLowerCase()
+          .replace(/\s+/g, "")
+          .replace(/[^a-z0-9]/g, "")
+          .slice(0, 12);
+
+        if(chosenUsername.length < 3){
+          alert("Username must contain at least 3 letters or numbers.");
+          continue;
+        }
+
+        const usernameRef = doc(db, "usernames", chosenUsername);
+        const usernameSnap = await getDoc(usernameRef);
+
+        if(usernameSnap.exists()){
+          alert("That username is already taken.");
+          continue;
+        }
+
+        finalUsername = chosenUsername;
+
+        break;
+      }
+
+      // Create user profile
+      await setDoc(userRef, {
         username: finalUsername,
         uid: user.uid,
         joinDate: Date.now(),
@@ -314,14 +358,13 @@ window.googleSignIn = async function(){
         profilePic: ""
       });
 
-      // Save username lookup
+      // Username lookup
       await setDoc(doc(db, "usernames", finalUsername), {
         uid: user.uid,
         createdAt: Date.now()
       });
     }
 
-    // 🔥 CRITICAL FIX: ALWAYS STORE CLEAN USERNAME
     localStorage.setItem("currentUser", finalUsername);
 
     showStatus("Logged in with Google!", "success");
