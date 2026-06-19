@@ -464,6 +464,13 @@ window.googleSignIn = async function(){
       }
 
       // Create user profile
+      // Create username lookup FIRST
+      await setDoc(doc(db, "usernames", finalUsername), {
+        uid: user.uid,
+        createdAt: Date.now()
+      });
+
+      // Then create user profile
       await setDoc(userRef, {
         username: finalUsername,
         uid: user.uid,
@@ -473,11 +480,19 @@ window.googleSignIn = async function(){
         profilePic: ""
       });
 
-      // Username lookup
-      await setDoc(doc(db, "usernames", finalUsername), {
-        uid: user.uid,
-        createdAt: Date.now()
-      });
+      const verifyUser = await getDoc(
+        doc(db, "users", user.uid)
+      );
+
+      const verifyUsername = await getDoc(
+        doc(db, "usernames", finalUsername)
+      );
+
+      if(!verifyUser.exists() || !verifyUsername.exists()){
+        throw new Error(
+          "Failed to create account records."
+        );
+      }
     }
 
     localStorage.setItem("currentUser", finalUsername);
