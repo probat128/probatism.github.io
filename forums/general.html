@@ -428,6 +428,8 @@ let verificationAnswer = 0;
 let reportSubmitting = false;
 let searchTimer;
 
+let searchLastVisible = null;
+
 const BLACKLIST = [
   "word123abcd",
   "bit.ly",
@@ -914,7 +916,12 @@ try{
 
 
 async function loadPosts(){
-  
+
+  let cursor =
+    currentSearch
+      ? searchLastVisible
+      : lastVisible;
+
   let q=query(
     collection(db,"posts"),
     where("subforum","==","general"),
@@ -922,13 +929,13 @@ async function loadPosts(){
     limit(10)
   );
 
-  if(lastVisible && !currentSearch){
+  if(cursor){
     q=query(
       collection(db,"posts"),
       where("subforum","==","general"),
       orderBy("time","desc"),
-      startAfter(lastVisible),
-    limit(10)
+      startAfter(cursor),
+      limit(10)
     );
   }
 
@@ -945,8 +952,12 @@ async function loadPosts(){
     return;
   }
 
-  if(!currentSearch){
-    lastVisible = snap.docs[snap.docs.length - 1];
+  if(currentSearch){
+    searchLastVisible =
+      snap.docs[snap.docs.length - 1];
+  } else {
+    lastVisible =
+      snap.docs[snap.docs.length - 1];
   }
   if(snap.docs.length < 10){
     loadMoreBtn.style.display = "none";
@@ -1102,7 +1113,9 @@ searchInput.addEventListener("keydown", (e) => {
     searchInput.value.trim();
 
   postsDiv.innerHTML = "";
+
   lastVisible = null;
+  searchLastVisible = null;
 
   loadMoreBtn.style.display =
     "inline-block";
@@ -1118,7 +1131,9 @@ searchInput.addEventListener("search", () => {
   currentSearch = "";
 
   postsDiv.innerHTML = "";
+
   lastVisible = null;
+  searchLastVisible = null;
 
   loadMoreBtn.style.display =
     "inline-block";
