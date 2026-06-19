@@ -253,7 +253,24 @@ textarea { width:100%; height:80px; background: rgb(232,224,207); color: rgb(91,
 
 <script type="module">
 import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getFirestore, collection, addDoc, getDocs, query, where, orderBy, deleteDoc, doc, getDoc, limit, startAfter, updateDoc, increment, setDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import {
+  getFirestore,
+  collection,
+  addDoc,
+  getDocs,
+  query,
+  where,
+  orderBy,
+  deleteDoc,
+  doc,
+  getDoc,
+  limit,
+  startAfter,
+  updateDoc,
+  increment,
+  setDoc,
+  writeBatch
+} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { getAuth, onAuthStateChanged, signOut, signInAnonymously } 
 from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
@@ -419,7 +436,6 @@ let currentUID = null;
 let currentUser = null;
 let lastVisible = null;
 let isPosting = false;
-let lastPostTime = 0;
 let postClickLocked = false;
 let postToDelete = null;
 let pendingReport = null;
@@ -440,6 +456,8 @@ generateVerification();
 
 let lastReportTime =
   parseInt(localStorage.getItem("lastReportTime")) || 0;
+
+let lastPostTime = 0;
 
 function generateVerification(){
 
@@ -494,9 +512,25 @@ onAuthStateChanged(auth, async (user) => {
         cooldownSnap.data().lastReportAt || 0;
   }
 
+  try {
+
+    const postCooldownSnap = await getDoc(
+      doc(db, "postCooldowns", user.uid)
+    );
+
+    if(postCooldownSnap.exists()){
+
+    l  astPostTime =
+        postCooldownSnap.data().lastPostAt || 0;
+    }
+
   }catch(err){
     console.error(err);
   }
+
+  }catch(err){           //
+    console.error(err);
+  }                      // maybe delete
 
   // ALWAYS CHECK BAN
   const banned = await checkBan(user.uid);
@@ -738,15 +772,19 @@ postButton.onclick = async ()=>{
   if(isPosting) return;
 
   const now=Date.now();
-  if(now-lastPostTime<10000){
+  if(now - lastPostTime < 40000){
     const msg = document.getElementById("cooldownMsg");
 
-    msg.innerText = "Wait a few seconds before posting again.";
+    const remaining =
+      Math.ceil((40000 - (now - lastPostTime)) / 1000);
+
+    msg.innerText =
+      `Please wait ${remaining} seconds before posting again.`;
     msg.style.display = "block";
 
     setTimeout(()=>{
       msg.style.display = "none";
-    }, 10000);
+    }, 40000);
 
     return;
   }
@@ -873,27 +911,38 @@ try{
     }
   }
 
-  await addDoc(collection(db,"posts"),{
+  const now = Date.now();
+
+  const postRef =
+    doc(collection(db, "posts"));
+
+  const batch = writeBatch(db);
+
+  batch.set(postRef,{
     subforum:"general",
-
     author: currentUser || "Anonymous",
-
     authorUID: auth.currentUser.uid,
-
     authorProfilePic: authorProfilePic,
-  
     authorEmail: auth.currentUser.email || null,
-
     content:text,
-
     image:image,
-  
     fullImage:fullImage,
-
-    time:Date.now(),
-
+    time: now,
     mentionedUsers: mentions
   });
+
+  batch.set(
+    doc(db,"postCooldowns",auth.currentUser.uid),
+    {
+      lastPostAt: now
+    }
+  );
+
+  await batch.commit();
+  
+  lastPostTime = now;
+
+lastPostTime = Date.now(); //maybe delete
 
   // prevent double submission during reload window
   postButton.disabled = true;
