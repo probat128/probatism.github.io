@@ -1094,26 +1094,40 @@ postsDiv.appendChild(div);
 
 }
 }
-searchInput.addEventListener("input", () => {
+searchInput.addEventListener("keydown", (e) => {
 
-  clearTimeout(searchTimer);
+  if (e.key !== "Enter") return;
 
-  searchTimer = setTimeout(() => {
+  currentSearch =
+    searchInput.value.trim();
 
-    currentSearch =
-      searchInput.value.trim();
+  postsDiv.innerHTML = "";
+  lastVisible = null;
 
-    postsDiv.innerHTML = "";
-    lastVisible = null;
+  loadMoreBtn.style.display =
+    "inline-block";
 
-    loadMoreBtn.style.display =
-      "inline-block";
-
-    loadPosts();
-
-  }, 400);
+  loadPosts();
 
 });
+
+searchInput.addEventListener("search", () => {
+
+  if (searchInput.value.trim() !== "") return;
+
+  currentSearch = "";
+
+  postsDiv.innerHTML = "";
+  lastVisible = null;
+
+  loadMoreBtn.style.display =
+    "inline-block";
+
+  loadPosts();
+
+});
+
+
 loadMoreBtn.onclick=loadPosts;
 document.getElementById("imgModal").onclick=()=> imgModal.style.display="none";
 
