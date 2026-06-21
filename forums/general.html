@@ -944,6 +944,14 @@ try{
 
   const batch = writeBatch(db);
 
+// Build search index: unique lowercase words from content + author
+  const searchWords = [
+    ...new Set([
+      ...(text.toLowerCase().match(/\w+/g) || []),
+      (currentUser || "anonymous").toLowerCase()
+    ])
+  ];
+
   batch.set(postRef,{
     subforum:"general",
     author: currentUser || "Anonymous",
@@ -954,7 +962,8 @@ try{
     image:image,
     fullImage:fullImage,
     time: now,
-    mentionedUsers: mentions
+    mentionedUsers: mentions,
+    searchIndex: searchWords
   });
 
   batch.set(
@@ -1008,26 +1017,47 @@ try{
 
 async function loadPosts(){
 
-  let cursor =
-    currentSearch
-      ? searchLastVisible
-      : lastVisible;
+  let cursor = currentSearch ? searchLastVisible : lastVisible;
 
-  let q=query(
-    collection(db,"posts"),
-    where("subforum","==","general"),
-    orderBy("time","desc"),
-    limit(10)
-  );
+  let q;
 
-  if(cursor){
-    q=query(
-      collection(db,"posts"),
-      where("subforum","==","general"),
-      orderBy("time","desc"),
-      startAfter(cursor),
-      limit(10)
-    );
+  if(currentSearch){
+    const searchWord = currentSearch.toLowerCase().trim().split(/\s+/)[0];
+    if(cursor){
+      q = query(
+        collection(db,"posts"),
+        where("subforum","==","general"),
+        where("searchIndex","array-contains", searchWord),
+        orderBy("time","desc"),
+        startAfter(cursor),
+        limit(10)
+      );
+    } else {
+      q = query(
+        collection(db,"posts"),
+        where("subforum","==","general"),
+        where("searchIndex","array-contains", searchWord),
+        orderBy("time","desc"),
+        limit(10)
+      );
+    }
+  } else {
+    if(cursor){
+      q = query(
+        collection(db,"posts"),
+        where("subforum","==","general"),
+        orderBy("time","desc"),
+        startAfter(cursor),
+        limit(10)
+      );
+    } else {
+      q = query(
+        collection(db,"posts"),
+        where("subforum","==","general"),
+        orderBy("time","desc"),
+        limit(10)
+      );
+    }
   }
 
   const snap=await getDocs(q);
@@ -1062,23 +1092,7 @@ async function loadPosts(){
 
 
         // SEARCH FILTER
-    if(currentSearch){
-
-      const searchText = currentSearch.toLowerCase();
-
-      const content =
-        (post.content || "").toLowerCase();
-
-      const author =
-        (post.author || "").toLowerCase();
-
-      if(
-        !content.includes(searchText) &&
-        !author.includes(searchText)
-      ){
-        continue;
-      }
-    }
+    
     const date=new Date(post.time).toLocaleString();
 
     let displayName =
@@ -1227,16 +1241,14 @@ searchInput.addEventListener("keydown", (e) => {
 
   if (e.key !== "Enter") return;
 
-  currentSearch =
-    searchInput.value.trim();
+  currentSearch = searchInput.value.trim();
 
-  postsDiv.innerHTML = "";
+  postsDiv.innerHTML = "Loading...";
 
   lastVisible = null;
   searchLastVisible = null;
 
-  loadMoreBtn.style.display =
-    "inline-block";
+  loadMoreBtn.style.display = "inline-block";
 
   loadPosts();
 
