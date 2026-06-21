@@ -449,7 +449,6 @@ let pendingReport = null;
 let currentSearch = "";
 let verificationAnswer = 0;
 let reportSubmitting = false;
-let searchTimer;
 
 let searchLastVisible = null;
 
@@ -1026,10 +1025,14 @@ async function loadPosts(){
 
   if(currentSearch){
 
-    const token =
+    const searchTerms =
       currentSearch
         .trim()
-        .toLowerCase();
+        .toLowerCase()
+        .split(/\s+/)
+        .filter(Boolean);
+
+    const token = searchTerms[0];
 
     q = query(
       collection(db,"posts"),
@@ -1098,7 +1101,33 @@ async function loadPosts(){
 
   for(const docSnap of snap.docs){
 
-    const post=docSnap.data();
+    const post = docSnap.data();
+
+    if(currentSearch){
+
+      const haystack =
+        (
+          (post.content || "") +
+          " " +
+          (post.author || "")
+        ).toLowerCase();
+
+      const searchTerms =
+        currentSearch
+          .trim()
+          .toLowerCase()
+          .split(/\s+/)
+          .filter(Boolean);
+
+      const matches =
+        searchTerms.every(term =>
+          haystack.includes(term)
+        );
+
+      if(!matches){
+        continue;
+      }
+    }
 
 
     const date=new Date(post.time).toLocaleString();
