@@ -943,13 +943,25 @@ try{
 
   const batch = writeBatch(db);
 
-  const searchTokens = [
+  const searchTokens = new Set();
+
+  const words = [
     ...(text.toLowerCase().match(/\b[\w]+\b/g) || []),
-    ...(currentUser || "Anonymous")
+    ...(
+      (currentUser || "Anonymous")
         .toLowerCase()
         .match(/\b[\w]+\b/g) || []
+    )
   ];
 
+  for (const word of words) {
+
+    searchTokens.add(word);
+
+    for (let i = 2; i <= word.length; i++) {
+      searchTokens.add(word.substring(0, i));
+    }
+  }
   batch.set(postRef,{
     subforum:"general",
     author: currentUser || "Anonymous",
@@ -962,7 +974,7 @@ try{
     time: now,
     mentionedUsers: mentions,
 
-    searchTokens:[...new Set(searchTokens)]
+    searchTokens:[...searchTokens]
   });
 
   batch.set(
