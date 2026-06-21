@@ -622,13 +622,23 @@ window.goProfile = function(username){
 };
 
 function escapeHtml(text){
-  return text
+  return String(text || "")
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#039;");
 }
+
+function escapeJsString(text){
+  return String(text || "")
+    .replace(/\\/g, "\\\\")
+    .replace(/'/g, "\\'")
+    .replace(/"/g, '\\"')
+    .replace(/\r/g, "")
+    .replace(/\n/g, "");
+}
+
 
 async function renderMentions(text, mentionedUsers = []){
 
@@ -658,7 +668,7 @@ async function renderMentions(text, mentionedUsers = []){
 
     rendered = rendered.replace(
       "@" + originalUsername,
-      `<span class="mention" onclick="goProfile('${username}')">@${username}</span>`
+      `<span class="mention" onclick="goProfile('${escapeJsString(username)}')">@${escapeHtml(username)}</span>`
     );
   }
 
@@ -1074,6 +1084,26 @@ async function loadPosts(){
     let displayName =
       post.author || "Anonymous";
 
+    const safeDisplayNameHtml =
+      escapeHtml(displayName);
+
+    const safeDisplayNameJs =
+      escapeJsString(displayName);
+
+    let safeProfilePic = "";
+
+    try{
+      const url = new URL(post.authorProfilePic);
+
+      if(
+        url.protocol === "https:" ||
+        url.protocol === "http:" ||
+        post.authorProfilePic.startsWith("data:image/")
+      ){
+        safeProfilePic = post.authorProfilePic;
+      }
+    }catch(e){}
+
     let profilePic = "";
 
     if(
@@ -1081,11 +1111,14 @@ async function loadPosts(){
       post.authorProfilePic.trim() !== ""
     ){
 
+      const safeProfilePic =
+        escapeHtml(post.authorProfilePic);
+
       profilePic = `
         <img
           class="profile-thumb"
-          src="${post.authorProfilePic}"
-          onclick="goProfile('${displayName}')"
+          src="${escapeHtml(safeProfilePic)}"            // maybe change
+          onclick="goProfile('${safeDisplayNameJs}')"
         >
       `;
     }
@@ -1103,14 +1136,14 @@ async function loadPosts(){
 
     const safeAuthorClick =
       displayName !== "Anonymous"
-        ? `style="cursor:pointer;" onclick="goProfile('${displayName}')"`
+        ? `style="cursor:pointer;" onclick="goProfile('${safeDisplayNameJs}')"`
         : "";
 
     div.innerHTML=`
       ${profilePic}
       <div>
         <b ${safeAuthorClick}>
-          ${displayName}${adminUIDs.includes(post.authorUID) ? " (admin)" : ""}
+          ${safeDisplayNameHtml}${adminUIDs.includes(post.authorUID) ? " (admin)" : ""}
         :</b>
 
         <div class="post-content"></div>
@@ -1131,14 +1164,18 @@ async function loadPosts(){
         <div class="time">${date}</div>
 
         <div class="button-row">
-          <button onclick="location.href='../post.html?id=${docSnap.id}'">
+          <button onclick="location.href='../post.html?id=${encodeURIComponent(docSnap.id)}'">
             Replies
           </button>
         </div>
 
         <span
           class="report-btn"
-          onclick="reportPost('${docSnap.id}', '${displayName}', '${post.authorUID}')"
+          onclick="reportPost(
+            '${escapeJsString(docSnap.id)}',
+            '${safeDisplayNameJs}',
+            '${escapeJsString(post.authorUID || "")}'
+          )"
         >
           report
         </span>
