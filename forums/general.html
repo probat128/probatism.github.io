@@ -944,12 +944,11 @@ try{
 
   const batch = writeBatch(db);
 
-// Build search index: unique lowercase words from content + author
-  const searchWords = [
-    ...new Set([
-      ...(text.toLowerCase().match(/\w+/g) || []),
-      (currentUser || "anonymous").toLowerCase()
-    ])
+  const searchTokens = [
+    ...(text.toLowerCase().match(/\b[\w]+\b/g) || []),
+    ...(currentUser || "Anonymous")
+        .toLowerCase()
+        .match(/\b[\w]+\b/g) || []
   ];
 
   batch.set(postRef,{
@@ -963,7 +962,8 @@ try{
     fullImage:fullImage,
     time: now,
     mentionedUsers: mentions,
-    searchIndex: searchWords
+
+    searchTokens:[...new Set(searchTokens)]
   });
 
   batch.set(
@@ -1017,50 +1017,60 @@ try{
 
 async function loadPosts(){
 
-  let cursor = currentSearch ? searchLastVisible : lastVisible;
+  let cursor =
+    currentSearch
+      ? searchLastVisible
+      : lastVisible;
 
   let q;
 
   if(currentSearch){
-    const searchWord = currentSearch.toLowerCase().trim().split(/\s+/)[0];
+
+    const token =
+      currentSearch
+        .trim()
+        .toLowerCase();
+
+    q = query(
+      collection(db,"posts"),
+      where("subforum","==","general"),
+      where("searchTokens","array-contains",token),
+      orderBy("time","desc"),
+      limit(10)
+    );
+
     if(cursor){
       q = query(
         collection(db,"posts"),
         where("subforum","==","general"),
-        where("searchIndex","array-contains", searchWord),
+        where("searchTokens","array-contains",token),
         orderBy("time","desc"),
         startAfter(cursor),
-        limit(10)
-      );
-    } else {
-      q = query(
-        collection(db,"posts"),
-        where("subforum","==","general"),
-        where("searchIndex","array-contains", searchWord),
-        orderBy("time","desc"),
         limit(10)
       );
     }
+
   } else {
+
+    q = query(
+      collection(db,"posts"),
+      where("subforum","==","general"),
+      orderBy("time","desc"),
+      limit(10)
+    );
+
     if(cursor){
       q = query(
         collection(db,"posts"),
         where("subforum","==","general"),
         orderBy("time","desc"),
         startAfter(cursor),
-        limit(10)
-      );
-    } else {
-      q = query(
-        collection(db,"posts"),
-        where("subforum","==","general"),
-        orderBy("time","desc"),
         limit(10)
       );
     }
   }
 
-  const snap=await getDocs(q);
+  const snap = await getDocs(q);
 
   if(postsDiv.innerHTML === "Loading..."){
     postsDiv.innerHTML = "";
@@ -1091,8 +1101,6 @@ async function loadPosts(){
     const post=docSnap.data();
 
 
-        // SEARCH FILTER
-    
     const date=new Date(post.time).toLocaleString();
 
     let displayName =
@@ -1241,14 +1249,16 @@ searchInput.addEventListener("keydown", (e) => {
 
   if (e.key !== "Enter") return;
 
-  currentSearch = searchInput.value.trim();
+  currentSearch =
+    searchInput.value.trim();
 
-  postsDiv.innerHTML = "Loading...";
+  postsDiv.innerHTML = "";
 
   lastVisible = null;
   searchLastVisible = null;
 
-  loadMoreBtn.style.display = "inline-block";
+  loadMoreBtn.style.display =
+    "inline-block";
 
   loadPosts();
 
