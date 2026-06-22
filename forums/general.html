@@ -832,7 +832,6 @@ postButton.onclick = async ()=>{
       postClickLocked = false;
       return;
     }
-    postClickLocked = true; //maybe move below if postclicklocked
   
   if (!auth.currentUser || auth.currentUser.isAnonymous) {
     if (postImage.files.length > 0) {
@@ -910,13 +909,14 @@ postButton.onclick = async ()=>{
   if(reverseAnswer !== reverseWord.split("").reverse().join("")){
 
     generateVerification();
-  
+
     return;
   }
 
+  postClickLocked = true;
+
   isPosting=true;
   postButton.disabled=true;
-
   let image=null;
   let fullImage=null;
 
