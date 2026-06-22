@@ -834,6 +834,12 @@ function getFullImage(file){
 async function uploadImageToStorage(file, uid) {
   if (!file) return null;
 
+  if (!uid) {
+    throw new Error("Missing UID");
+  }
+
+  console.log("Uploading as UID:", uid);
+
   // 1. compress using your existing system
   const compressedDataUrl = await resizeImage(file);
 
@@ -848,7 +854,12 @@ async function uploadImageToStorage(file, uid) {
   );
 
   // 4. upload
-  await uploadBytes(imageRef, blob);
+  try {
+    await uploadBytes(imageRef, blob);
+  } catch (err) {
+    console.error("Storage upload error:", err);
+    throw err;
+  }
 
   // 5. get URL
   const url = await getDownloadURL(imageRef);
