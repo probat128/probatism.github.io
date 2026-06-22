@@ -391,7 +391,7 @@ const firebaseConfig = {
   apiKey: "AIzaSyAZXfEl3Q68vfJtaLJqODtnQBSVEzWBmc0",
   authDomain: "probatismm.firebaseapp.com",
   projectId: "probatismm",
-  storageBucket: "probatismm.appspot.com",
+  storageBucket: "probatismm.firebasestorage.app",
   messagingSenderId: "746935651152",
   appId: "1:746935651152:web:82491ddac346bc654a3a55"
 };
@@ -964,6 +964,13 @@ postButton.onclick = async ()=>{
   postButton.disabled=true;
   let image = null;
 
+  if(!auth.currentUser){
+    alert("Authentication still loading. Please wait a second and try again.");
+    isPosting = false;
+    postButton.disabled = false;
+    return;
+  }
+  
   if (file) {
     try {
       image = await uploadImageToStorage(file, auth.currentUser.uid);
@@ -1091,7 +1098,13 @@ try{
     }
   );
 
-  await batch.commit();
+  try {
+    await batch.commit();
+  } catch (e) {
+    console.error("BATCH COMMIT FAILED");
+    console.error(e);
+    throw e;
+  }
 
   lastPostTime = now;
 
@@ -1106,7 +1119,10 @@ try{
 
 } catch(err){
 
-  console.error("Post failed:", err);
+  console.error("Post failed:");
+  console.error(err);
+  console.error(err.code);
+  console.error(err.message);
 
   postClickLocked = false;
   isPosting = false;
