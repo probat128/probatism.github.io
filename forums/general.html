@@ -171,6 +171,22 @@ textarea { width:100%; height:80px; background: rgb(232,224,207); color: rgb(91,
   "
 >
 
+<span style="margin-left:15px;">
+  Type "<span id="reverseWordLabel"></span>" backwards:
+</span>
+
+<input
+  type="text"
+  id="reverseWordAnswer"
+  style="
+    width:120px;
+    margin-left:5px;
+    background:rgb(232,224,207);
+    color:rgb(91,46,97);
+    border:1px solid rgb(91,46,97);
+  "
+>
+
 <br>
 
 <button id="postButton">Post</button>
@@ -450,6 +466,8 @@ let currentSearch = "";
 let verificationAnswer = 0;
 let reportSubmitting = false;
 
+let reverseWord = "";
+
 let searchLastVisible = null;
 
 const BLACKLIST = [
@@ -477,14 +495,20 @@ function generateVerification(){
     `Verification: Answer: (${a} × ${b}) + ${c}`;
 
   document.getElementById("verificationAnswer").value = "";
+
+  // NEW WORD CAPTCHA
+  const words = [
+    "mountain","candle","window","blanket","pencil",
+    "bottle","garden","pillow","planet","forest",
+    "ladder","candle","market","guitar","window"
+  ];
+
+  reverseWord = words[Math.floor(Math.random() * words.length)];
+
+  document.getElementById("reverseWordLabel").textContent = reverseWord;
+
+  document.getElementById("reverseWordAnswer").value = "";
 }
-postImage.addEventListener("click", (e) => {
-  if (!auth.currentUser || auth.currentUser.isAnonymous) {
-    e.preventDefault(); // stop file picker
-    postImage.value = ""; // extra safety
-    imageLockModal.style.display = "flex";
-  }
-});
 
 // AUTH
 onAuthStateChanged(auth, async (user) => {
@@ -852,6 +876,20 @@ postButton.onclick = async ()=>{
     return;
   }
 
+  const reverseAnswer =
+    document.getElementById("reverseWordAnswer").value.trim().toLowerCase();
+
+  if(reverseAnswer === ""){
+    return;
+  }
+
+  if(reverseAnswer !== reverseWord.split("").reverse().join("")){
+
+    generateVerification();
+  
+    return;
+  }
+
   isPosting=true;
   postButton.disabled=true;
 
@@ -975,6 +1013,9 @@ try{
     mentionedUsers: mentions,
 
     searchTokens:[...searchTokens]
+
+    captchaWord: reverseWord,
+    captchaReverse: reverseWord.split("").reverse().join(""),
   });
 
   batch.set(
