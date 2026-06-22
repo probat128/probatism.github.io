@@ -300,6 +300,7 @@ input[type="number"]::-webkit-inner-spin-button {
 
 <script type="module">
 import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+
 import {
   getFirestore,
   collection,
@@ -320,15 +321,18 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 import {
+  getAuth,
+  onAuthStateChanged,
+  signOut,
+  signInAnonymously
+} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+
+import {
   getStorage,
   ref,
   uploadBytes,
   getDownloadURL
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
-
-
-import { getAuth, onAuthStateChanged, signOut, signInAnonymously } 
-from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
 async function extractMentions(text){
   if(!text) return [];
