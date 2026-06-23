@@ -495,6 +495,7 @@ let currentUser = null;
 let lastVisible = null;
 let isPosting = false;
 let postClickLocked = false;
+let imageUploadInProgress = false;
 let postToDelete = null;
 let pendingReport = null;
 let currentSearch = "";
@@ -735,13 +736,13 @@ async function renderMentions(text, mentionedUsers = []){
 
 /* EVERYTHING ELSE UNCHANGED BELOW */
 
-async function uploadPostImage(file, uid){
+async function uploadPostImage(file, uid, uploadId){
 
   const extension =
     file.name.split(".").pop().toLowerCase();
 
   const filename =
-    `${Date.now()}_${crypto.randomUUID()}.${extension}`;
+    `${uploadId}.${extension}`;
 
   const storageRef = ref(
     storage,
@@ -776,7 +777,7 @@ postButton.onclick = async ()=>{
   }
 
 
-  if(isPosting){
+  if(isPosting || imageUploadInProgress){
     postClickLocked = false;
     return;
   }
@@ -865,15 +866,26 @@ postButton.onclick = async ()=>{
   
   let image = null;
   let fullImage = null;
+  const uploadId = crypto.randomUUID();
 
   if(file){
 
-    image = await uploadPostImage(
-      file,
-      auth.currentUser.uid
-    );
+    imageUploadInProgress = true;
 
-    fullImage = image;
+    try{
+
+      image = await uploadPostImage(
+        file,
+        auth.currentUser.uid,
+        uploadId
+      );
+
+      fullImage = image;
+
+    } finally {
+
+      imageUploadInProgress = false;
+    }
   }
 
   const mentions = await extractMentions(text);
