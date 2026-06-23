@@ -1007,25 +1007,23 @@ try{
 
   const searchTokens = new Set();
 
-  // first 20 words from post content only
-  const contentWords =
-    (text.toLowerCase().match(/\b[\w]+\b/g) || [])
-      .slice(0, 20);
+  const words = [
+    ...(text.toLowerCase().match(/\b[\w]+\b/g) || []),
+    ...(
+      (currentUser || "Anonymous")
+        .toLowerCase()
+        .match(/\b[\w]+\b/g) || []
+    )
+  ];
 
-  // keep author searchable
-  const authorWords =
-    (currentUser || "Anonymous")
-      .toLowerCase()
-      .match(/\b[\w]+\b/g) || [];
+  for (const word of words) {
 
-  for (const word of contentWords) {
     searchTokens.add(word);
-  }
 
-  for (const word of authorWords) {
-    searchTokens.add(word);
+    for (let i = 2; i <= word.length; i++) {
+      searchTokens.add(word.substring(0, i));
+    }
   }
-
   batch.set(postRef,{
     subforum:"general",
     author: currentUser || "Anonymous",
