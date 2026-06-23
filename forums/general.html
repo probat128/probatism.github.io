@@ -513,14 +513,13 @@ const BLACKLIST = [
   "telegram"
 ];
 
-generateVerification();
 
 let lastReportTime =
   parseInt(localStorage.getItem("lastReportTime")) || 0;
 
 let lastPostTime = 0;
 
-function generateVerification(){
+async function generateVerification(){
 
   const a = Math.floor(Math.random() * 10);
   const b = Math.floor(Math.random() * 10);
@@ -541,6 +540,25 @@ function generateVerification(){
   ];
 
   reverseWord = words[Math.floor(Math.random() * words.length)];
+
+  if(auth.currentUser){
+
+    try{
+
+      await setDoc(
+        doc(db, "captchas", auth.currentUser.uid),
+        {
+          uid: auth.currentUser.uid,
+          createdAt: Date.now(),
+          mathAnswer: verificationAnswer,
+          reverseWord: reverseWord
+        }
+      );
+
+    }catch(err){
+      console.error(err);
+    }
+  }
 
   document.getElementById("reverseWordLabel").textContent = reverseWord;
 
@@ -567,6 +585,7 @@ onAuthStateChanged(auth, async (user) => {
   // IMPORTANT:
   // anonymous users ALSO have UIDs
   currentUID = user.uid;
+  await generateVerification();
 
   try{
 
@@ -883,6 +902,45 @@ postButton.onclick = async ()=>{
     return;
   }
 
+  const captchaSnap = await getDoc(
+    doc(db, "captchas", auth.currentUser.uid)
+  );
+
+  if(!captchaSnap.exists()){
+
+    generateVerification();
+
+    postClickLocked = false;
+    return;
+  }
+
+  const captchaData = captchaSnap.data();
+
+  if(
+    captchaData.mathAnswer !== Number(userAnswer)
+  ){
+
+    generateVerification();
+
+    postClickLocked = false;
+    return;
+  }
+
+  if(
+    captchaData.reverseWord
+      .split("")
+      .reverse()
+      .join("")
+      .toLowerCase()
+      !== reverseAnswer
+  ){
+
+    generateVerification();
+
+    postClickLocked = false;
+    return;
+  }
+
   isPosting = true;
   postButton.disabled = true;
   
@@ -1006,8 +1064,6 @@ try{
 
     searchTokens:[...searchTokens],
 
-    captchaWord: reverseWord,
-    captchaReverse: reverseWord.split("").reverse().join(""),
   });
 
   batch.set(
@@ -1019,6 +1075,10 @@ try{
 
   await batch.commit();
 
+  await deleteDoc(
+    doc(db, "captchas", auth.currentUser.uid)
+  );
+  
   lastPostTime = now;
 
   // prevent double submission during reload window
