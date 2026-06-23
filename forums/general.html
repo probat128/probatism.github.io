@@ -1090,6 +1090,21 @@ try{
     }
   );
 
+  console.log("POST DATA", {
+    subforum:"general",
+    author: currentUser || "Anonymous",
+    authorUID: auth.currentUser.uid,
+    authorProfilePic: authorProfilePic,
+    authorEmail: auth.currentUser.email || null,
+    content:text,
+    image:image,
+    time: now,
+    mentionedUsers: mentions,
+    searchTokens:[...searchTokens],
+    captchaWord: reverseWord,
+    captchaReverse: reverseWord.split("").reverse().join("")
+  });
+
   try {
     await batch.commit();
   } catch (e) {
