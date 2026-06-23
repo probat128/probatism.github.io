@@ -182,7 +182,6 @@ input[type="number"]::-webkit-inner-spin-button {
     name="verificationAnswer"
     spellcheck="false"
     style="
-    style="
     width:70px;
     margin-left:5px;
     background:rgb(232,224,207);
@@ -565,38 +564,29 @@ onAuthStateChanged(auth, async (user) => {
   // anonymous users ALSO have UIDs
   currentUID = user.uid;
 
-  try{
+  try {
 
     const cooldownSnap = await getDoc(
       doc(db, "reportCooldowns", user.uid)
     );
 
-    if(cooldownSnap.exists()){
+    if (cooldownSnap.exists()) {
       lastReportTime =
         cooldownSnap.data().lastReportAt || 0;
-  }
-
-try {
-    const cooldownSnap = await getDoc(
-      doc(db, "reportCooldowns", user.uid)
-    );
-    if (cooldownSnap.exists()) {
-      lastReportTime = cooldownSnap.data().lastReportAt || 0;
     }
-  } catch(err) {
-    console.error(err);
-  }
 
-  try {
     const postCooldownSnap = await getDoc(
       doc(db, "postCooldowns", user.uid)
     );
+
     if (postCooldownSnap.exists()) {
-      lastPostTime = postCooldownSnap.data().lastPostAt || 0;
+      lastPostTime =
+        postCooldownSnap.data().lastPostAt || 0;
     }
-  } catch(err) {
+
+  } catch (err) {
     console.error(err);
-  }           
+  }
   // ALWAYS CHECK BAN
   const banned = await checkBan(user.uid);
 
