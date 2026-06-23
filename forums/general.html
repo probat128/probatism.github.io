@@ -576,25 +576,27 @@ onAuthStateChanged(auth, async (user) => {
         cooldownSnap.data().lastReportAt || 0;
   }
 
-  try {
-
-    const postCooldownSnap = await getDoc(
-      doc(db, "postCooldowns", user.uid)
+try {
+    const cooldownSnap = await getDoc(
+      doc(db, "reportCooldowns", user.uid)
     );
-
-    if(postCooldownSnap.exists()){
-
-    lastPostTime =
-        postCooldownSnap.data().lastPostAt || 0;
+    if (cooldownSnap.exists()) {
+      lastReportTime = cooldownSnap.data().lastReportAt || 0;
     }
-
-  }catch(err){
+  } catch(err) {
     console.error(err);
   }
 
-  }catch(err){           //
+  try {
+    const postCooldownSnap = await getDoc(
+      doc(db, "postCooldowns", user.uid)
+    );
+    if (postCooldownSnap.exists()) {
+      lastPostTime = postCooldownSnap.data().lastPostAt || 0;
+    }
+  } catch(err) {
     console.error(err);
-  }                     
+  }           
   // ALWAYS CHECK BAN
   const banned = await checkBan(user.uid);
 
