@@ -1095,7 +1095,8 @@ try{
     author: currentUser || "Anonymous",
     authorUID: auth.currentUser.uid,
     authorProfilePic: authorProfilePic,
-    authorEmail: auth.currentUser.email || null,
+    authorEmail:
+      auth.currentUser.email || "",
     content:text,
     image:image,
     time: now,
