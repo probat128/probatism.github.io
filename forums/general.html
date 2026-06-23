@@ -759,8 +759,10 @@ postButton.onclick = async ()=>{
 
     if (postClickLocked) return;
 
-    const banned = await checkBan(auth.currentUser?.uid);
+    // LOCK IMMEDIATELY
+    postClickLocked = true;
 
+    const banned = await checkBan(auth.currentUser?.uid);
     if (banned) {
       postClickLocked = false;
       return;
@@ -768,10 +770,16 @@ postButton.onclick = async ()=>{
   
   if (!auth.currentUser || auth.currentUser.isAnonymous) {
     if (postImage.files.length > 0) {
+      postClickLocked = false;
       return;
     }
   }
-  if(isPosting) return;
+
+
+  if(isPosting){
+    postClickLocked = false;
+    return;
+  }
 
   const now=Date.now();
   if(now - lastPostTime < 40000){
@@ -801,6 +809,7 @@ postButton.onclick = async ()=>{
 
   if (file && file.size > MAX_UPLOAD_SIZE) {
     alert("Image too large. Maximum allowed size is 1MB.");
+    postClickLocked = false;
     return;
   }
 
@@ -811,6 +820,7 @@ postButton.onclick = async ()=>{
   );
 
   if (containsBlacklistedWord) {
+    postClickLocked = false;
     return;
   }
 
@@ -825,17 +835,20 @@ postButton.onclick = async ()=>{
 
     generateVerification();
 
+    postClickLocked = false;
     return;
   }
 
+  
   if (!text && !file) {
+    postClickLocked = false;
     return;
   }
-
   const reverseAnswer =
     document.getElementById("reverseWordAnswer").value.trim().toLowerCase();
 
   if(reverseAnswer === ""){
+    postClickLocked = false;
     return;
   }
 
@@ -843,13 +856,12 @@ postButton.onclick = async ()=>{
 
     generateVerification();
 
+    postClickLocked = false;
     return;
   }
 
-  postClickLocked = true;
-
-  isPosting=true;
-  postButton.disabled=true;
+  isPosting = true;
+  postButton.disabled = true;
   
   let image = null;
   let fullImage = null;
@@ -873,6 +885,7 @@ postButton.onclick = async ()=>{
 
     isPosting = false;
     postButton.disabled = false;
+    postClickLocked = false;
 
     return;
   }
@@ -881,6 +894,7 @@ if(!auth.currentUser){
   alert("Authentication still loading. Please wait a second and try again.");
   isPosting = false;
   postButton.disabled = false;
+  postClickLocked = false;
   return;
 }
 
