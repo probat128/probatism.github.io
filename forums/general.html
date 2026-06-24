@@ -547,6 +547,11 @@ let reverseWord = "";
 
 let searchLastVisible = null;
 
+let searchCount = 0;
+let searchWindowStart = 0;
+const MAX_SEARCHES_PER_DAY = 20;
+const SEARCH_WINDOW_MS = 24 * 60 * 60 * 1000;
+
 const BLACKLIST = [
   "word123abcd",
   "bit.ly",
@@ -643,6 +648,26 @@ onAuthStateChanged(auth, async (user) => {
     const postCooldownSnap = await getDoc(
       doc(db, "postCooldowns", user.uid)
     );
+
+    // SEARCH COOLDOWN LOAD
+    try {
+      const searchCooldownSnap = await getDoc(
+        doc(db, "searchCooldowns", user.uid)
+      );
+
+      if (searchCooldownSnap.exists()) {
+        const data = searchCooldownSnap.data();
+        searchCount = data.count || 0;
+        searchWindowStart = data.windowStart || Date.now();
+      } else {
+        searchCount = 0;
+        searchWindowStart = Date.now();
+      }
+    } catch (err) {
+      console.error(err);
+      searchCount = 0;
+      searchWindowStart = Date.now();
+    }
 
     if(postCooldownSnap.exists()){
 
@@ -1472,26 +1497,58 @@ postsDiv.appendChild(div);
 
 }
 }
-searchInput.addEventListener("keydown", (e) => {
+searchInput.addEventListener("keydown", async (e) => {
 
   if (e.key !== "Enter") return;
 
-  currentSearch =
-    searchInput.value.trim();
+  // reset window if 24h passed
+  const now = Date.now();
+  if (now - searchWindowStart > SEARCH_WINDOW_MS) {
+    searchCount = 0;
+    searchWindowStart = now;
+  }
+
+  // HARD LIMIT (silent fail)
+  if (searchCount >= MAX_SEARCHES_PER_DAY) {
+    return;
+  }
+
+  currentSearch = searchInput.value.trim();
+
+  // increment count
+  searchCount++;
+
+  // persist to Firestore (silent)
+  try {
+    await setDoc(doc(db, "searchCooldowns", currentUID), {
+      count: searchCount,
+      windowStart: searchWindowStart
+    }, { merge: true });
+  } catch (err) {
+    console.error(err);
+  }
 
   postsDiv.innerHTML = "";
 
   lastVisible = null;
   searchLastVisible = null;
 
-  loadMoreBtn.style.display =
-    "inline-block";
+  loadMoreBtn.style.display = "inline-block";
 
   loadPosts();
-
 });
 
-searchInput.addEventListener("search", () => {
+searchInput.addEventListener("search", async () => {
+
+  // reset window if needed
+  const now = Date.now();
+  if (now - searchWindowStart > SEARCH_WINDOW_MS) {
+    searchCount = 0;
+    searchWindowStart = now;
+  }
+
+  // if clearing search, DO NOT count it
+  if (searchInput.value.trim() !== "") return;
 
   if (searchInput.value.trim() !== "") return;
 
