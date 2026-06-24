@@ -1102,7 +1102,8 @@ try{
 
   const searchTokens = new Set();
 
-  const words = [
+  // Extract whole words only
+  const allWords = [
     ...(text.toLowerCase().match(/\b[\w]+\b/g) || []),
     ...(
       (currentUser || "Anonymous")
@@ -1111,14 +1112,15 @@ try{
     )
   ];
 
-  for (const word of words) {
+  // Only index the first 25 words from the post
+  const first25Words = allWords.slice(0, 25);
 
+  // Store exact whole words only
+  for (const word of first25Words) {
     searchTokens.add(word);
-
-    for (let i = 2; i <= word.length; i++) {
-      searchTokens.add(word.substring(0, i));
-    }
   }
+
+  
   batch.set(postRef,{
     subforum:"general",
     author: currentUser || "Anonymous",
