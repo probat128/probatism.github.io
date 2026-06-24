@@ -415,6 +415,46 @@ const userDocCache = new Map();
 const postButton = document.getElementById("postButton");
 const postText = document.getElementById("postText");
 const postImage = document.getElementById("postImage");
+postImage.addEventListener("change", () => {
+
+  if(
+    !auth.currentUser ||
+    auth.currentUser.isAnonymous
+  ){
+    postImage.value = "";
+
+    imageLockModal.style.display = "flex";
+
+    return;
+  }
+
+  const now = Date.now();
+
+  if(now - lastPostTime < 40000){
+
+    postImage.value = "";
+
+    const msg =
+      document.getElementById("cooldownMsg");
+
+    const remaining =
+      Math.ceil(
+        (40000 - (now - lastPostTime))
+        / 1000
+      );
+
+    msg.innerText =
+      `Please wait ${remaining} seconds before posting again.`;
+
+    msg.style.display = "block";
+
+    setTimeout(()=>{
+      msg.style.display = "none";
+    },4000);
+
+    return;
+  }
+});
 const postsDiv = document.getElementById("posts");
 const loadMoreBtn = document.getElementById("loadMoreBtn");
 const searchInput = document.getElementById("searchInput");
@@ -791,6 +831,10 @@ async function uploadPostImage(file, uid, uploadId){
 
 postButton.onclick = async ()=>{
 
+    if(postButton.disabled){
+      return;
+    }
+
     if (submissionInProgress) {
       return;
     }
@@ -946,9 +990,17 @@ postButton.onclick = async ()=>{
   
   let image = null;
   let fullImage = null;
+  let uploadedStoragePath = null;
+
   const uploadId = crypto.randomUUID();
 
   if(file){
+
+    const extension =
+      file.name.split(".").pop().toLowerCase();
+
+    uploadedStoragePath =
+      `postImages/${auth.currentUser.uid}/${uploadId}.${extension}`;
 
     image = await uploadPostImage(
       file,
@@ -1093,6 +1145,21 @@ try{
 } catch(err){
 
   console.error("Post failed:", err);
+
+  // CLEAN UP ORPHANED IMAGE
+  if(uploadedStoragePath){
+
+    try{
+      await deleteObject(
+        ref(storage, uploadedStoragePath)
+      );
+    }catch(cleanupErr){
+      console.error(
+        "Failed to cleanup image:",
+        cleanupErr
+      );
+    }
+  }
 
   postClickLocked = false;
   isPosting = false;
