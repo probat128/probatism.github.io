@@ -891,6 +891,23 @@ postButton.onclick = async ()=>{
   const text=postText.value.trim();
   const file=postImage.files[0];
 
+  if (file) {
+
+    const allowedTypes = [
+      "image/jpeg",
+      "image/png",
+      "image/webp",
+      "image/gif"
+    ];
+
+    if (!allowedTypes.includes(file.type)) {
+      alert("Only image files are allowed.");
+      postClickLocked = false;
+      submissionInProgress = false;
+      return;
+    }
+  }
+
   const MAX_UPLOAD_SIZE = 1 * 1024 * 1024; // 1MB
 
   if (file && file.size > MAX_UPLOAD_SIZE) {
@@ -1376,11 +1393,14 @@ async function loadPosts(){
         <div class="post-content"></div>
      
         ${needsMore ? `<button class="readMoreBtn">Read More</button>` : ""}
-        ${post.image ? `
+        ${(
+          post.image &&
+          /^https:\/\/firebasestorage\.googleapis\.com\//.test(post.image)
+        ) ? `
           <img
             class="post-img"
-            src="${post.image}"
-            data-full="${post.fullImage || post.image}"
+            src="${escapeHtml(post.image)}"
+            data-full="${escapeHtml(post.fullImage || post.image)}"
             onclick="
               document.getElementById('modalImg').src=this.dataset.full;
               document.getElementById('imgModal').style.display='flex';
