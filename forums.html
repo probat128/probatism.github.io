@@ -2,27 +2,55 @@
 <html>
 <head>
   <title>Forums</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-<h1>Forums</h1>
+  <h1>Forums</h1>
 
-<ul>
-  <li><a href="forums/general.html">General</a></li>
-  <li><a href="forums/religion.html">Religion</a></li>
-  <li><a href="forums/probatismhate.html">ProbatismHate</a></li>
-  <li><a href="forums/rants.html">Rants</a></li>
-  <li><a href="forums/18plus.html">18+</a></li>
-</ul>
+  <nav>
+    <a href="index.html">Home</a>
+    <a href="doctrine.html">Doctrine</a>
+    <a href="forums.html">Forums</a>
+    <a href="news.html">News</a>
+    <a href="quiz.html">Quiz</a>
+    <a href="signin.html" id="accountLink">Sign In / Sign Up</a>
+    <button id="logoutBtn" style="display:none;">Logout</button>
+  </nav>
 
-<script>
-  const accountLink = document.getElementById("accountLink");
-  const currentUser = localStorage.getItem("currentUser");
-  if(currentUser){
-      accountLink.innerText = "Profile";
-      accountLink.href = "profile.html"; // Profile page you create
-  }
-</script>
+  <ul>
+    <li><a href="forums/general.html">General</a></li>
+    <li><a href="forums/religion.html">Religion</a></li>
+    <li><a href="forums/probatismhate.html">ProbatismHate</a></li>
+    <li><a href="forums/rants.html">Rants</a></li>
+    <li><a href="forums/18plus.html">18+</a></li>
+  </ul>
+
+  <script>
+    const accountLink = document.getElementById("accountLink");
+    const logoutBtn = document.getElementById("logoutBtn");
+    const currentUser = localStorage.getItem("currentUser");
+
+    if (accountLink) {
+      if (currentUser) {
+        accountLink.innerText = "Profile";
+        accountLink.href = "profile.html";
+        if (logoutBtn) logoutBtn.style.display = "inline";
+      } else {
+        accountLink.innerText = "Sign In / Sign Up";
+        accountLink.href = "signin.html";
+        if (logoutBtn) logoutBtn.style.display = "none";
+      }
+    }
+
+    if (logoutBtn) {
+      logoutBtn.onclick = function() {
+        localStorage.removeItem("currentUser");
+        alert("Logged out");
+        window.location.href = "index.html";
+      }
+    }
+  </script>
 
 </body>
 </html>
