@@ -2,11 +2,19 @@
 <html>
 <head>
   <title>Forums</title>
+  <style>
+    body { font-family: Arial; background: rgb(232,224,207); color: rgb(91,46,97); padding:20px; }
+    nav a { color: rgb(91,46,97); margin-right:10px; text-decoration:none; }
+    button { margin-top:5px; padding:5px 10px; cursor:pointer; background: rgb(232,224,207); color: rgb(91,46,97); border: 1px solid rgb(91,46,97); }
+    ul.forum-list { list-style: none; padding: 0; max-width: 800px; margin: 10px auto; text-align: left; }
+    ul.forum-list li { padding: 10px; border: 1px solid rgb(91,46,97); margin: 8px 0; }
+    ul.forum-list li a { color: rgb(91,46,97); text-decoration: none; }
+    ul.forum-list li a:hover { opacity: 0.9; }
+    .small-note { font-size:12px; color: rgb(149,118,141); }
+  </style>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-
-  <h1>Forums</h1>
 
   <nav>
     <a href="index.html">Home</a>
@@ -18,7 +26,10 @@
     <button id="logoutBtn" style="display:none;">Logout</button>
   </nav>
 
-  <ul>
+  <h1>Forums</h1>
+  <p class="small-note">Choose a forum below to view or create posts.</p>
+
+  <ul class="forum-list">
     <li><a href="forums/general.html">General</a></li>
     <li><a href="forums/religion.html">Religion</a></li>
     <li><a href="forums/probatismhate.html">ProbatismHate</a></li>
@@ -26,28 +37,142 @@
     <li><a href="forums/18plus.html">18+</a></li>
   </ul>
 
-  <script>
-    const accountLink = document.getElementById("accountLink");
-    const logoutBtn = document.getElementById("logoutBtn");
-    const currentUser = localStorage.getItem("currentUser");
+  <!-- BOTTOM AD (same system as general.html but only the bottom ad) -->
+  <div id="bottomAdContainer" style="text-align:center; margin-top:20px;">
+    <a id="bottomAdLink" href="#">
+      <img id="bottomAdImg" style="width:300px; height:250px; border:1px solid rgb(91,46,97);">
+    </a>
+    <div style="font-size:10px;">
+      <a href="advertise.html">Start advertising</a>
+    </div>
+  </div>
 
-    if (accountLink) {
-      if (currentUser) {
-        accountLink.innerText = "Profile";
-        accountLink.href = "profile.html";
-        if (logoutBtn) logoutBtn.style.display = "inline";
-      } else {
-        accountLink.innerText = "Sign In / Sign Up";
-        accountLink.href = "signin.html";
-        if (logoutBtn) logoutBtn.style.display = "none";
-      }
+  <script type="module">
+    import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import {
+      getFirestore,
+      collection,
+      getDocs,
+      query,
+      where,
+      updateDoc,
+      doc,
+      increment
+    } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyAZXfEl3Q68vfJtaLJqODtnQBSVEzWBmc0",
+      authDomain: "probatismm.firebaseapp.com",
+      projectId: "probatismm",
+      storageBucket: "probatismm.firebasestorage.app",
+      messagingSenderId: "746935651152",
+      appId: "1:746935651152:web:82491ddac346bc654a3a55"
+    };
+
+    let app;
+    try {
+      app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
+    } catch(e){
+      console.error("Firebase init error:", e);
     }
 
-    if (logoutBtn) {
-      logoutBtn.onclick = function() {
+    const db = getFirestore(app);
+    const auth = getAuth(app);
+
+    const accountLink = document.getElementById("accountLink");
+    const logoutBtn = document.getElementById("logoutBtn");
+
+    onAuthStateChanged(auth, (user) => {
+      if (user) {
+        const username = (user.email || "").replace("@fake.com", "");
+        localStorage.setItem("currentUser", username);
+
+        accountLink.innerText = "Profile";
+        accountLink.href = "profile.html";
+        logoutBtn.style.display = "inline";
+      } else {
         localStorage.removeItem("currentUser");
-        alert("Logged out");
-        window.location.href = "index.html";
+
+        accountLink.innerText = "Sign In / Sign Up";
+        accountLink.href = "signin.html";
+        logoutBtn.style.display = "none";
+      }
+
+      // Load only the bottom ad (box)
+      loadAd(
+        "box",
+        document.getElementById("bottomAdImg"),
+        document.getElementById("bottomAdLink")
+      );
+    });
+
+    logoutBtn.onclick = function () {
+      signOut(auth);
+      localStorage.removeItem("currentUser");
+      alert("Logged out");
+      window.location.href = "index.html";
+    };
+
+    async function loadAd(type, imgEl, linkEl) {
+      if (!imgEl || !linkEl) return;
+
+      try {
+        const q = query(
+          collection(db, "ads"),
+          where("type", "==", type),
+          where("active", "==", true)
+        );
+
+        const snap = await getDocs(q);
+
+        if (snap.empty) {
+          imgEl.src = "/probatism.github.io/placeholder-ad.png";
+          linkEl.href = "advertise.html";
+          return;
+        }
+
+        const validAds = [];
+
+        snap.docs.forEach(docSnap => {
+          const data = docSnap.data();
+
+          if (
+            data &&
+            typeof data.image === "string" && data.image.trim() !== "" &&
+            typeof data.link === "string" && data.link.trim() !== "" &&
+            typeof data.impressionsLeft === "number" && data.impressionsLeft > 0
+          ) {
+            validAds.push({ id: docSnap.id, data });
+          }
+        });
+
+        if (validAds.length === 0) {
+          imgEl.src = "/probatism.github.io/placeholder-ad.png";
+          linkEl.href = "advertise.html";
+          return;
+        }
+
+        const chosen = validAds[Math.floor(Math.random() * validAds.length)];
+
+        imgEl.src = chosen.data.image;
+        linkEl.href = chosen.data.link;
+
+        imgEl.onerror = () => {
+          console.log("Image failed → placeholder");
+          imgEl.src = "/probatism.github.io/placeholder-ad.png";
+          linkEl.href = "advertise.html";
+        };
+
+        await updateDoc(doc(db, "ads", chosen.id), {
+          impressionsLeft: increment(-1)
+        });
+
+      } catch (err) {
+        console.error("Ad load error:", err);
+
+        imgEl.src = "/probatism.github.io/placeholder-ad.png";
+        linkEl.href = "advertise.html";
       }
     }
   </script>
