@@ -4,17 +4,28 @@
   <title>Forums</title>
   <link rel="stylesheet" href="style.css">
   <style>
-    /* Override site stylesheet intentionally (link is before this block) */
+    /* Page-specific layout overrides */
     body { font-family: Arial; background: rgb(232,224,207); color: rgb(91,46,97); padding:20px; text-align: left; }
-    h1 { color: rgb(91,46,97); }
+    h1 { color: rgb(91,46,97); margin-top:0; }
     nav { margin-bottom: 10px; }
     nav a { color: rgb(91,46,97); margin-right:10px; text-decoration:none; }
-    button { margin-top:5px; padding:5px 10px; cursor:pointer; background: rgb(232,224,207); color: rgb(91,46,97); border: 1px solid rgb(91,46,97); }
-    ul.forum-list { list-style: none; padding: 0; max-width: 800px; margin: 10px auto; text-align: left; }
-    ul.forum-list li { padding: 10px; border: 1px solid rgb(91,46,97); margin: 8px 0; }
+    #logoutBtn { background: rgb(232,224,207); color: rgb(91,46,97); border: 1px solid rgb(91,46,97); padding:5px 10px; cursor:pointer; }
+
+    /* Two-column layout: sidebar for forum list aligned with other UI */
+    .layout { display:flex; gap:24px; align-items:flex-start; max-width:1100px; margin:0 auto; }
+    .sidebar { width:260px; }
+    .content { flex:1; }
+
+    /* Forum list: bullet points (no boxes) */
+    ul.forum-list { list-style: disc inside; padding-left: 18px; margin: 0; }
+    ul.forum-list li { padding:6px 0; border: none; }
     ul.forum-list li a { color: rgb(91,46,97); text-decoration: none; }
-    ul.forum-list li a:hover { opacity: 0.9; }
+    ul.forum-list li a:hover { text-decoration: underline; opacity:0.95; }
+
     .small-note { font-size:12px; color: rgb(149,118,141); }
+
+    /* Make sure bottom ad centers beneath content */
+    #bottomAdContainer { text-align:center; margin-top:20px; }
   </style>
 </head>
 <body>
@@ -29,19 +40,27 @@
     <button id="logoutBtn" style="display:none;">Logout</button>
   </nav>
 
-  <h1>Forums</h1>
-  <p class="small-note">Choose a forum below to view or create posts.</p>
+  <div class="layout">
+    <aside class="sidebar">
+      <h3 style="margin:0 0 8px 0;">Forums</h3>
+      <ul class="forum-list">
+        <li><a href="forums/general.html">General</a></li>
+        <li><a href="forums/religion.html">Religion</a></li>
+        <li><a href="forums/probatismhate.html">ProbatismHate</a></li>
+        <li><a href="forums/rants.html">Rants</a></li>
+        <li><a href="forums/18plus.html">18+</a></li>
+      </ul>
+    </aside>
 
-  <ul class="forum-list">
-    <li><a href="forums/general.html">General</a></li>
-    <li><a href="forums/religion.html">Religion</a></li>
-    <li><a href="forums/probatismhate.html">ProbatismHate</a></li>
-    <li><a href="forums/rants.html">Rants</a></li>
-    <li><a href="forums/18plus.html">18+</a></li>
-  </ul>
+    <main class="content">
+      <h1>Forums</h1>
+      <p class="small-note">Choose a forum from the list at the left to view or create posts.</p>
+      <!-- You can add content here if needed -->
+    </main>
+  </div>
 
   <!-- BOTTOM AD (same system as general.html but only the bottom ad) -->
-  <div id="bottomAdContainer" style="text-align:center; margin-top:20px;">
+  <div id="bottomAdContainer">
     <a id="bottomAdLink" href="#">
       <img id="bottomAdImg" style="width:300px; height:250px; border:1px solid rgb(91,46,97);">
     </a>
@@ -102,9 +121,15 @@
         const username = (user.email || "").replace("@fake.com", "");
         localStorage.setItem("currentUser", username);
 
-        accountLink.innerText = "Profile";
-        accountLink.href = "profile.html";
-        logoutBtn.style.display = "inline";
+        if (user && !user.isAnonymous) {
+          accountLink.innerText = "Profile";
+          accountLink.href = "profile.html";
+          logoutBtn.style.display = "inline";
+        } else {
+          accountLink.innerText = "Sign In / Sign Up";
+          accountLink.href = "signin.html";
+          logoutBtn.style.display = "none";
+        }
       }
 
       // Load only the bottom ad (box)
