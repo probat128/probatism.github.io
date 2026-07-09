@@ -39,6 +39,14 @@ textarea { width:100%; height:80px; background: rgb(232,224,207); color: rgb(91,
   border:1px solid rgb(91,46,97);
 }
 
+.post-video {
+  max-width:256px;
+  max-height:256px;
+  margin-top:5px;
+  border:1px solid rgb(91,46,97);
+  background: #000;
+}  
+
 .button-row {
   margin-top:5px;
   display:flex;
@@ -169,7 +177,7 @@ input[type="number"]::-webkit-inner-spin-button {
 <h3>Create Post</h3>
 <textarea id="postText" maxlength="8000"></textarea><br>
 
-<input type="file" id="postImage" accept="image/*">
+<input type="file" id="postImage" accept="image/*,video/mp4,video/webm,video/ogg,video/quicktime">
 
 <span id="verificationLabel" style="margin-left:10px;">
   Verification:
@@ -916,28 +924,29 @@ postButton.onclick = async ()=>{
   const text=postText.value.trim();
   const file=postImage.files[0];
 
+let mediaType = "none";
   if (file) {
+    const allowedImageTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+    const allowedVideoTypes = ["video/mp4", "video/webm", "video/ogg", "video/quicktime"];
 
-    const allowedTypes = [
-      "image/jpeg",
-      "image/png",
-      "image/webp",
-      "image/gif"
-    ];
-
-    if (!allowedTypes.includes(file.type)) {
-      alert("Only image files are allowed.");
+    if (allowedImageTypes.includes(file.type)) {
+      mediaType = "image";
+    } else if (allowedVideoTypes.includes(file.type)) {
+      mediaType = "video";
+    } else {
+      alert("Only image and video files are allowed.");
       postClickLocked = false;
       submissionInProgress = false;
       return;
     }
   }
 
-  const MAX_UPLOAD_SIZE = 1 * 1024 * 1024; // 1MB
+  const MAX_UPLOAD_SIZE = 20 * 1024 * 1024; // 20MB limit
 
   if (file && file.size > MAX_UPLOAD_SIZE) {
-    alert("Image too large. Maximum allowed size is 1MB.");
+    alert("File too large. Maximum allowed size is 20MB.");
     postClickLocked = false;
+    submissionInProgress = false;
     return;
   }
 
@@ -1146,7 +1155,7 @@ try{
   }
 
   
-  batch.set(postRef,{
+batch.set(postRef,{
     subforum:"general",
     author: currentUser || "Anonymous",
     authorUID: auth.currentUser.uid,
@@ -1155,12 +1164,16 @@ try{
     content:text,
     image:image,
     fullImage:fullImage,
+    mediaType: mediaType,
     time: now,
     mentionedUsers: mentions,
 
     searchTokens:[...searchTokens],
 
   });
+  
+  // PREVENT DUPLICATES: Wipes the input so a lagging double-click can't resend the file
+  postImage.value = "";
 
   batch.set(
     doc(db,"postCooldowns",auth.currentUser.uid),
@@ -1420,20 +1433,21 @@ async function loadPosts(){
         <div class="post-content"></div>
      
         ${needsMore ? `<button class="readMoreBtn">Read More</button>` : ""}
-        ${(
-          post.image &&
-          /^https:\/\/firebasestorage\.googleapis\.com\//.test(post.image)
-        ) ? `
-          <img
-            class="post-img"
-            src="${escapeHtml(post.image)}"
-            data-full="${escapeHtml(post.fullImage || post.image)}"
-            onclick="
-              document.getElementById('modalImg').src=this.dataset.full;
-              document.getElementById('imgModal').style.display='flex';
-            "
-          >
-`         : ""}
+        ${(function(){
+          if (post.image && /^https:\/\/firebasestorage\.googleapis\.com\//.test(post.image)) {
+            let isVideo = post.mediaType === "video";
+            // Fallback for old posts without mediaType
+            if (!post.mediaType && post.image.match(/\.(mp4|webm|ogg|mov)(\?|$)/i)) {
+              isVideo = true;
+            }
+            if (isVideo) {
+              return \`<video class="post-video" controls preload="metadata"><source src="\${escapeHtml(post.image)}">Your browser does not support the video tag.</video>\`;
+            } else {
+              return \`<img class="post-img" src="\${escapeHtml(post.image)}" data-full="\${escapeHtml(post.fullImage || post.image)}" onclick="document.getElementById('modalImg').src=this.dataset.full; document.getElementById('imgModal').style.display='flex';">\`;
+            }
+          }
+          return "";
+        })()}
     
         <div class="time">${date}</div>
 
