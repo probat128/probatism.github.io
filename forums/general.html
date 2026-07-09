@@ -602,7 +602,7 @@ async function generateVerification(){
         doc(db, "captchas", auth.currentUser.uid),
         {
           uid: auth.currentUser.uid,
-          createdAt: Date.now(),
+          createdAt: serverTimestamp(),
           mathAnswer: verificationAnswer,
           reverseWord: reverseWord
         }
