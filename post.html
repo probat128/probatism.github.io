@@ -213,6 +213,28 @@ button {
   text-decoration:underline;
   cursor:pointer;
 }
+
+.basedBtn {
+  margin-top: 5px;
+  padding: 6px 12px;
+  font-weight: bold;
+  cursor: pointer;
+  background: rgb(232,224,207);
+  color: rgb(91,46,97);
+  border: 1px solid rgb(91,46,97);
+  transition: 0.2s background, 0.2s color;
+}
+.basedBtn.active {
+  background: rgb(91,46,97);
+  color: rgb(232,224,207);
+}
+.basedText {
+  font-size: 12px;
+  opacity: 0.7;
+  margin-top: 3px;
+  display: block;
+}
+
 </style>
 </head>
 
@@ -230,6 +252,11 @@ button {
 
 <h2>Post</h2>
 <div id="post"></div>
+
+<div id="basedSection" style="margin-bottom: 20px;">
+  <button id="basedBtn" class="basedBtn">Based?</button>
+  <span id="basedCountText" class="basedText">0 people thought this post was based</span>
+</div>
 
 <h3>Add Reply</h3>
 <div id="replySection">
@@ -298,6 +325,14 @@ button {
   </div>
 </div>
 
+<!-- BASED LOCK MODAL -->
+<div class="modal-bg" id="basedLockModal">
+  <div class="modal-content">
+    <p>You must be signed in to based a post.</p>
+    <button id="basedLockOkBtn">OK</button>
+  </div>
+</div>
+
 
 <!-- REPORT MODAL -->
 <div id="reportModal" class="modal-bg">
@@ -351,7 +386,8 @@ deleteDoc,
 orderBy,
 limit,
 startAfter,
-documentId
+documentId,
+getCountFromServer
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 import {
@@ -525,6 +561,14 @@ const reportSuccessOkBtn = document.getElementById("reportSuccessOkBtn");
 const mentionLimitModal = document.getElementById("mentionLimitModal");
 const mentionLimitOkBtn = document.getElementById("mentionLimitOkBtn");
 const postId = new URLSearchParams(location.search).get("id");
+const basedBtn = document.getElementById("basedBtn");
+const basedCountText = document.getElementById("basedCountText");
+const basedLockModal = document.getElementById("basedLockModal");
+const basedLockOkBtn = document.getElementById("basedLockOkBtn");
+
+let isBasedByMe = false;
+let basedCount = 0;
+
 let postAuthor = null;
 let postAuthorUID = null;
 
@@ -720,6 +764,8 @@ onAuthStateChanged(auth, async (user)=>{
     document.getElementById("logoutBtn").style.display = "none";
   }
 
+   loadBasedStatus();
+
 });
 
 document.getElementById("logoutBtn").onclick=async()=>{
@@ -907,6 +953,7 @@ if (!snap.exists()) {
   document.getElementById("post").innerHTML =
     "<p>Post not found.</p>";
   return;
+  loadBasedStatus();
 }
 
 const p = snap.data();
@@ -1545,7 +1592,72 @@ mentionLimitOkBtn.onclick = () => {
   mentionLimitModal.style.display = "none";
 };
 
+async function loadBasedStatus() {
+  if (!postId) return;
+  try {
+    // Highly efficient read: Costs exactly 1 document read
+    const q = query(collection(db, "basedVotes"), where("postId", "==", postId));
+    const snapshot = await getCountFromServer(q);
+    basedCount = snapshot.data().count;
 
+    if (auth.currentUser && !auth.currentUser.isAnonymous) {
+      const myVoteRef = doc(db, "basedVotes", `${postId}_${auth.currentUser.uid}`);
+      const myVoteSnap = await getDoc(myVoteRef);
+      isBasedByMe = myVoteSnap.exists();
+    } else {
+      isBasedByMe = false;
+    }
+    updateBasedUI();
+  } catch(e) {
+    console.error("Error loading based status", e);
+  }
+}
+
+function updateBasedUI() {
+  if (isBasedByMe) {
+    basedBtn.classList.add("active");
+  } else {
+    basedBtn.classList.remove("active");
+  }
+  basedCountText.innerText = `${basedCount} people thought this post was based`;
+}
+
+basedBtn.onclick = async () => {
+  if (!auth.currentUser || auth.currentUser.isAnonymous) {
+    basedLockModal.style.display = "flex";
+    return;
+  }
+
+  basedBtn.disabled = true;
+  const myVoteRef = doc(db, "basedVotes", `${postId}_${auth.currentUser.uid}`);
+
+  try {
+    if (isBasedByMe) {
+      await deleteDoc(myVoteRef);
+      isBasedByMe = false;
+      basedCount = Math.max(0, basedCount - 1);
+    } else {
+      await setDoc(myVoteRef, {
+        postId: postId,
+        uid: auth.currentUser.uid,
+        time: Date.now()
+      });
+      isBasedByMe = true;
+      basedCount++;
+    }
+    updateBasedUI();
+  } catch(e) {
+    console.error("Error toggling based", e);
+  } finally {
+    basedBtn.disabled = false;
+  }
+};
+
+if (basedLockOkBtn && basedLockModal) {
+  basedLockOkBtn.onclick = () => {
+    basedLockModal.style.display = "none";
+  };
+}
 
    
 </script>
