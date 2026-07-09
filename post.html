@@ -929,7 +929,23 @@ ${p.author}${adminUIDs.includes(p.authorUID) ? " (admin)" : ""}
 </b><br>
 <div id="mainPostContent"></div>
 
-${p.image?`<br><img class="imgThumb" src="${p.image}" data-full="${p.image}" onclick="showImg(this.dataset.full)">`:``}
+${(function(){
+  if (p.image) {
+    let isVideo = p.mediaType === "video";
+    if (!p.mediaType && p.image.match(/\.(mp4|webm|ogg|mov)(\?|$)/i)) {
+      isVideo = true;
+    }
+    if (isVideo) {
+      return `<br><video class="videoThumb" controls preload="metadata">
+        <source src="${escapeHtml(p.image)}">
+        Your browser does not support the video tag.
+      </video>`;
+    } else {
+      return `<br><img class="imgThumb" src="${escapeHtml(p.image)}" data-full="${escapeHtml(p.image)}" onclick="showImg(this.dataset.full)">`;
+    }
+  }
+  return "";
+})()}
 </div>
 `;
 
