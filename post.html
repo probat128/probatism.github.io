@@ -122,6 +122,14 @@ button {
   margin-top:5px;
 }
 
+.videoThumb {
+  max-width:256px;
+  max-height:256px;
+  margin-top:5px;
+  border:1px solid rgb(91,46,97);
+  background: #000;
+}
+
 .imgOverlay {
   display:none;
   position:fixed;
@@ -230,7 +238,7 @@ button {
      maxlength="8000"
    ></textarea>
   <br>
-  <input type="file" id="replyImg">
+  <input type="file" id="replyImg" accept="image/*,video/mp4,video/webm,video/ogg,video/quicktime">
 
   <br>
 
@@ -352,6 +360,14 @@ onAuthStateChanged,
 signOut,
 signInAnonymously
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+
+import {
+  getStorage,
+  ref,
+  uploadBytes,
+  getDownloadURL,
+  deleteObject
+} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
 
 async function preloadUsersByUIDs(uids){
 
@@ -497,6 +513,7 @@ appId: "1:746935651152:web:82491ddac346bc654a3a55"
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
 const db = getFirestore(app);
 const auth = getAuth(app);
+const storage = getStorage(app);
 const imageLockModal = document.getElementById("imageLockModal");
 const imageLockOkBtn = document.getElementById("imageLockOkBtn");
 const replyImgInput = document.getElementById("replyImg");
@@ -519,6 +536,7 @@ let pendingReport=null;
 let replyList=[];
 let currentUID = null;
 let verificationSolution = null;
+let imageUploadInProgress = false;
 const avatarCache = new Map();
 const usernameCache = new Map();
 const userCache = new Map(); 
@@ -1106,7 +1124,23 @@ async function renderReplies(chunk){
 
       <div class="reply-content"></div>
 
-      ${r.image?`<br><img class="imgThumb" src="${r.image}" data-full="${r.image}">`:``}
+      ${(function(){
+        if (r.image && /^https:\/\/firebasestorage\.googleapis\.com\//.test(r.image)) {
+          let isVideo = r.mediaType === "video";
+          if (!r.mediaType && r.image.match(/\.(mp4|webm|ogg|mov)(\?|$)/i)) {
+            isVideo = true;
+          }
+          if (isVideo) {
+            return `<br><video class="videoThumb" controls preload="metadata">
+              <source src="${escapeHtml(r.image)}">
+              Your browser does not support the video tag.
+            </video>`;
+          } else {
+            return `<br><img class="imgThumb" src="${escapeHtml(r.image)}" data-full="${escapeHtml(r.image)}">`;
+          }
+        }
+        return "";
+      })()}
 
       <div class="time">${new Date(r.time).toLocaleString()}</div>
 
@@ -1197,11 +1231,26 @@ document.getElementById("confirmBtn").onclick = async () => {
   try {
     if (!deleteTarget) return;
 
-    await deleteDoc(doc(db, "replies", deleteTarget));
+    const replyRef = doc(db, "replies", deleteTarget);
+    const replySnap = await getDoc(replyRef);
+
+    if (replySnap.exists()) {
+      const replyData = replySnap.data();
+
+      if (replyData.image && replyData.image.includes("firebasestorage")) {
+        try {
+          const imageRef = ref(storage, replyData.image);
+          await deleteObject(imageRef);
+        } catch (err) {
+          console.error("Storage document media deletion failure:", err);
+        }
+      }
+    }
+
+    await deleteDoc(replyRef);
 
     deleteTarget = null;
     modal.style.display = "none";
-
     fetchReplies(true);
 
   } catch (err) {
@@ -1210,149 +1259,27 @@ document.getElementById("confirmBtn").onclick = async () => {
   }
 };
 
-function compressImage(file, maxWidth = 800, quality = 0.7) {
-  return new Promise((resolve) => {
-    const img = new Image();
-    const reader = new FileReader();
+async function uploadReplyMedia(file, uid, uploadId) {
+  if (imageUploadInProgress) {
+    throw new Error("Upload already in progress");
+  }
 
-    reader.onload = (e) => {
-      img.src = e.target.result;
-    };
+  imageUploadInProgress = true;
 
-    img.onload = () => {
-      const canvas = document.createElement("canvas");
-      const ctx = canvas.getContext("2d");
+  try {
+    const extension = file.name.split(".").pop().toLowerCase();
+    const filename = `${uploadId}.${extension}`;
+    const storageRef = ref(storage, `postImages/${uid}/${filename}`);
 
-      const scale = Math.min(maxWidth / img.width, 1);
-
-      canvas.width = img.width * scale;
-      canvas.height = img.height * scale;
-
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-
-      canvas.toBlob(
-        (blob) => {
-          const compressedReader = new FileReader();
-          compressedReader.onload = () => resolve(compressedReader.result);
-          compressedReader.readAsDataURL(blob);
-        },
-        "image/jpeg",
-        quality
-      );
-    };
-
-    reader.readAsDataURL(file);
-  });
+    await uploadBytes(storageRef, file);
+    return await getDownloadURL(storageRef);
+  } finally {
+    imageUploadInProgress = false;
+  }
 }
 
 /* SEND WITH COOLDOWN */
-document.getElementById("sendReply").onclick=async()=>{
-
-const now = Date.now();
-const remaining = 10000 - (now - lastReplyTime);
-
-if(remaining > 0){
-  startCooldownUI(Math.ceil(remaining / 1000));
-  return;
-}
-
-const btn = document.getElementById("sendReply");
-
-const text=document.getElementById("replyText").value.trim();
-const file=document.getElementById("replyImg").files[0];
-
-const MAX_UPLOAD_SIZE = 1024 * 1024; // 1MB
-
-if(file && file.size > MAX_UPLOAD_SIZE){
-  alert("Image too large. Maximum allowed size is 1MB.");
-  return;
-}
-
-const lowerText = text.toLowerCase();
-
-const containsBlacklistedWord = BLACKLIST.some(word =>
-  new RegExp(`\\b${word}\\b`, "i").test(lowerText)
-);
-
-if (containsBlacklistedWord) {
-  return;
-}
-
-if(!text && !file) return;
-
-const answer =
-  document.getElementById("verificationAnswer").value.trim();
-
-if(answer === ""){
-  return;
-}
-
-if(Number(answer) !== verificationSolution){
-
-  generateVerification();
-
-  return;
-}
-
-btn.disabled = true;
-
-const img = file ? await compressImage(file) : null;
-
-if(img && img.length > 1300000){
-  alert("Compressed image is still too large.");
-  btn.disabled = false;
-  return;
-}
-
-const mentions = await extractMentions(text);
-
-const validMentions = mentions.filter(m => m && m.uid);
-
-if (validMentions.length > 3) {
-  mentionLimitModal.style.display = "flex";
-
-  btn.disabled = false;
-
-  return;
-}
-
-if(!auth.currentUser){
-  alert("Authentication still loading. Please wait a second and try again.");
-  btn.disabled = false;
-  return;
-}
-
-await addDoc(collection(db,"replies"),{
-postId,
-author: currentUser || "Anonymous",
-authorUID: auth.currentUser.uid,
-authorEmail: auth.currentUser.email || null,
-content: text,
-image: img,
-time: Date.now(),
-
-mentionedUsers: mentions
-});
-
-lastReplyTime = Date.now();
-
-localStorage.setItem(
-  "lastReplyTime",
-  lastReplyTime
-);
-
-startCooldownUI(10);
-
-
-document.getElementById("replyText").value="";
-document.getElementById("replyImg").value="";
-generateVerification();
-
-setTimeout(()=>btn.disabled=false,10000);
-
-fetchReplies(true);
-};
-
+v
 function startCooldownUI(seconds){
   const textEl = document.getElementById("cooldownText");
   const btn = document.getElementById("sendReply");
