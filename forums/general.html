@@ -708,13 +708,11 @@ onAuthStateChanged(auth, async (user) => {
 
         currentUser = userSnap.data().username;
 
-      } else if(user.displayName){
-
-        currentUser = user.displayName;
-
       } else {
-
+        
+        // Force Anonymous if no database profile exists to satisfy Firebase rules
         currentUser = "Anonymous";
+        
       }
 
     } catch(err){
@@ -1169,7 +1167,7 @@ batch.set(postRef,{
     mentionedUsers: mentions,
     searchTokens:[...searchTokens],
     captchaMath: Number(userAnswer),
-    captchaWord: reverseAnswer
+    captchaWord: captchaData.reverseWord
   });
   
   // PREVENT DUPLICATES: Wipes the input so a lagging double-click can't resend the file
