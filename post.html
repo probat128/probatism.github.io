@@ -1279,7 +1279,130 @@ async function uploadReplyMedia(file, uid, uploadId) {
 }
 
 /* SEND WITH COOLDOWN */
-v
+document.getElementById("sendReply").onclick=async()=>{
+
+const now = Date.now();
+const remaining = 10000 - (now - lastReplyTime);
+
+if(remaining > 0){
+  startCooldownUI(Math.ceil(remaining / 1000));
+  return;
+}
+
+if (imageUploadInProgress) {
+  return;
+}
+
+const btn = document.getElementById("sendReply");
+const text=document.getElementById("replyText").value.trim();
+const file=document.getElementById("replyImg").files[0];
+
+let mediaType = "none";
+if (file) {
+  const allowedImageTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+  const allowedVideoTypes = ["video/mp4", "video/webm", "video/ogg", "video/quicktime"];
+
+  if (allowedImageTypes.includes(file.type)) {
+    mediaType = "image";
+  } else if (allowedVideoTypes.includes(file.type)) {
+    mediaType = "video";
+  } else {
+    alert("Only image and video files are allowed.");
+    return;
+  }
+}
+
+const MAX_UPLOAD_SIZE = 20 * 1024 * 1024; // 20MB limit
+
+if(file && file.size > MAX_UPLOAD_SIZE){
+  alert("File too large. Maximum allowed size is 20MB.");
+  return;
+}
+
+const lowerText = text.toLowerCase();
+const containsBlacklistedWord = BLACKLIST.some(word =>
+  new RegExp(`\\b${word}\\b`, "i").test(lowerText)
+);
+
+if (containsBlacklistedWord) {
+  return;
+}
+
+if(!text && !file) return;
+
+const answer = document.getElementById("verificationAnswer").value.trim();
+
+if(answer === ""){
+  return;
+}
+
+if(Number(answer) !== verificationSolution){
+  generateVerification();
+  return;
+}
+
+btn.disabled = true;
+
+let uploadedUrl = null;
+const uploadId = crypto.randomUUID();
+
+if (file) {
+  try {
+    uploadedUrl = await uploadReplyMedia(file, auth.currentUser.uid, uploadId);
+  } catch (uploadErr) {
+    console.error("Upload failed:", uploadErr);
+    alert("File upload failed. Please try again.");
+    btn.disabled = false;
+    return;
+  }
+}
+
+const mentions = await extractMentions(text);
+const validMentions = mentions.filter(m => m && m.uid);
+
+if (validMentions.length > 3) {
+  mentionLimitModal.style.display = "flex";
+  btn.disabled = false;
+  return;
+}
+
+if(!auth.currentUser){
+  alert("Authentication still loading. Please wait a second and try again.");
+  btn.disabled = false;
+  return;
+}
+
+// Clear the input fields immediately before write completes to guarantee zero duplicate submissions
+document.getElementById("replyImg").value="";
+
+try {
+  await addDoc(collection(db,"replies"),{
+    postId,
+    author: currentUser || "Anonymous",
+    authorUID: auth.currentUser.uid,
+    authorEmail: auth.currentUser.email || null,
+    content: text,
+    image: uploadedUrl,
+    mediaType: mediaType,
+    time: Date.now(),
+    mentionedUsers: mentions
+  });
+
+  lastReplyTime = Date.now();
+  localStorage.setItem("lastReplyTime", lastReplyTime);
+
+  startCooldownUI(10);
+  document.getElementById("replyText").value="";
+  generateVerification();
+  
+  setTimeout(()=>btn.disabled=false,10000);
+  fetchReplies(true);
+
+} catch (err) {
+  console.error("Submission failed:", err);
+  btn.disabled = false;
+}
+};
 function startCooldownUI(seconds){
   const textEl = document.getElementById("cooldownText");
   const btn = document.getElementById("sendReply");
