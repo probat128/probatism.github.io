@@ -1441,9 +1441,17 @@ async function loadPosts(){
               isVideo = true;
             }
             if (isVideo) {
-              return \`<video class="post-video" controls preload="metadata"><source src="\${escapeHtml(post.image)}">Your browser does not support the video tag.</video>\`;
+              return `<video class="post-video" controls preload="metadata">
+                <source src="${escapeHtml(post.image)}">
+                Your browser does not support the video tag.
+              </video>`;
             } else {
-              return \`<img class="post-img" src="\${escapeHtml(post.image)}" data-full="\${escapeHtml(post.fullImage || post.image)}" onclick="document.getElementById('modalImg').src=this.dataset.full; document.getElementById('imgModal').style.display='flex';">\`;
+              return `<img
+                class="post-img"
+                src="${escapeHtml(post.image)}"
+                data-full="${escapeHtml(post.fullImage || post.image)}"
+                onclick="document.getElementById('modalImg').src=this.dataset.full; document.getElementById('imgModal').style.display='flex';"
+              >`;
             }
           }
           return "";
