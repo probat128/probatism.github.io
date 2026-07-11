@@ -959,78 +959,63 @@ let mediaType = "none";
     return;
   }
 
-  const userAnswer =
-    document.getElementById("verificationAnswer").value.trim();
+  // HELPER: Unlocks the post button if validation fails
+  const resetPostState = () => {
+    postClickLocked = false;
+    postButton.disabled = false;
+    submissionInProgress = false;
+  };
+
+  const userAnswer = document.getElementById("verificationAnswer").value.trim();
 
   if(userAnswer === ""){
+    resetPostState();
     return;
   }
 
   if(Number(userAnswer) !== verificationAnswer){
-
     generateVerification();
-
-    postClickLocked = false;
+    resetPostState();
     return;
   }
 
-  
   if (!text && !file) {
-    postClickLocked = false;
+    resetPostState();
     return;
   }
-  const reverseAnswer =
-    document.getElementById("reverseWordAnswer").value.trim().toLowerCase();
+
+  const reverseAnswer = document.getElementById("reverseWordAnswer").value.trim().toLowerCase();
 
   if(reverseAnswer === ""){
-    postClickLocked = false;
+    resetPostState();
     return;
   }
 
   if(reverseAnswer !== reverseWord.split("").reverse().join("")){
-
     generateVerification();
-
-    postClickLocked = false;
+    resetPostState();
     return;
   }
 
-  const captchaSnap = await getDoc(
-    doc(db, "captchas", auth.currentUser.uid)
-  );
+  const captchaSnap = await getDoc(doc(db, "captchas", auth.currentUser.uid));
 
   if(!captchaSnap.exists()){
-
     generateVerification();
-
-    postClickLocked = false;
+    resetPostState();
     return;
   }
 
   const captchaData = captchaSnap.data();
 
-  if(
-    captchaData.mathAnswer !== Number(userAnswer)
-  ){
-
+  if(captchaData.mathAnswer !== Number(userAnswer)){
     generateVerification();
-
-    postClickLocked = false;
+    resetPostState();
     return;
   }
 
-  if(
-    captchaData.reverseWord
-      .split("")
-      .reverse()
-      .join("")
-      .toLowerCase()
-      !== reverseAnswer
-  ){
-
+  if(captchaData.reverseWord.split("").reverse().join("").toLowerCase() !== reverseAnswer){
     generateVerification();
-
-    postClickLocked = false;
+    resetPostState();
     return;
   }
 
