@@ -235,6 +235,45 @@ button {
   display: block;
 }
 
+.reply-action-btn {
+  cursor: pointer;
+  font-size: 11px;
+  margin-left: 8px;
+  color: rgb(91,46,97);
+  text-decoration: none;
+  font-weight: bold;
+}
+.reply-action-btn:hover {
+  text-decoration: underline;
+}
+.replying-to-ui {
+  display: none;
+  background: rgb(232,224,207);
+  border: 1px solid rgb(91,46,97);
+  padding: 5px 10px;
+  margin-bottom: 5px;
+  font-size: 12px;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: bold;
+}
+.replying-to-ui .cancel-reply {
+  cursor: pointer;
+  font-weight: bold;
+  padding: 0 5px;
+  color: rgb(91,46,97);
+}
+.quote-snippet {
+  border-left: 3px solid rgb(91,46,97);
+  padding-left: 8px;
+  margin-bottom: 5px;
+  font-size: 12px;
+  opacity: 0.85;
+  background: rgba(91,46,97,0.05);
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+
 </style>
 </head>
 
@@ -260,6 +299,10 @@ button {
 
 <h3>Add Reply</h3>
 <div id="replySection">
+   <div id="replyingToBanner" class="replying-to-ui">
+     <span id="replyingToText"></span>
+     <span class="cancel-reply" onclick="cancelReplyTo()">x</span>
+   </div>
    <textarea
      id="replyText"
      maxlength="16000"
@@ -586,6 +629,7 @@ const usernameCache = new Map();
 const userCache = new Map(); 
 // uid -> { username, avatar }
 const mentionLookupCache = new Map();
+const replyContentCache = new Map();
 
 const BLACKLIST = [
   "word1",
@@ -595,6 +639,44 @@ const BLACKLIST = [
 
 let lastReportTime =
   Number(localStorage.getItem("lastReportTime")) || 0;
+
+let replyingToId = null;
+let replyingToUser = null;
+let replyingToSnippet = null;
+
+window.setReplyTo = function(id, user) {
+  replyingToId = id;
+  replyingToUser = user;
+
+  // Retrieve the raw content safely, remove new lines, and truncate it for the snippet preview
+  let rawContent = replyContentCache.get(id) || "";
+  let snippet = rawContent.replace(/[\r\n]+/g, ' ').substring(0, 60);
+  if (rawContent.length > 60) snippet += '...';
+  replyingToSnippet = snippet;
+
+  const banner = document.getElementById("replyingToBanner");
+  const textEl = document.getElementById("replyingToText");
+  const textarea = document.getElementById("replyText");
+
+  textEl.innerText = `Replying to ${user}`;
+  banner.style.display = "flex";
+
+  if (user !== "Anonymous") {
+    const mentionText = `@${user} `;
+    if (!textarea.value.startsWith(mentionText)) {
+      textarea.value = mentionText + textarea.value;
+    }
+  }
+  textarea.focus();
+  textarea.scrollIntoView({ behavior: "smooth", block: "center" });
+};
+
+window.cancelReplyTo = function() {
+  replyingToId = null;
+  replyingToUser = null;
+  replyingToSnippet = null;
+  document.getElementById("replyingToBanner").style.display = "none";
+};
    
 
 const adminUIDs = [
@@ -1167,6 +1249,7 @@ async function renderReplies(chunk){
     document.getElementById("loadMoreReplies");
 
   for(const r of chunk){
+    replyContentCache.set(r.id, r.content);
 
     const avatar = userCache.get(r.authorUID)?.avatar;
 
@@ -1181,6 +1264,11 @@ async function renderReplies(chunk){
       : ``}
 
     <div class="contentWrap">
+      ${r.parentReplySnippet ? `
+        <div class="quote-snippet">
+          <b>${escapeHtml(r.parentReplyUser || 'Unknown')}</b>: ${escapeHtml(r.parentReplySnippet)}
+        </div>
+      ` : ''}
       <b onclick="${r.author !== "Anonymous" ? `goProfile('${r.author}')` : ''}" style="cursor:${r.author !== "Anonymous" ? "pointer" : "default"}">
         ${r.author}${adminUIDs.includes(r.authorUID) ? " (admin)" : ""}
       </b><br>
@@ -1205,7 +1293,10 @@ async function renderReplies(chunk){
         return "";
       })()}
 
-      <div class="time">${new Date(r.time).toLocaleString()}</div>
+      <div style="display:flex; align-items:baseline;">
+        <div class="time">${new Date(r.time).toLocaleString()}</div>
+        <span class="reply-action-btn" onclick="setReplyTo('${r.id}', '${escapeHtml(r.author)}')">[Reply]</span>
+      </div>
 
       <span
         class="reportBtn"
@@ -1439,7 +1530,7 @@ if(!auth.currentUser){
 document.getElementById("replyImg").value="";
 
 try {
-  await addDoc(collection(db,"replies"),{
+  const replyData = {
     postId,
     author: currentUser || "Anonymous",
     authorUID: auth.currentUser.uid,
@@ -1449,7 +1540,17 @@ try {
     mediaType: mediaType,
     time: Date.now(),
     mentionedUsers: mentions
-  });
+  };
+
+  if (replyingToId) {
+    replyData.parentReplyId = replyingToId;
+    replyData.parentReplyUser = replyingToUser;
+    replyData.parentReplySnippet = replyingToSnippet;
+  }
+
+  await addDoc(collection(db,"replies"), replyData);
+
+  cancelReplyTo(); // Clears the reply-to interface state once successfully sent
 
   lastReplyTime = Date.now();
   localStorage.setItem("lastReplyTime", lastReplyTime);
