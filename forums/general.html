@@ -1371,19 +1371,12 @@ async function loadPosts(){
     }catch(e){}
 
     let profilePic = "";
-
-    if(
-      post.authorProfilePic &&
-      post.authorProfilePic.trim() !== ""
-    ){
-
-      const safeProfilePic =
-        escapeHtml(post.authorProfilePic);
-
+    // Only render the image if it passed the protocol validation above
+    if(safeProfilePic !== ""){
       profilePic = `
         <img
           class="profile-thumb"
-          src="${escapeHtml(safeProfilePic)}"            // maybe change
+          src="${escapeHtml(safeProfilePic)}"
           onclick="goProfile('${safeDisplayNameJs}')"
         >
       `;
