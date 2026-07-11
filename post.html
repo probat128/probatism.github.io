@@ -643,6 +643,7 @@ let lastReportTime =
 let replyingToId = null;
 let replyingToUser = null;
 let replyingToSnippet = null;
+let userTypedReplyText = "";
 
 window.setReplyTo = function(id, user) {
   replyingToId = id;
@@ -666,17 +667,52 @@ window.setReplyTo = function(id, user) {
     if (!textarea.value.startsWith(mentionText)) {
       textarea.value = mentionText + textarea.value;
     }
+    // Initialize the locked text memory
+    userTypedReplyText = textarea.value.substring(mentionText.length);
+  } else {
+    userTypedReplyText = textarea.value;
   }
+  
   textarea.focus();
   textarea.scrollIntoView({ behavior: "smooth", block: "center" });
 };
 
 window.cancelReplyTo = function() {
+  if (replyingToUser && replyingToUser !== "Anonymous") {
+    const textarea = document.getElementById("replyText");
+    const prefix = `@${replyingToUser} `;
+    // Remove the locked mention prefix cleanly if the user cancels
+    if (textarea.value.startsWith(prefix)) {
+      textarea.value = textarea.value.substring(prefix.length);
+    }
+  }
   replyingToId = null;
   replyingToUser = null;
   replyingToSnippet = null;
+  userTypedReplyText = document.getElementById("replyText").value;
   document.getElementById("replyingToBanner").style.display = "none";
 };
+
+// NEW: Strict, read-efficient listener to prevent UI-based deletion of the mention prefix
+document.getElementById("replyText").addEventListener("input", function(e) {
+  if (replyingToUser && replyingToUser !== "Anonymous") {
+    const prefix = `@${replyingToUser} `;
+    
+    if (!this.value.startsWith(prefix)) {
+      // Handle "Select All + Delete" naturally without losing the lock
+      if (this.value === "" || this.value.trim() === "") {
+         userTypedReplyText = "";
+      }
+      // Revert the deletion: Force the prefix to remain, appending their valid text
+      this.value = prefix + userTypedReplyText;
+    } else {
+      // Keep track of their custom typed text
+      userTypedReplyText = this.value.substring(prefix.length);
+    }
+  } else {
+     userTypedReplyText = this.value;
+  }
+});
    
 
 const adminUIDs = [
@@ -1448,8 +1484,16 @@ if (imageUploadInProgress) {
 }
 
 const btn = document.getElementById("sendReply");
-const text=document.getElementById("replyText").value.trim();
-const file=document.getElementById("replyImg").files[0];
+let text = document.getElementById("replyText").value.trim();
+const file = document.getElementById("replyImg").files[0];
+
+// Exploit/Bypass prevention: Enforce mention on submission even if DOM was maliciously altered
+if (replyingToUser && replyingToUser !== "Anonymous") {
+  const expectedPrefix = `@${replyingToUser}`;
+  if (!text.toLowerCase().startsWith(expectedPrefix.toLowerCase())) {
+    text = expectedPrefix + " " + text;
+  }
+}
 
 let mediaType = "none";
 if (file) {
@@ -1557,6 +1601,7 @@ try {
 
   startCooldownUI(10);
   document.getElementById("replyText").value="";
+  userTypedReplyText = "";
   generateVerification();
   
   setTimeout(()=>btn.disabled=false,10000);
