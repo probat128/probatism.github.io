@@ -1722,7 +1722,7 @@ async function loadAd(type, imgEl, linkEl) {
         await adBatch.commit();
       }
     } catch (err) {
-      console.error("Impression update failed or rate-limited:", err);
+      console.error("2:", err);
     }
     // 8. Decrement impressions ONLY if allowed
     try {
@@ -1733,7 +1733,7 @@ async function loadAd(type, imgEl, linkEl) {
       });
 
     } catch (err) {
-      console.error("Im:", err);
+      console.error("1:", err);
     }
 
   } catch (err) {
