@@ -1033,8 +1033,30 @@ let mediaType = "none";
     const extension =
       file.name.split(".").pop().toLowerCase();
 
+    const filenameForTicket = `${uploadId}.${extension}`;
+
+    // 1. GENERATE RATE-LIMITED UPLOAD TICKET
+    try {
+      await setDoc(doc(db, "uploadTickets", auth.currentUser.uid), {
+        filename: filenameForTicket,
+        timestamp: serverTimestamp()
+      });
+    } catch(err) {
+      console.error("Upload rate limited:", err);
+      isPosting = false;
+      postButton.disabled = false;
+      submissionInProgress = false;
+      postClickLocked = false;
+      const msg = document.getElementById("cooldownMsg");
+      msg.innerText = "Please wait 40 seconds before uploading another file.";
+      msg.style.display = "block";
+      setTimeout(()=>{ msg.style.display = "none"; }, 4000);
+      return;
+    }
+
+    // 2. PROCEED WITH UPLOAD
     uploadedStoragePath =
-      `postImages/${auth.currentUser.uid}/${uploadId}.${extension}`;
+      `postImages/${auth.currentUser.uid}/${filenameForTicket}`;
 
     image = await uploadPostImage(
       file,
