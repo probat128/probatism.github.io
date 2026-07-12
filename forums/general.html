@@ -1356,17 +1356,47 @@ async function loadPosts(){
     const safeDisplayNameJs =
       escapeJsString(displayName);
 
+    // 1. DYNAMIC PROFILE PICTURE FETCHING WITH CACHE
+    let currentProfilePic = post.authorProfilePic || ""; // Fallback to saved image if fetch fails
+    
+    // Skip reading database for anonymous users since they don't have saved profile pictures
+    if (post.authorUID && displayName !== "Anonymous") {
+      if (userDocCache.has(post.authorUID)) {
+        // Use cached version to prevent unnecessary reads
+        const cachedData = userDocCache.get(post.authorUID);
+        currentProfilePic = cachedData.profilePic || "";
+      } else {
+        // Fetch current profile pic from users collection and cache it
+        try {
+          const userSnap = await getDoc(doc(db, "users", post.authorUID));
+          if (userSnap.exists()) {
+            const userData = userSnap.data();
+            userDocCache.set(post.authorUID, userData);
+            currentProfilePic = userData.profilePic || "";
+          } else {
+            userDocCache.set(post.authorUID, {}); // Cache empty so we don't re-fetch unnecessarily
+            currentProfilePic = "";
+          }
+        } catch (err) {
+          console.error("Error fetching user profile for dynamic picture:", err);
+        }
+      }
+    }
+
     let safeProfilePic = "";
 
+    // 2. APPLY THE DYNAMIC PICTURE
     try{
-      const url = new URL(post.authorProfilePic);
+      if (currentProfilePic) {
+        const url = new URL(currentProfilePic);
 
-      if(
-        url.protocol === "https:" ||
-        url.protocol === "http:" ||
-        post.authorProfilePic.startsWith("data:image/")
-      ){
-        safeProfilePic = post.authorProfilePic;
+        if(
+          url.protocol === "https:" ||
+          url.protocol === "http:" ||
+          currentProfilePic.startsWith("data:image/")
+        ){
+          safeProfilePic = currentProfilePic;
+        }
       }
     }catch(e){}
 
