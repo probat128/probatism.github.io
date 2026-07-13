@@ -1165,7 +1165,6 @@ batch.set(postRef,{
     author: currentUser || "Anonymous",
     authorUID: auth.currentUser.uid,
     authorProfilePic: authorProfilePic,
-    authorEmail: auth.currentUser.email || null,
     content:text,
     image:image,
     fullImage:fullImage,
@@ -1183,7 +1182,7 @@ batch.set(postRef,{
   batch.set(
     doc(db,"postCooldowns",auth.currentUser.uid),
     {
-      lastPostAt: now
+      lastPostAt: serverTimestamp()
     }
   );
 
@@ -1429,7 +1428,7 @@ async function loadPosts(){
         <img
           class="profile-thumb"
           src="${escapeHtml(safeProfilePic)}"
-          onclick="goProfile('${safeDisplayNameJs}')"
+          onclick="goProfile('${escapeHtml(safeDisplayNameJs)}')"
         >
       `;
     }
@@ -1447,7 +1446,7 @@ async function loadPosts(){
 
     const safeAuthorClick =
       displayName !== "Anonymous"
-        ? `style="cursor:pointer;" onclick="goProfile('${safeDisplayNameJs}')"`
+        ? `style="cursor:pointer;" onclick="goProfile('${escapeHtml(safeDisplayNameJs)}')"`
         : "";
 
     div.innerHTML=`
@@ -1496,7 +1495,7 @@ async function loadPosts(){
           class="report-btn"
           onclick="reportPost(
             '${escapeJsString(docSnap.id)}',
-            '${safeDisplayNameJs}',
+            '${escapeHtml(safeDisplayNameJs)}',
             '${escapeJsString(post.authorUID || "")}'
           )"
         >
