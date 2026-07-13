@@ -678,9 +678,10 @@ onAuthStateChanged(auth, async (user) => {
     }
 
     if(postCooldownSnap.exists()){
-
-    lastPostTime =
-        postCooldownSnap.data().lastPostAt || 0;
+      const storedTime = postCooldownSnap.data().lastPostAt;
+      lastPostTime = storedTime
+        ? (typeof storedTime.toMillis === "function" ? storedTime.toMillis() : storedTime)
+        : 0;
     }
 
   }catch(err){
