@@ -348,9 +348,19 @@ async function extractMentions(text){
     )
   ];
 
-  const results = [];
+  // FIX: Prevent database read spam. If >3 mentions, abort DB lookups immediately. 
+  // Returning dummies forces the existing mentionLimitModal to cleanly reject the post.
+  if (uniqueUsernames.length > 3) {
+    return new Array(uniqueUsernames.length).fill({ uid: "spam" });
+  }
 
   const lookupMap = {};
+
+  // FIX: Load sessionStorage cache to save reads across page reloads
+  let sessionCache = {};
+  try {
+    sessionCache = JSON.parse(sessionStorage.getItem("usernameCache") || "{}");
+  } catch(e) {}
 
   for(const lower of uniqueUsernames){
 
@@ -359,9 +369,16 @@ async function extractMentions(text){
       continue;
     }
 
+    // Check memory cache
     if(usernameCache.has(lower)){
-      lookupMap[lower] =
-        usernameCache.get(lower);
+      lookupMap[lower] = usernameCache.get(lower);
+      continue;
+    }
+    
+    // Check session storage cache
+    if(sessionCache[lower] !== undefined){
+      usernameCache.set(lower, sessionCache[lower]);
+      lookupMap[lower] = sessionCache[lower];
       continue;
     }
 
@@ -372,7 +389,6 @@ async function extractMentions(text){
     let value = null;
 
     if(snap.exists()){
-
       value = {
         uid: snap.data().uid,
         username: lower
@@ -380,17 +396,19 @@ async function extractMentions(text){
     }
 
     usernameCache.set(lower, value);
+    sessionCache[lower] = value;
     lookupMap[lower] = value;
   }
 
-  return matches.map(match=>{
-    const lower =
-      match.slice(1).toLowerCase();
+  // Save updated cache back to session storage
+  try {
+    sessionStorage.setItem("usernameCache", JSON.stringify(sessionCache));
+  } catch(e) {}
 
+  return matches.map(match=>{
+    const lower = match.slice(1).toLowerCase();
     return lookupMap[lower] || null;
   });
-
-  return results;
 }
 
 /* ✅ FIXED CONFIG (THIS WAS THE BUG) */
@@ -819,7 +837,7 @@ async function renderMentions(text, mentionedUsers = []){
 
     rendered = rendered.replace(
       "@" + originalUsername,
-      `<span class="mention" onclick="goProfile('${escapeJsString(username)}')">@${escapeHtml(username)}</span>`
+      `<span class="mention" onclick="goProfile('${escapeHtml(escapeJsString(username))}')">@${escapeHtml(username)}</span>`
     );
   }
 
@@ -1495,9 +1513,9 @@ async function loadPosts(){
         <span
           class="report-btn"
           onclick="reportPost(
-            '${escapeJsString(docSnap.id)}',
+            '${escapeHtml(escapeJsString(docSnap.id))}',
             '${escapeHtml(safeDisplayNameJs)}',
-            '${escapeJsString(post.authorUID || "")}'
+            '${escapeHtml(escapeJsString(post.authorUID || ""))}'
           )"
         >
           report
