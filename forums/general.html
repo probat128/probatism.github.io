@@ -809,38 +809,28 @@ function escapeJsString(text){
 }
 
 
-async function renderMentions(text, mentionedUsers = []){
-
+async function renderMentions(text, mentionedUsers = []) {
   if(!text) return "";
-
+  
   let rendered = escapeHtml(text);
-
-  const matches = [...text.matchAll(/@([\w]+)/g)];
-
-  for(let i = 0; i < matches.length; i++){
-
-    const originalUsername = matches[i][1];
-
-    if(originalUsername === "Anonymous"){
-      continue;
+  let i = 0; // Tracks our position in the mentionedUsers array
+  
+  // Replaces tags sequentially from left-to-right to prevent HTML corruption
+  rendered = rendered.replace(/@([\w]+)/g, (match, originalUsername) => {
+    const mentionData = mentionedUsers[i++]; // Increment index for every match found
+    
+    if (originalUsername === "Anonymous") {
+      return match;
     }
-
-    const mentionData = mentionedUsers[i];
-
-    if(!mentionData){
-      continue;
+    
+    if (!mentionData) {
+      return match; 
     }
-
-    const username =
-      mentionData.username ||
-      originalUsername;
-
-    rendered = rendered.replace(
-      "@" + originalUsername,
-      `<span class="mention" onclick="goProfile('${escapeHtml(escapeJsString(username))}')">@${escapeHtml(username)}</span>`
-    );
-  }
-
+    
+    const username = mentionData.username || originalUsername;
+    return `<span class="mention" onclick="goProfile('${escapeHtml(escapeJsString(username))}')">@${escapeHtml(username)}</span>`;
+  });
+  
   return rendered;
 }
 
@@ -1354,6 +1344,28 @@ async function loadPosts(){
     loadMoreBtn.style.display = "inline-block";
   }
 
+  // PRE-FETCH MISSING USER PROFILES CONCURRENTLY
+  const uidsToFetch = new Set();
+  for (const docSnap of snap.docs) {
+    const post = docSnap.data();
+    if (post.authorUID && post.author !== "Anonymous" && !userDocCache.has(post.authorUID)) {
+      uidsToFetch.add(post.authorUID);
+    }
+  }
+
+  await Promise.all(Array.from(uidsToFetch).map(async (uid) => {
+    try {
+      const userSnap = await getDoc(doc(db, "users", uid));
+      if (userSnap.exists()) {
+        userDocCache.set(uid, userSnap.data());
+      } else {
+        userDocCache.set(uid, {});
+      }
+    } catch (err) {
+      console.error("Error batch fetching profile:", err);
+    }
+  }));
+
   for(const docSnap of snap.docs){
 
     const post = docSnap.data();
@@ -1396,31 +1408,12 @@ async function loadPosts(){
     const safeDisplayNameJs =
       escapeJsString(displayName);
 
-    // 1. DYNAMIC PROFILE PICTURE FETCHING WITH CACHE
-    let currentProfilePic = post.authorProfilePic || ""; // Fallback to saved image if fetch fails
+    // 1. DYNAMIC PROFILE PICTURE FETCHING WITH CACHE (Batched above)
+    let currentProfilePic = post.authorProfilePic || ""; 
     
-    // Skip reading database for anonymous users since they don't have saved profile pictures
-    if (post.authorUID && displayName !== "Anonymous") {
-      if (userDocCache.has(post.authorUID)) {
-        // Use cached version to prevent unnecessary reads
-        const cachedData = userDocCache.get(post.authorUID);
-        currentProfilePic = cachedData.profilePic || "";
-      } else {
-        // Fetch current profile pic from users collection and cache it
-        try {
-          const userSnap = await getDoc(doc(db, "users", post.authorUID));
-          if (userSnap.exists()) {
-            const userData = userSnap.data();
-            userDocCache.set(post.authorUID, userData);
-            currentProfilePic = userData.profilePic || "";
-          } else {
-            userDocCache.set(post.authorUID, {}); // Cache empty so we don't re-fetch unnecessarily
-            currentProfilePic = "";
-          }
-        } catch (err) {
-          console.error("Error fetching user profile for dynamic picture:", err);
-        }
-      }
+    if (post.authorUID && displayName !== "Anonymous" && userDocCache.has(post.authorUID)) {
+      const cachedData = userDocCache.get(post.authorUID);
+      currentProfilePic = cachedData.profilePic || "";
     }
 
     let safeProfilePic = "";
