@@ -1178,7 +1178,7 @@ batch.set(postRef,{
     image:image,
     fullImage:fullImage,
     mediaType: mediaType,
-    time: now,
+    time: serverTimestamp(),
     mentionedUsers: mentions,
     searchTokens:[...searchTokens],
     captchaMath: Number(userAnswer),
@@ -1397,7 +1397,8 @@ async function loadPosts(){
     }
 
 
-    const date=new Date(post.time).toLocaleString();
+    const postTimeMillis = post.time && typeof post.time.toMillis === "function" ? post.time.toMillis() : post.time;
+    const date=new Date(postTimeMillis).toLocaleString();
 
     let displayName =
       post.author || "Anonymous";
@@ -1765,31 +1766,20 @@ async function loadAd(type, imgEl, linkEl) {
       linkEl.href = "advertise.html";
     };
 
-    // 8. Decrement impressions via batch to apply rate-limiting
+    // 8. Decrement impressions securely based on auth state
     try {
+      const adRef = doc(db, "ads", chosen.id);
       if (auth.currentUser) {
-        const adRef = doc(db, "ads", chosen.id);
         const cooldownRef = doc(db, "adCooldowns", auth.currentUser.uid);
-        
         const adBatch = writeBatch(db);
         adBatch.update(adRef, { impressionsLeft: increment(-1) });
         adBatch.set(cooldownRef, { lastView: serverTimestamp() }, { merge: true });
-        
         await adBatch.commit();
+      } else {
+        await updateDoc(adRef, { impressionsLeft: increment(-1) });
       }
     } catch (err) {
-      console.error("2:", err);
-    }
-    // 8. Decrement impressions ONLY if allowed
-    try {
-      const adRef = doc(db, "ads", chosen.id);
-
-      await updateDoc(adRef, {
-        impressionsLeft: increment(-1)
-      });
-
-    } catch (err) {
-      console.error("1:", err);
+      console.error("Ad deduction failed:", err);
     }
 
   } catch (err) {
