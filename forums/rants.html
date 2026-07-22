@@ -1,64 +1,1897 @@
-<!DOCTYPE html>
+<!DOCTYPE html> 
 <html>
+<head> 
+<title>Rants</title>  
+<style>
+body { font-family: Arial; background: rgb(232,224,207); color: rgb(91,46,97); padding:20px; }
+nav a { color: rgb(91,46,97); margin-right:10px; text-decoration:none; }
+button { margin-top:5px; padding:5px 10px; cursor:pointer; background: rgb(232,224,207); color: rgb(91,46,97); border: 1px solid rgb(91,46,97); }
+textarea { width:100%; height:80px; background: rgb(232,224,207); color: rgb(91,46,97); border:1px solid rgb(91,46,97); padding:5px; }
+
+.post {
+  border:1px solid rgb(91,46,97);
+  padding:10px;
+  padding-bottom:10px;
+  margin:10px 0;
+  display:flex;
+  gap:10px;
+  position:relative; 
+}
+
+.profile-thumb {
+  width:40px;
+  height:40px;
+  object-fit:cover;
+  border:1px solid rgb(91,46,97);
+  cursor:pointer;
+}
+
+.post-content {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.post-img {
+  max-width:256px;
+  max-height:256px;
+  margin-top:5px;
+  cursor:pointer;
+  border:1px solid rgb(91,46,97);
+}
+
+.post-video {
+  max-width:256px;
+  max-height:256px;
+  margin-top:5px;
+  border:1px solid rgb(91,46,97);
+  background: #000;
+}  
+
+.button-row {
+  margin-top:5px;
+  display:flex;
+  gap:10px;
+}
+
+.time {
+  font-size:12px;
+  margin-top:3px;
+}
+
+/* IMAGE MODAL */
+#imgModal {
+  display:none;
+  position:fixed;
+  top:0; left:0;
+  width:100%; height:100%;
+  background: rgba(0,0,0,0.8);
+  justify-content:center;
+  align-items:center;
+}
+#imgModal img {
+  max-width:95%;
+  max-height:95%;
+}
+
+#cooldownMsg {
+  color: rgb(149, 118, 141);
+  background: transparent;
+  border: none;
+  padding: 0;
+  margin-top: 5px;
+  display: block;
+}
+
+/* DELETE MODAL */
+.modal-bg {
+  display:none;
+  position:fixed;
+  top:0; left:0;
+  width:100%; height:100%;
+  background: rgba(232,224,207,0.8);
+  justify-content:center;
+  align-items:center;
+}
+.modal-content {
+  background:rgb(232,224,207);
+  border:2px solid rgb(91,46,97);
+  padding:20px;
+  width:160px;
+  text-align:center;
+}
+
+#reportModal .modal-content {
+  width: 320px;
+}
+
+.readMoreBtn {
+  background: none;
+  border: none;
+  padding: 0;
+  margin-top: 5px;
+  cursor: pointer;
+  color: rgb(91,46,97);
+  text-decoration: underline;
+}
+
+.mention {
+  color: blue;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.mention:hover {
+  opacity: 0.8;
+}
+
+.report-btn {
+  position:absolute;
+  bottom:10px;
+  right:10px;
+  font-size:12px;
+  text-decoration:underline;
+  cursor:pointer;
+}
+
+input[type="number"] {
+  background: rgb(232,224,207);
+  color: rgb(91,46,97);
+  border: 1px solid rgb(91,46,97);
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+</style>
+</head>
 <body>
 
+<nav>
+<a href="../index.html">Home</a>
+<a href="../doctrine.html">Doctrine</a>
+<a href="../forums.html">Forums</a>
+<a href="../news.html">News</a>
+<a href="../quiz.html">Quiz</a>
+<a href="../signin.html" id="accountLink">Sign In / Sign Up</a>
+<button id="logoutBtn" style="display:none;">Logout</button>
+</nav>
+
 <h1>Rants</h1>
+<p>Talk about what you hate</p>
 
-<a href="../forums.html">← Back to Forums</a>
+<!-- TOP AD -->
+<div id="topAdContainer" style="text-align:center; margin-bottom:10px;">
+  <a id="topAdLink" href="#">
+    <img id="topAdImg" style="width:728px; height:90px; object-fit:cover; border:1px solid rgb(91,46,97);">
+  </a>
+  <div style="font-size:10px;">
+    <a href="../advertise.html">Start advertising</a>
+  </div>
+</div>
 
-<h2>Create Post</h2>
+<h3>Create Post</h3>
+<textarea id="postText" maxlength="16000"></textarea><br>
 
-<textarea id="postText"></textarea><br>
-<button onclick="createPost()">Post</button>
+<input type="file" id="postImage" accept="image/*,video/mp4,video/webm,video/ogg,video/quicktime">
 
-<h2>Posts</h2>
-<div id="posts"></div>
+<span id="verificationLabel" style="margin-left:10px;">
+  Verification:
+</span>
 
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js"></script>
+<input
+    type="number"
+    id="verificationAnswer"
+    autocomplete="off"
+    name="verificationAnswer"
+    spellcheck="false"
+    style="
+    width:70px;
+    margin-left:5px;
+    background:rgb(232,224,207);
+    color:rgb(91,46,97);
+    border:1px solid rgb(91,46,97);
+  "
+>
 
-<script>
+<span style="margin-left:15px;">
+  Type "<span id="reverseWordLabel"></span>" backwards:
+</span>
+
+<input
+  type="text"
+  id="reverseWordAnswer"
+  autocomplete="off"
+  name="reverseWordAnswer"
+  spellcheck="false"
+  autocapitalize="off"
+  style="
+    width:120px;
+    margin-left:5px;
+    background:rgb(232,224,207);
+    color:rgb(91,46,97);
+    border:1px solid rgb(91,46,97);
+  "
+>
+
+<br>
+
+<button id="postButton">Post</button>
+<p id="cooldownMsg" style="display:none;"></p>
+
+<div style="
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-top:20px;
+">
+  <h3 style="margin:0;">Posts</h3>
+
+  <input
+    id="searchInput"
+    type="text"
+    placeholder="Search posts..."
+    style="
+      width:220px;
+      padding:5px;
+      background:rgb(232,224,207);
+      color:rgb(91,46,97);
+      border:1px solid rgb(91,46,97);
+    "
+  >
+</div>
+
+<div id="posts">Loading...</div>
+
+<button id="loadMoreBtn">Load More</button>
+
+<!-- IMAGE MODAL -->
+<div id="imgModal"><img id="modalImg"></div>
+
+<!-- DELETE MODAL -->
+<div id="deleteModal" class="modal-bg">
+  <div class="modal-content">
+    <p>Delete this post?</p>
+    <button id="confirmDeleteBtn">Delete</button>
+    <button id="cancelDeleteBtn">Cancel</button>
+  </div>
+</div>
+
+<!-- IMAGE LOCK MODAL -->
+<div id="imageLockModal" class="modal-bg">
+  <div class="modal-content">
+    <p>You must be signed in to attach images</p>
+    <button id="imageLockOkBtn">OK</button>
+  </div>
+</div>
+
+<!-- REPORT MODAL -->
+<!-- REPORT MODAL -->
+<div id="reportModal" class="modal-bg">
+  <div class="modal-content">
+    <p>
+      Are you sure you want to report this post?<br><br>
+
+      Submitting false reports may lead to a ban.<br><br>
+
+      You can check what breaks the rules
+      <a href="../rules.html" style="color: inherit; text-decoration: underline;">
+        here
+      </a>.
+    </p>
+
+    <button id="confirmReportBtn">Report</button>
+    <button id="cancelReportBtn">Cancel</button>
+  </div>
+</div>
+
+<!-- REPORT SUCCESS MODAL -->
+<div id="reportSuccessModal" class="modal-bg">
+  <div class="modal-content">
+    <p>Report submitted.</p>
+    <button id="reportSuccessOkBtn">OK</button>
+  </div>
+</div>
+
+<!-- MENTION LIMIT MODAL -->
+<div id="mentionLimitModal" class="modal-bg">
+  <div class="modal-content">
+    <p>You can only have up to 3 mentions per post.</p>
+    <button id="mentionLimitOkBtn">OK</button>
+  </div>
+</div>
+
+<script type="module">
+import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import {
+  getFirestore,
+  collection,
+  addDoc,
+  getDocs,
+  query,
+  where,
+  orderBy,
+  deleteDoc,
+  doc,
+  getDoc,
+  limit,
+  startAfter,
+  updateDoc,
+  increment,
+  setDoc,
+  writeBatch,
+  serverTimestamp
+} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { getAuth, onAuthStateChanged, signOut, signInAnonymously } 
+from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+
+import {
+  getStorage,
+  ref,
+  uploadBytes,
+  getDownloadURL,
+  deleteObject
+} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
+
+async function extractMentions(text){
+  if(!text) return [];
+
+  const matches = text.match(/@[\w]+/g) || [];
+
+  const uniqueUsernames = [
+    ...new Set(
+      matches.map(m => m.slice(1).toLowerCase())
+    )
+  ];
+
+  // FIX: Prevent database read spam. If >3 mentions, abort DB lookups immediately. 
+  // Returning dummies forces the existing mentionLimitModal to cleanly reject the post.
+  if (uniqueUsernames.length > 3) {
+    return new Array(uniqueUsernames.length).fill({ uid: "spam" });
+  }
+
+  const lookupMap = {};
+
+  // FIX: Load sessionStorage cache to save reads across page reloads
+  let sessionCache = {};
+  try {
+    sessionCache = JSON.parse(sessionStorage.getItem("usernameCache") || "{}");
+  } catch(e) {}
+
+  for(const lower of uniqueUsernames){
+
+    if(lower === "anonymous"){
+      lookupMap[lower] = null;
+      continue;
+    }
+
+    // Check memory cache
+    if(usernameCache.has(lower)){
+      lookupMap[lower] = usernameCache.get(lower);
+      continue;
+    }
+    
+    // Check session storage cache
+    if(sessionCache[lower] !== undefined){
+      usernameCache.set(lower, sessionCache[lower]);
+      lookupMap[lower] = sessionCache[lower];
+      continue;
+    }
+
+    const snap = await getDoc(
+      doc(db, "usernames", lower)
+    );
+
+    let value = null;
+
+    if(snap.exists()){
+      value = {
+        uid: snap.data().uid,
+        username: lower
+      };
+    }
+
+    usernameCache.set(lower, value);
+    sessionCache[lower] = value;
+    lookupMap[lower] = value;
+  }
+
+  // Save updated cache back to session storage
+  try {
+    sessionStorage.setItem("usernameCache", JSON.stringify(sessionCache));
+  } catch(e) {}
+
+  return matches.map(match=>{
+    const lower = match.slice(1).toLowerCase();
+    return lookupMap[lower] || null;
+  });
+}
+
+/* ✅ FIXED CONFIG (THIS WAS THE BUG) */
 const firebaseConfig = {
   apiKey: "AIzaSyAZXfEl3Q68vfJtaLJqODtnQBSVEzWBmc0",
-  projectId: "probatismm"
+  authDomain: "probatismm.firebaseapp.com",
+  projectId: "probatismm",
+  storageBucket: "probatismm.firebasestorage.app",
+  messagingSenderId: "746935651152",
+  appId: "1:746935651152:web:82491ddac346bc654a3a55"
 };
 
-firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
+/* ✅ SAFE INIT */
+let app;
+try {
+  app = getApps().length===0 ? initializeApp(firebaseConfig) : getApps()[0];
+} catch(e){
+  console.error("Firebase init error:", e);
+}
 
-const subforum = "rants";
+const db = getFirestore(app);
+const auth = getAuth(app);
+const storage = getStorage(app);
 
-// Create post
-function createPost() {
-  let text = document.getElementById("postText").value;
 
-  db.collection("posts").add({
-    subforum: subforum,
-    content: text,
-    time: Date.now()
-  });
+// username lookup cache
+const usernameCache = new Map();
+const userDocCache = new Map();
+// ELEMENTS
+const postButton = document.getElementById("postButton");
+const postText = document.getElementById("postText");
+const postImage = document.getElementById("postImage");
+postImage.addEventListener("change", () => {
 
-  document.getElementById("postText").value = "";
+  if(
+    !auth.currentUser ||
+    auth.currentUser.isAnonymous
+  ){
+    postImage.value = "";
+
+    imageLockModal.style.display = "flex";
+
+    return;
+  }
+
+  const now = Date.now();
+
+  if(now - lastPostTime < 40000){
+
+    postImage.value = "";
+
+    const msg =
+      document.getElementById("cooldownMsg");
+
+    const remaining =
+      Math.ceil(
+        (40000 - (now - lastPostTime))
+        / 1000
+      );
+
+    msg.innerText =
+      `Please wait ${remaining} seconds before posting again.`;
+
+    msg.style.display = "block";
+
+    setTimeout(()=>{
+      msg.style.display = "none";
+    },4000);
+
+    return;
+  }
+});
+const postsDiv = document.getElementById("posts");
+const loadMoreBtn = document.getElementById("loadMoreBtn");
+const searchInput = document.getElementById("searchInput");
+const deleteModal = document.getElementById("deleteModal");
+const confirmDeleteBtn = document.getElementById("confirmDeleteBtn");
+const cancelDeleteBtn = document.getElementById("cancelDeleteBtn");
+const imageLockModal = document.getElementById("imageLockModal");
+const imageLockOkBtn = document.getElementById("imageLockOkBtn");
+const reportModal = document.getElementById("reportModal");
+const confirmReportBtn = document.getElementById("confirmReportBtn");
+const cancelReportBtn = document.getElementById("cancelReportBtn");
+const reportSuccessModal = document.getElementById("reportSuccessModal");
+const reportSuccessOkBtn = document.getElementById("reportSuccessOkBtn");
+const mentionLimitModal = document.getElementById("mentionLimitModal");
+const mentionLimitOkBtn = document.getElementById("mentionLimitOkBtn");
+const accountLink = document.getElementById("accountLink");
+const logoutBtn = document.getElementById("logoutBtn");
+const adminUIDs = [
+  "IDlmRGgh2PaLx15krpeq5jGU6SJ3",
+  "yORpmIr7jvgruQt7D8oufNi8shh2"
+];
+function isAdmin() {
+  return currentUID && adminUIDs.includes(currentUID);
+}
+
+async function checkBan(uid, ip){
+  try {
+    let isBanned = false;
+    
+    // 1. Check UID
+    if(uid){
+      const banSnap = await getDoc(doc(db, "bannedUsers", uid));
+      if(banSnap.exists()) isBanned = true;
+    }
+
+    // 2. Check IP
+    if(!isBanned && ip && ip !== "unknown"){
+      const ipSnap = await getDoc(doc(db, "bannedIPs", ip));
+      if(ipSnap.exists()) isBanned = true;
+    }
+
+    if(isBanned){
+      const modal = document.createElement("div");
+      modal.style.position = "fixed";
+      modal.style.top = "0"; modal.style.left = "0";
+      modal.style.width = "100%"; modal.style.height = "100%";
+      modal.style.background = "rgba(232,224,207,0.95)";
+      modal.style.display = "flex"; modal.style.justifyContent = "center";
+      modal.style.alignItems = "center"; modal.style.zIndex = "999999";
+      modal.innerHTML = `
+        <div style="background: rgb(232,224,207); border:2px solid rgb(91,46,97); padding:20px; text-align:center;">
+          <p>You have been banned.</p>
+          <button id="bannedOkBtn">OK</button>
+        </div>
+      `;
+      document.body.appendChild(modal);
+      document.getElementById("bannedOkBtn").onclick = ()=>{ window.location.href = "../index.html"; };
+      return true;
+    }
+    return false;
+  } catch(err){
+    console.error("Ban check failed:", err);
+    return false;
+  }
+}
+
+let currentUID = null;
+let clientIP = "unknown";
+let currentUser = null;
+let lastVisible = null;
+let isPosting = false;
+let postClickLocked = false;
+let imageUploadInProgress = false;
+let submissionInProgress = false;
+let postToDelete = null;
+let pendingReport = null;
+let currentSearch = "";
+let verificationAnswer = 0;
+let reportSubmitting = false;
+
+let reverseWord = "";
+
+let searchLastVisible = null;
+
+let searchCount = 0;
+let searchWindowStart = 0;
+const MAX_SEARCHES_PER_DAY = 20;
+const SEARCH_WINDOW_MS = 24 * 60 * 60 * 1000;
+
+const BLACKLIST = [
+  "vN3Tz8RjW5c1Ah9MpQ7xLs2KeY4DfHb6vN3Tz8RjW5c1Ah9MpQ7xLs2KeY4DfHb6",
+  "Gt6Vq1Nz8Hd4Pk9XmR2aYw7LcJ5TfBe3vN3Tz8RjW5c1Ah9MpQ7xLs2KeY4DfHb6",
+  "r8FJk1Zw6DnQ4Xa9HvM2pYs7TcL5BeN3vN3Tz8RjW5c1Ah9MpQ7xLs2KeY4DfHb6"
+];
+
+
+let lastReportTime =
+  parseInt(localStorage.getItem("lastReportTime")) || 0;
+
+let lastPostTime = 0;
+
+async function generateVerification(){
+
+  const a = Math.floor(Math.random() * 10);
+  const b = Math.floor(Math.random() * 10);
+  const c = Math.floor(Math.random() * 10);
+
+  verificationAnswer = (a * b) + c;
+
+  document.getElementById("verificationLabel").textContent =
+    `Verification: Answer: (${a} × ${b}) + ${c}`;
+
+  document.getElementById("verificationAnswer").value = "";
+
+  // NEW WORD CAPTCHA
+  const words = [
+    "mountain","candle","window","blanket","pencil",
+    "bottle","garden","pillow","planet","forest",
+    "ladder","candle","market","guitar","window"
+  ];
+
+  reverseWord = words[Math.floor(Math.random() * words.length)];
+
+  if(auth.currentUser){
+
+    try{
+
+      await setDoc(
+        doc(db, "captchas", auth.currentUser.uid),
+        {
+          uid: auth.currentUser.uid,
+          createdAt: Date.now(),
+          mathAnswer: verificationAnswer,
+          reverseWord: reverseWord
+        }
+      );
+
+    }catch(err){
+      console.error(err);
+    }
+  }
+
+  document.getElementById("reverseWordLabel").textContent = reverseWord;
+
+  document.getElementById("reverseWordAnswer").value = "";
+}
+
+// AUTH
+onAuthStateChanged(auth, async (user) => {
+
+  console.log("Auth state:", user);
+
+  // no auth yet → create anonymous session
+  if(!user){
+
+    try{
+      await signInAnonymously(auth);
+    } catch(err){
+      console.error(err);
+    }
+
+    return;
+  }
+
+  // IMPORTANT:
+  // anonymous users ALSO have UIDs
+  currentUID = user.uid;
+  await generateVerification();
+
+  try{
+
+    const cooldownSnap = await getDoc(
+      doc(db, "reportCooldowns", user.uid)
+    );
+
+    if(cooldownSnap.exists()){
+      lastReportTime =
+        cooldownSnap.data().lastReportAt || 0;
+  }
+
+  try {
+
+    const postCooldownSnap = await getDoc(
+      doc(db, "postCooldowns", user.uid)
+    );
+
+    // SEARCH COOLDOWN LOAD
+    try {
+      const searchCooldownSnap = await getDoc(
+        doc(db, "searchCooldowns", user.uid)
+      );
+
+      if (searchCooldownSnap.exists()) {
+        const data = searchCooldownSnap.data();
+        searchCount = data.count || 0;
+        searchWindowStart = data.windowStart || Date.now();
+      } else {
+        searchCount = 0;
+        searchWindowStart = Date.now();
+      }
+    } catch (err) {
+      console.error(err);
+      searchCount = 0;
+      searchWindowStart = Date.now();
+    }
+
+    if(postCooldownSnap.exists()){
+      const storedTime = postCooldownSnap.data().lastPostAt;
+      lastPostTime = storedTime
+        ? (typeof storedTime.toMillis === "function" ? storedTime.toMillis() : storedTime)
+        : 0;
+    }
+
+  }catch(err){
+    console.error(err);
+  }
+
+  }catch(err){           //
+    console.error(err);
+  }                     
+  // FETCH IP BEFORE CHECKING BAN
+  if (clientIP === "unknown") {
+    try {
+      const res = await fetch("https://api.ipify.org?format=json");
+      const data = await res.json();
+      clientIP = data.ip;
+    } catch(e) {
+      console.error("8");
+    }
+  }
+
+  // ALWAYS CHECK BAN
+  const banned = await checkBan(user.uid, clientIP);
+
+  if(banned){
+    return;
+  }
+
+  // LOGGED-IN USER
+  if(!user.isAnonymous){
+
+    try{
+
+      const userSnap = await getDoc(doc(db, "users", user.uid));
+
+      if(userSnap.exists() && userSnap.data().username){
+
+        currentUser = userSnap.data().username;
+
+      } else {
+        
+        // Force Anonymous if no database profile exists to satisfy Firebase rules
+        currentUser = "Anonymous";
+        
+      }
+
+    } catch(err){
+
+      console.error(err);
+
+      currentUser = "Anonymous";
+    }
+
+    accountLink.innerText = "Profile";
+    accountLink.href = "../profile.html";
+    logoutBtn.style.display = "inline";
+
+  } else {
+
+    // ANONYMOUS USER
+    currentUser = "Anonymous";
+
+    accountLink.innerText = "Sign In / Sign Up";
+    accountLink.href = "../signin.html";
+    logoutBtn.style.display = "none";
+  }
+
+  // reload content
+  postsDiv.innerHTML = "";
+  lastVisible = null;
+
   loadPosts();
+
+  // LOAD ADS
+  loadAd("banner",
+    document.getElementById("topAdImg"),
+    document.getElementById("topAdLink")
+  );
+
+  loadAd("box",
+    document.getElementById("bottomAdImg"),
+    document.getElementById("bottomAdLink")
+  );
+});
+
+// LOGOUT
+logoutBtn.onclick = async ()=>{
+  await signOut(auth);
+  window.location.href = "../index.html";
+};
+
+// PROFILE NAVIGATION
+window.goProfile = function(username){
+  if(!username || username === "Anonymous") return;
+
+  if(username === currentUser){
+    window.location.href = "../profile.html";
+  } else {
+    window.location.href = "../user.html?user=" + username;
+  }
+};
+
+function escapeHtml(text){
+  return String(text || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
 }
 
-// Load posts
-function loadPosts() {
-  db.collection("posts")
-    .where("subforum", "==", subforum)
-    .orderBy("time", "desc")
-    .get()
-    .then(snapshot => {
-      let html = "";
-      snapshot.forEach(doc => {
-        html += `<p>${doc.data().content}</p><hr>`;
+function escapeJsString(text){
+  return String(text || "")
+    .replace(/\\/g, "\\\\")
+    .replace(/'/g, "\\'")
+    .replace(/"/g, '\\"')
+    .replace(/\r/g, "")
+    .replace(/\n/g, "");
+}
+
+
+async function renderMentions(text, mentionedUsers = []) {
+  if(!text) return "";
+  
+  let rendered = escapeHtml(text);
+  let i = 0; // Tracks our position in the mentionedUsers array
+  
+  // Replaces tags sequentially from left-to-right to prevent HTML corruption
+  rendered = rendered.replace(/@([\w]+)/g, (match, originalUsername) => {
+    const mentionData = mentionedUsers[i++]; // Increment index for every match found
+    
+    if (originalUsername === "Anonymous") {
+      return match;
+    }
+    
+    if (!mentionData) {
+      return match; 
+    }
+    
+    const username = mentionData.username || originalUsername;
+    return `<span class="mention" onclick="goProfile('${escapeHtml(escapeJsString(username))}')">@${escapeHtml(username)}</span>`;
+  });
+  
+  return rendered;
+}
+
+/* EVERYTHING ELSE UNCHANGED BELOW */
+
+async function uploadPostImage(file, uid, uploadId){
+
+  if (imageUploadInProgress) {
+    throw new Error("Upload already in progress");
+  }
+
+  imageUploadInProgress = true;
+
+  try {
+
+    const extension =
+      file.name.split(".").pop().toLowerCase();
+
+    const filename =
+      `${uploadId}.${extension}`;
+
+    const storageRef = ref(
+      storage,
+      `postImages/${uid}/${filename}`
+    );
+
+    await uploadBytes(storageRef, file);
+
+    return await getDownloadURL(storageRef);
+
+  } finally {
+
+    imageUploadInProgress = false;
+  }
+}
+
+
+
+postButton.onclick = async ()=>{
+
+    if(postButton.disabled){
+      return;
+    }
+
+    if (submissionInProgress) {
+      return;
+    }
+
+    submissionInProgress = true;
+
+    postButton.disabled = true;
+
+    if (postClickLocked) return;
+
+    // LOCK IMMEDIATELY
+    postClickLocked = true;
+
+    const banned = await checkBan(auth.currentUser?.uid, clientIP);
+    if (banned) {
+      postClickLocked = false;
+      return;
+    }
+  
+  if (!auth.currentUser || auth.currentUser.isAnonymous) {
+    if (postImage.files.length > 0) {
+      postClickLocked = false;
+      return;
+    }
+  }
+
+
+  if(isPosting || imageUploadInProgress){
+    postClickLocked = false;
+    return;
+  }
+
+  const now=Date.now();
+  if(now - lastPostTime < 40000){
+
+    postClickLocked = false;
+
+    const msg = document.getElementById("cooldownMsg");
+
+    const remaining =
+      Math.ceil((40000 - (now - lastPostTime)) / 1000);
+
+    msg.innerText =
+      `Please wait ${remaining} seconds before posting again.`;
+    msg.style.display = "block";
+
+    setTimeout(()=>{
+      msg.style.display = "none";
+    }, 4000);
+
+    return;
+  }
+
+  const text=postText.value.trim();
+  const file=postImage.files[0];
+
+let mediaType = "none";
+  if (file) {
+    const allowedImageTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+    const allowedVideoTypes = ["video/mp4", "video/webm", "video/ogg", "video/quicktime"];
+
+    if (allowedImageTypes.includes(file.type)) {
+      mediaType = "image";
+    } else if (allowedVideoTypes.includes(file.type)) {
+      mediaType = "video";
+    } else {
+      alert("Only image and video files are allowed.");
+      postClickLocked = false;
+      submissionInProgress = false;
+      return;
+    }
+  }
+
+  const MAX_UPLOAD_SIZE = 20 * 1024 * 1024; // 20MB limit
+
+  if (file && file.size > MAX_UPLOAD_SIZE) {
+    alert("File too large. Maximum allowed size is 20MB.");
+    postClickLocked = false;
+    submissionInProgress = false;
+    return;
+  }
+
+  const lowerText = text.toLowerCase();
+
+  const containsBlacklistedWord = BLACKLIST.some(word =>
+    new RegExp(`\\b${word}\\b`, "i").test(lowerText)
+  );
+
+  if (containsBlacklistedWord) {
+    postClickLocked = false;
+    return;
+  }
+
+  // HELPER: Unlocks the post button if validation fails
+  const resetPostState = () => {
+    postClickLocked = false;
+    postButton.disabled = false;
+    submissionInProgress = false;
+  };
+
+  const userAnswer = document.getElementById("verificationAnswer").value.trim();
+
+  if(userAnswer === ""){
+    resetPostState();
+    return;
+  }
+
+  if(Number(userAnswer) !== verificationAnswer){
+    generateVerification();
+    resetPostState();
+    return;
+  }
+
+  if (!text && !file) {
+    resetPostState();
+    return;
+  }
+
+  const reverseAnswer = document.getElementById("reverseWordAnswer").value.trim().toLowerCase();
+
+  if(reverseAnswer === ""){
+    resetPostState();
+    return;
+  }
+
+  if(reverseAnswer !== reverseWord.split("").reverse().join("")){
+    generateVerification();
+    resetPostState();
+    return;
+  }
+
+  const captchaSnap = await getDoc(doc(db, "captchas", auth.currentUser.uid));
+
+  if(!captchaSnap.exists()){
+    generateVerification();
+    resetPostState();
+    return;
+  }
+
+  const captchaData = captchaSnap.data();
+
+  if(captchaData.mathAnswer !== Number(userAnswer)){
+    generateVerification();
+    resetPostState();
+    return;
+  }
+
+  if(captchaData.reverseWord.split("").reverse().join("").toLowerCase() !== reverseAnswer){
+    generateVerification();
+    resetPostState();
+    return;
+  }
+
+  isPosting = true;
+  postButton.disabled = true;
+  
+  let image = null;
+  let fullImage = null;
+  let uploadedStoragePath = null;
+
+  const uploadId = crypto.randomUUID();
+
+  if(file){
+
+    const extension =
+      file.name.split(".").pop().toLowerCase();
+
+    const filenameForTicket = `${uploadId}.${extension}`;
+
+    // 1. GENERATE RATE-LIMITED UPLOAD TICKET
+    try {
+      await setDoc(doc(db, "uploadTickets", auth.currentUser.uid), {
+        filename: filenameForTicket,
+        timestamp: serverTimestamp()
       });
-      document.getElementById("posts").innerHTML = html;
-    });
+    } catch(err) {
+      console.error("Upload rate limited:", err);
+      isPosting = false;
+      postButton.disabled = false;
+      submissionInProgress = false;
+      postClickLocked = false;
+      const msg = document.getElementById("cooldownMsg");
+      msg.innerText = "Please wait 40 seconds before uploading another file.";
+      msg.style.display = "block";
+      setTimeout(()=>{ msg.style.display = "none"; }, 4000);
+      return;
+    }
+
+    // 2. PROCEED WITH UPLOAD
+    uploadedStoragePath =
+      `postImages/${auth.currentUser.uid}/${filenameForTicket}`;
+
+    image = await uploadPostImage(
+      file,
+      auth.currentUser.uid,
+      uploadId
+    );
+
+    fullImage = image;
+  }
+
+  const mentions = await extractMentions(text);
+
+  const validMentions = mentions.filter(m => m && m.uid);
+
+  if (validMentions.length > 3) {
+    mentionLimitModal.style.display = "flex";
+
+    isPosting = false;
+    postButton.disabled = false;
+    postClickLocked = false;
+
+    return;
+  }
+
+if(!auth.currentUser){
+  alert("Authentication still loading. Please wait a second and try again.");
+  isPosting = false;
+  postButton.disabled = false;
+  postClickLocked = false;
+  return;
 }
 
-loadPosts();
+try{
+
+  let authorProfilePic = "";
+
+  if(
+    auth.currentUser &&
+    !auth.currentUser.isAnonymous
+  ){
+
+    try{
+
+      let userData;
+
+      if(userDocCache.has(auth.currentUser.uid)){
+
+        userData =
+          userDocCache.get(auth.currentUser.uid);
+
+      } else {
+
+        const userSnap = await getDoc(
+          doc(db, "users", auth.currentUser.uid)
+        );
+
+        userData =
+          userSnap.exists()
+            ? userSnap.data()
+            : {};
+
+        userDocCache.set(
+          auth.currentUser.uid,
+          userData
+        );
+      }
+
+    authorProfilePic =
+      userData.profilePic || "";
+      
+    }catch(err){
+      console.error(err);
+    }
+  }
+
+  const now = Date.now();
+
+  const postRef =
+    doc(collection(db, "posts"));
+
+  const batch = writeBatch(db);
+
+  const searchTokens = new Set();
+
+  // Extract whole words only
+  const allWords = [
+    ...(text.toLowerCase().match(/\b[\w]+\b/g) || []),
+    ...(
+      (currentUser || "Anonymous")
+        .toLowerCase()
+        .match(/\b[\w]+\b/g) || []
+    )
+  ];
+
+  // Only index the first 25 words from the post
+  const first25Words = allWords.slice(0, 25);
+
+  // Store exact whole words only
+  for (const word of first25Words) {
+    searchTokens.add(word);
+  }
+
+  
+batch.set(postRef,{
+    subforum:"rants",
+    author: currentUser || "Anonymous",
+    authorUID: auth.currentUser.uid,
+    authorProfilePic: authorProfilePic,
+    content:text,
+    image:image,
+    fullImage:fullImage,
+    mediaType: mediaType,
+    time: serverTimestamp(),
+    mentionedUsers: mentions,
+    searchTokens:[...searchTokens],
+    captchaMath: Number(userAnswer),
+    captchaWord: captchaData.reverseWord,
+    ip: clientIP
+  });
+  
+  // PREVENT DUPLICATES: Wipes the input so a lagging double-click can't resend the file
+  postImage.value = "";
+
+  batch.set(
+    doc(db,"postCooldowns",auth.currentUser.uid),
+    {
+      lastPostAt: serverTimestamp()
+    }
+  );
+
+  // Safely delete the captcha document inside the batch
+  batch.delete(doc(db, "captchas", auth.currentUser.uid));
+
+
+  await batch.commit();
+  
+  lastPostTime = now;
+
+  // prevent double submission during reload window
+  postButton.disabled = true;
+  postClickLocked = true;
+  isPosting = true;
+
+  window.location.replace(window.location.href);
+  return;
+
+
+} catch(err){
+
+  console.error("Post failed:", err);
+
+  // CLEAN UP ORPHANED IMAGE
+  if(uploadedStoragePath){
+
+    try{
+      await deleteObject(
+        ref(storage, uploadedStoragePath)
+      );
+    }catch(cleanupErr){
+      console.error(
+        "Failed to cleanup image:",
+        cleanupErr
+      );
+    }
+  }
+
+  postClickLocked = false;
+  isPosting = false;
+  postButton.disabled = false;
+
+  const msg = document.getElementById("cooldownMsg");
+  msg.innerText = "Please wait a few seconds before posting again.";
+  msg.style.display = "block";
+
+  setTimeout(() => {
+    msg.style.display = "none";
+  }, 4000);
+
+} finally {
+
+  isPosting = false;
+
+  submissionInProgress = false;
+
+  if (!window.location.href.includes("__reloading__")) {
+    postButton.disabled = false;
+  }
+
+  setTimeout(() => {
+    postClickLocked = false;
+  }, 1500);
+}
+};
+
+
+async function loadPosts(){
+
+  let cursor =
+    currentSearch
+      ? searchLastVisible
+      : lastVisible;
+
+  let q;
+
+  if(currentSearch){
+
+    const searchTerms =
+      currentSearch
+        .trim()
+        .toLowerCase()
+        .split(/\s+/)
+        .filter(Boolean);
+
+    const token = searchTerms[0];
+
+    q = query(
+      collection(db,"posts"),
+      where("subforum","==","rants"),
+      where("searchTokens","array-contains",token),
+      orderBy("time","desc"),
+      limit(10)
+    );
+
+    if(cursor){
+      q = query(
+        collection(db,"posts"),
+        where("subforum","==","rants"),
+        where("searchTokens","array-contains",token),
+        orderBy("time","desc"),
+        startAfter(cursor),
+        limit(10)
+      );
+    }
+
+  } else {
+
+    q = query(
+      collection(db,"posts"),
+      where("subforum","==","rants"),
+      orderBy("time","desc"),
+      limit(10)
+    );
+
+    if(cursor){
+      q = query(
+        collection(db,"posts"),
+        where("subforum","==","rants"),
+        orderBy("time","desc"),
+        startAfter(cursor),
+        limit(10)
+      );
+    }
+  }
+
+  const snap = await getDocs(q);
+
+  if(postsDiv.innerHTML === "Loading..."){
+    postsDiv.innerHTML = "";
+  }
+
+  if(snap.empty){
+
+    loadMoreBtn.style.display = "none";
+
+    return;
+  }
+
+  if(currentSearch){
+    searchLastVisible =
+      snap.docs[snap.docs.length - 1];
+  } else {
+    lastVisible =
+      snap.docs[snap.docs.length - 1];
+  }
+  if(snap.docs.length < 10){
+    loadMoreBtn.style.display = "none";
+  } else {
+    loadMoreBtn.style.display = "inline-block";
+  }
+
+  // PRE-FETCH MISSING USER PROFILES CONCURRENTLY
+  const uidsToFetch = new Set();
+  for (const docSnap of snap.docs) {
+    const post = docSnap.data();
+    if (post.authorUID && post.author !== "Anonymous" && !userDocCache.has(post.authorUID)) {
+      uidsToFetch.add(post.authorUID);
+    }
+  }
+
+  await Promise.all(Array.from(uidsToFetch).map(async (uid) => {
+    try {
+      const userSnap = await getDoc(doc(db, "users", uid));
+      if (userSnap.exists()) {
+        userDocCache.set(uid, userSnap.data());
+      } else {
+        userDocCache.set(uid, {});
+      }
+    } catch (err) {
+      console.error("Error batch fetching profile:", err);
+    }
+  }));
+
+  for(const docSnap of snap.docs){
+
+    const post = docSnap.data();
+
+    if(currentSearch){
+
+      const haystack =
+        (
+          (post.content || "") +
+          " " +
+          (post.author || "")
+        ).toLowerCase();
+
+      const searchTerms =
+        currentSearch
+          .trim()
+          .toLowerCase()
+          .split(/\s+/)
+          .filter(Boolean);
+
+      const matches =
+        searchTerms.every(term =>
+          haystack.includes(term)
+        );
+
+      if(!matches){
+        continue;
+      }
+    }
+
+
+    const postTimeMillis = post.time && typeof post.time.toMillis === "function" ? post.time.toMillis() : post.time;
+    const date=new Date(postTimeMillis).toLocaleString();
+
+    let displayName =
+      post.author || "Anonymous";
+
+    const safeDisplayNameHtml =
+      escapeHtml(displayName);
+
+    const safeDisplayNameJs =
+      escapeJsString(displayName);
+
+    // 1. DYNAMIC PROFILE PICTURE FETCHING WITH CACHE (Batched above)
+    let currentProfilePic = post.authorProfilePic || ""; 
+    
+    if (post.authorUID && displayName !== "Anonymous" && userDocCache.has(post.authorUID)) {
+      const cachedData = userDocCache.get(post.authorUID);
+      currentProfilePic = cachedData.profilePic || "";
+    }
+
+    let safeProfilePic = "";
+
+    // 2. APPLY THE DYNAMIC PICTURE
+    try{
+      if (currentProfilePic) {
+        const url = new URL(currentProfilePic);
+
+        if(
+          url.protocol === "https:" ||
+          url.protocol === "http:" ||
+          currentProfilePic.startsWith("data:image/")
+        ){
+          safeProfilePic = currentProfilePic;
+        }
+      }
+    }catch(e){}
+
+    let profilePic = "";
+    // Only render the image if it passed the protocol validation above
+    if(safeProfilePic !== ""){
+      profilePic = `
+        <img
+          class="profile-thumb"
+          src="${escapeHtml(safeProfilePic)}"
+          onclick="goProfile('${escapeHtml(safeDisplayNameJs)}')"
+        >
+      `;
+    }
+
+    const div=document.createElement("div");
+    div.className="post";
+
+    const content = post.content || "";
+
+    const shortText = content.length > 400
+      ? content.slice(0, 400)
+      : content;
+
+    const needsMore = content.length > 400;
+
+    const safeAuthorClick =
+      displayName !== "Anonymous"
+        ? `style="cursor:pointer;" onclick="goProfile('${escapeHtml(safeDisplayNameJs)}')"`
+        : "";
+
+    div.innerHTML=`
+      ${profilePic}
+      <div>
+        <b ${safeAuthorClick}>
+          ${safeDisplayNameHtml}${adminUIDs.includes(post.authorUID) ? " (admin)" : ""}
+        :</b>
+
+        <div class="post-content"></div>
+     
+        ${needsMore ? `<button class="readMoreBtn">Read More</button>` : ""}
+        ${(function(){
+          if (post.image && /^https:\/\/firebasestorage\.googleapis\.com\//.test(post.image)) {
+            let isVideo = post.mediaType === "video";
+            // Fallback for old posts without mediaType
+            if (!post.mediaType && post.image.match(/\.(mp4|webm|ogg|mov)(\?|$)/i)) {
+              isVideo = true;
+            }
+            if (isVideo) {
+              return `<video class="post-video" controls preload="metadata">
+                <source src="${escapeHtml(post.image)}">
+                Your browser does not support the video tag.
+              </video>`;
+            } else {
+              return `<img
+                class="post-img"
+                src="${escapeHtml(post.image)}"
+                data-full="${escapeHtml(post.fullImage || post.image)}"
+                onclick="document.getElementById('modalImg').src=this.dataset.full; document.getElementById('imgModal').style.display='flex';"
+              >`;
+            }
+          }
+          return "";
+        })()}
+    
+        <div class="time">${date}</div>
+
+        <div class="button-row">
+          <button onclick="location.href='../post.html?id=${encodeURIComponent(docSnap.id)}'">
+            Replies
+          </button>
+        </div>
+
+        <span
+          class="report-btn"
+          onclick="reportPost(
+            '${escapeHtml(escapeJsString(docSnap.id))}',
+            '${escapeHtml(safeDisplayNameJs)}',
+            '${escapeHtml(escapeJsString(post.authorUID || ""))}'
+          )"
+        >
+          report
+        </span>
+      </div>
+    `;
+
+    div.querySelector(".post-content").innerHTML =
+      await renderMentions(
+        shortText,
+        post.mentionedUsers || []
+      );
+
+    if(needsMore){
+      div.querySelector(".readMoreBtn").onclick = async ()=>{
+
+        div.querySelector(".post-content").innerHTML =
+          await renderMentions(
+            content,
+            post.mentionedUsers || []
+          );
+
+        div.querySelector(".readMoreBtn").remove();
+      };
+    }
+
+      const isOwner =
+        currentUID === post.authorUID;
+
+    // Anonymous users CAN delete only if they are owner
+    if (isOwner || isAdmin()) {
+      const btn = document.createElement("button");
+       btn.innerText = "Delete";
+
+      btn.onclick = () => {
+        // extra safety check at click-time
+        if (!isOwner && !isAdmin()) return;
+        showDeleteModal(docSnap.id);
+      };
+
+      div.querySelector(".button-row").appendChild(btn);
+    }
+
+
+postsDiv.appendChild(div);
+
+}
+}
+searchInput.addEventListener("keydown", async (e) => {
+
+  if (e.key !== "Enter") return;
+
+  // reset window if 24h passed
+  const now = Date.now();
+  if (now - searchWindowStart > SEARCH_WINDOW_MS) {
+    searchCount = 0;
+    searchWindowStart = now;
+  }
+
+  // HARD LIMIT (silent fail)
+  if (searchCount >= MAX_SEARCHES_PER_DAY) {
+    return;
+  }
+
+  currentSearch = searchInput.value.trim();
+
+  // increment count
+  searchCount++;
+
+  // persist to Firestore (silent)
+  try {
+    await setDoc(doc(db, "searchCooldowns", currentUID), {
+      count: searchCount,
+      windowStart: searchWindowStart
+    }, { merge: true });
+  } catch (err) {
+    console.error(err);
+  }
+
+  postsDiv.innerHTML = "";
+
+  lastVisible = null;
+  searchLastVisible = null;
+
+  loadMoreBtn.style.display = "inline-block";
+
+  loadPosts();
+});
+
+searchInput.addEventListener("search", async () => {
+
+  // reset window if needed
+  const now = Date.now();
+  if (now - searchWindowStart > SEARCH_WINDOW_MS) {
+    searchCount = 0;
+    searchWindowStart = now;
+  }
+
+  // if clearing search, DO NOT count it
+  if (searchInput.value.trim() !== "") return;
+
+  if (searchInput.value.trim() !== "") return;
+
+  currentSearch = "";
+
+  postsDiv.innerHTML = "";
+
+  lastVisible = null;
+  searchLastVisible = null;
+
+  loadMoreBtn.style.display =
+    "inline-block";
+
+  loadPosts();
+
+});
+
+
+loadMoreBtn.onclick=loadPosts;
+document.getElementById("imgModal").onclick=()=> imgModal.style.display="none";
+
+window.showDeleteModal = (id) => {
+  postToDelete = id;
+  const modal = document.getElementById("deleteModal");
+  modal.style.display = "flex";
+};
+
+
+confirmDeleteBtn.onclick = async () => {
+  try {
+    if (!postToDelete) return;
+
+    const postRef = doc(db, "posts", postToDelete);
+
+    const postSnap = await getDoc(postRef);
+
+    if(postSnap.exists()){
+
+      const postData = postSnap.data();
+
+      if(
+        postData.image &&
+        postData.image.includes(
+          "firebasestorage"
+        )
+      ){
+
+        try{
+
+          const imageRef = ref(
+            storage,
+            postData.image
+          );
+
+          await deleteObject(imageRef);
+
+        }catch(err){
+          console.error(
+            "Storage delete failed:",
+            err
+          );
+        }
+      }
+    }
+
+    await deleteDoc(postRef);
+
+    postToDelete = null;
+    document.getElementById("deleteModal").style.display = "none";
+
+    postsDiv.innerHTML = "";
+    lastVisible = null;
+    loadPosts();
+
+  } catch (err) {
+    console.error("Delete failed:", err);
+    alert("Delete failed (check Firestore rules or auth)");
+  }
+};
+
+// cancelDeleteBtn.onclick=()=> deleteModal.style.display="none";
+
+cancelDeleteBtn.onclick = () => {
+  postToDelete = null;
+  document.getElementById("deleteModal").style.display = "none";
+};
+
+imageLockOkBtn.onclick = () => {
+  imageLockModal.style.display = "none";
+};
+
+// LOAD ADS
+async function loadAd(type, imgEl, linkEl) {
+  if (!imgEl || !linkEl) return;
+
+  try {
+    // 1. Get ALL active ads of this type
+    const q = query(
+      collection(db, "ads"),
+      where("type", "==", type),
+      where("active", "==", true)
+    );
+
+    const snap = await getDocs(q);
+
+    // 2. If absolutely no ads exist → placeholder
+    if (snap.empty) {
+      imgEl.src = "/probatism.github.io/placeholder-ad.png";
+      linkEl.href = "advertise.html";
+      return;
+    }
+
+    // 3. Build STRICT valid ad pool
+    const validAds = [];
+
+    snap.docs.forEach(docSnap => {
+      const data = docSnap.data();
+
+      // Only allow ads that are truly valid
+      if (
+        data &&
+        typeof data.image === "string" &&
+        data.image.trim() !== "" &&
+        typeof data.link === "string" &&
+        data.link.trim() !== "" &&
+        typeof data.impressionsLeft === "number" &&
+        data.impressionsLeft > 0
+      ) {
+        validAds.push({
+          id: docSnap.id,
+          data
+        });
+      }
+    });
+
+    // 4. If NO valid ads → placeholder
+    if (validAds.length === 0) {
+      imgEl.src = "/probatism.github.io/placeholder-ad.png";
+      linkEl.href = "advertise.html";
+      return;
+    }
+
+    // 5. Pick random VALID ad
+    const chosen = validAds[Math.floor(Math.random() * validAds.length)];
+
+    // 6. Apply ad
+    imgEl.src = chosen.data.image;
+    linkEl.href = chosen.data.link;
+
+    // 7. If image fails → ONLY THEN fallback
+    imgEl.onerror = () => {
+      console.log("Image failed → placeholder");
+      imgEl.src = "/probatism.github.io/placeholder-ad.png";
+      linkEl.href = "advertise.html";
+    };
+
+    // 8. Decrement impressions securely based on auth state
+    try {
+      const adRef = doc(db, "ads", chosen.id);
+      if (auth.currentUser) {
+        const cooldownRef = doc(db, "adCooldowns", auth.currentUser.uid);
+        const adBatch = writeBatch(db);
+        adBatch.update(adRef, { impressionsLeft: increment(-1) });
+        adBatch.set(cooldownRef, { lastView: serverTimestamp() }, { merge: true });
+        await adBatch.commit();
+      } else {
+        await updateDoc(adRef, { impressionsLeft: increment(-1) });
+      }
+    } catch (err) {
+      console.error("4:", err);
+    }
+
+  } catch (err) {
+    console.error("5:", err);
+
+    imgEl.src = "/probatism.github.io/placeholder-ad.png";
+    linkEl.href = "advertise.html";
+  }
+}
+
+window.reportPost = function(postId, author, authorUID){
+
+  if(Date.now() - lastReportTime < 300000){
+    return;
+  }
+
+  pendingReport = {
+    postId,
+    author,
+    authorUID
+  };
+
+  reportModal.style.display = "flex";
+};
+
+confirmReportBtn.onclick = async () => {
+  if(reportSubmitting) return;
+  reportSubmitting = true;
+
+  if(!pendingReport) return;
+
+  try {
+
+    const report = {
+      type: "post",
+      contentId: pendingReport.postId,
+
+      reporterUID: currentUID,
+      reporterUsername: currentUser || "Anonymous",
+
+      targetUID: pendingReport.authorUID,
+      targetUsername: pendingReport.author,
+
+      createdAt: Date.now()
+    };
+
+    await addDoc(collection(db, "reports"), report);
+
+    await setDoc(
+      doc(db, "reportCooldowns", currentUID),
+      {
+        lastReportAt: Date.now()
+      }
+    );
+
+    lastReportTime = Date.now();
+    localStorage.setItem(
+      "lastReportTime",
+      lastReportTime
+    );
+
+    reportSubmitting = false;
+
+    pendingReport = null;
+
+    reportModal.style.display = "none";
+    reportSuccessModal.style.display = "flex";
+
+  } catch(err){
+
+    reportSubmitting = false;
+
+    console.error("Report failed:", err);
+
+    pendingReport = null;
+    reportModal.style.display = "none";
+
+    alert("Failed to submit report.");
+  }
+};
+
+cancelReportBtn.onclick = () => {
+  pendingReport = null;
+  reportModal.style.display = "none";
+};
+
+
+
+reportSuccessOkBtn.onclick = () => {
+  reportSuccessModal.style.display = "none";
+};
+
+mentionLimitOkBtn.onclick = () => {
+  mentionLimitModal.style.display = "none";
+};
+
 </script>
+
+<!-- BOTTOM AD -->
+<div id="bottomAdContainer" style="text-align:center; margin-top:20px;">
+  <a id="bottomAdLink" href="#">
+    <img id="bottomAdImg" style="width:300px; height:250px; object-fit:cover; border:1px solid rgb(91,46,97);">
+  </a>
+  <div style="font-size:10px;">
+    <a href="../advertise.html">Start advertising</a>
+  </div>
+</div>
 
 </body>
 </html>
