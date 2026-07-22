@@ -32,6 +32,7 @@ textarea { width:100%; height:80px; background: rgb(232,224,207); color: rgb(91,
 }
 
 .post-img {
+  display: block;
   max-width:256px;
   max-height:256px;
   margin-top:5px;
@@ -40,12 +41,13 @@ textarea { width:100%; height:80px; background: rgb(232,224,207); color: rgb(91,
 }
 
 .post-video {
+  display: block;
   max-width:256px;
   max-height:256px;
   margin-top:5px;
   border:1px solid rgb(91,46,97);
   background: #000;
-}  
+}
 
 .button-row {
   margin-top:5px;
@@ -105,6 +107,7 @@ textarea { width:100%; height:80px; background: rgb(232,224,207); color: rgb(91,
 }
 
 .readMoreBtn {
+  display: block;
   background: none;
   border: none;
   padding: 0;
@@ -348,15 +351,14 @@ async function extractMentions(text){
     )
   ];
 
-  // FIX: Prevent database read spam. If >3 mentions, abort DB lookups immediately. 
-  // Returning dummies forces the existing mentionLimitModal to cleanly reject the post.
+
   if (uniqueUsernames.length > 3) {
     return new Array(uniqueUsernames.length).fill({ uid: "spam" });
   }
 
   const lookupMap = {};
 
-  // FIX: Load sessionStorage cache to save reads across page reloads
+
   let sessionCache = {};
   try {
     sessionCache = JSON.parse(sessionStorage.getItem("usernameCache") || "{}");
@@ -369,13 +371,13 @@ async function extractMentions(text){
       continue;
     }
 
-    // Check memory cache
+    
     if(usernameCache.has(lower)){
       lookupMap[lower] = usernameCache.get(lower);
       continue;
     }
     
-    // Check session storage cache
+
     if(sessionCache[lower] !== undefined){
       usernameCache.set(lower, sessionCache[lower]);
       lookupMap[lower] = sessionCache[lower];
@@ -400,7 +402,7 @@ async function extractMentions(text){
     lookupMap[lower] = value;
   }
 
-  // Save updated cache back to session storage
+
   try {
     sessionStorage.setItem("usernameCache", JSON.stringify(sessionCache));
   } catch(e) {}
@@ -411,7 +413,7 @@ async function extractMentions(text){
   });
 }
 
-/* ✅ FIXED CONFIG (THIS WAS THE BUG) */
+
 const firebaseConfig = {
   apiKey: "AIzaSyAZXfEl3Q68vfJtaLJqODtnQBSVEzWBmc0",
   authDomain: "probatismm.firebaseapp.com",
@@ -421,7 +423,7 @@ const firebaseConfig = {
   appId: "1:746935651152:web:82491ddac346bc654a3a55"
 };
 
-/* ✅ SAFE INIT */
+
 let app;
 try {
   app = getApps().length===0 ? initializeApp(firebaseConfig) : getApps()[0];
@@ -434,7 +436,7 @@ const auth = getAuth(app);
 const storage = getStorage(app);
 
 
-// username lookup cache
+
 const usernameCache = new Map();
 const userDocCache = new Map();
 // ELEMENTS
@@ -510,13 +512,13 @@ async function checkBan(uid, ip){
   try {
     let isBanned = false;
     
-    // 1. Check UID
+    
     if(uid){
       const banSnap = await getDoc(doc(db, "bannedUsers", uid));
       if(banSnap.exists()) isBanned = true;
     }
 
-    // 2. Check IP
+   
     if(!isBanned && ip && ip !== "unknown"){
       const ipSnap = await getDoc(doc(db, "bannedIPs", ip));
       if(ipSnap.exists()) isBanned = true;
@@ -595,7 +597,7 @@ async function generateVerification(){
 
   document.getElementById("verificationAnswer").value = "";
 
-  // NEW WORD CAPTCHA
+
   const words = [
     "mountain","candle","window","blanket","pencil",
     "bottle","garden","pillow","planet","forest",
@@ -633,7 +635,7 @@ onAuthStateChanged(auth, async (user) => {
 
   console.log("Auth state:", user);
 
-  // no auth yet → create anonymous session
+
   if(!user){
 
     try{
@@ -645,8 +647,8 @@ onAuthStateChanged(auth, async (user) => {
     return;
   }
 
-  // IMPORTANT:
-  // anonymous users ALSO have UIDs
+ 
+
   currentUID = user.uid;
   await generateVerification();
 
@@ -667,7 +669,7 @@ onAuthStateChanged(auth, async (user) => {
       doc(db, "postCooldowns", user.uid)
     );
 
-    // SEARCH COOLDOWN LOAD
+  
     try {
       const searchCooldownSnap = await getDoc(
         doc(db, "searchCooldowns", user.uid)
@@ -698,10 +700,10 @@ onAuthStateChanged(auth, async (user) => {
     console.error(err);
   }
 
-  }catch(err){           //
+  }catch(err){          
     console.error(err);
-  }                     
-  // FETCH IP BEFORE CHECKING BAN
+  }           
+  
   if (clientIP === "unknown") {
     try {
       const res = await fetch("https://api.ipify.org?format=json");
@@ -712,14 +714,14 @@ onAuthStateChanged(auth, async (user) => {
     }
   }
 
-  // ALWAYS CHECK BAN
+
   const banned = await checkBan(user.uid, clientIP);
 
   if(banned){
     return;
   }
 
-  // LOGGED-IN USER
+
   if(!user.isAnonymous){
 
     try{
@@ -732,7 +734,7 @@ onAuthStateChanged(auth, async (user) => {
 
       } else {
         
-        // Force Anonymous if no database profile exists to satisfy Firebase rules
+
         currentUser = "Anonymous";
         
       }
@@ -750,7 +752,7 @@ onAuthStateChanged(auth, async (user) => {
 
   } else {
 
-    // ANONYMOUS USER
+
     currentUser = "Anonymous";
 
     accountLink.innerText = "Sign In / Sign Up";
@@ -758,13 +760,13 @@ onAuthStateChanged(auth, async (user) => {
     logoutBtn.style.display = "none";
   }
 
-  // reload content
+
   postsDiv.innerHTML = "";
   lastVisible = null;
 
   loadPosts();
 
-  // LOAD ADS
+
   loadAd("banner",
     document.getElementById("topAdImg"),
     document.getElementById("topAdLink")
@@ -776,13 +778,13 @@ onAuthStateChanged(auth, async (user) => {
   );
 });
 
-// LOGOUT
+
 logoutBtn.onclick = async ()=>{
   await signOut(auth);
   window.location.href = "../index.html";
 };
 
-// PROFILE NAVIGATION
+
 window.goProfile = function(username){
   if(!username || username === "Anonymous") return;
 
@@ -816,11 +818,11 @@ async function renderMentions(text, mentionedUsers = []) {
   if(!text) return "";
   
   let rendered = escapeHtml(text);
-  let i = 0; // Tracks our position in the mentionedUsers array
+  let i = 0; 
   
-  // Replaces tags sequentially from left-to-right to prevent HTML corruption
+
   rendered = rendered.replace(/@([\w]+)/g, (match, originalUsername) => {
-    const mentionData = mentionedUsers[i++]; // Increment index for every match found
+    const mentionData = mentionedUsers[i++]; 
     
     if (originalUsername === "Anonymous") {
       return match;
@@ -837,7 +839,7 @@ async function renderMentions(text, mentionedUsers = []) {
   return rendered;
 }
 
-/* EVERYTHING ELSE UNCHANGED BELOW */
+
 
 async function uploadPostImage(file, uid, uploadId){
 
@@ -888,7 +890,7 @@ postButton.onclick = async ()=>{
 
     if (postClickLocked) return;
 
-    // LOCK IMMEDIATELY
+
     postClickLocked = true;
 
     const banned = await checkBan(auth.currentUser?.uid, clientIP);
@@ -951,7 +953,7 @@ let mediaType = "none";
     }
   }
 
-  const MAX_UPLOAD_SIZE = 20 * 1024 * 1024; // 20MB limit
+  const MAX_UPLOAD_SIZE = 20 * 1024 * 1024; 
 
   if (file && file.size > MAX_UPLOAD_SIZE) {
     alert("File too large. Maximum allowed size is 20MB.");
@@ -971,7 +973,7 @@ let mediaType = "none";
     return;
   }
 
-  // HELPER: Unlocks the post button if validation fails
+
   const resetPostState = () => {
     postClickLocked = false;
     postButton.disabled = false;
@@ -1047,7 +1049,7 @@ let mediaType = "none";
 
     const filenameForTicket = `${uploadId}.${extension}`;
 
-    // 1. GENERATE RATE-LIMITED UPLOAD TICKET
+
     try {
       await setDoc(doc(db, "uploadTickets", auth.currentUser.uid), {
         filename: filenameForTicket,
@@ -1066,7 +1068,7 @@ let mediaType = "none";
       return;
     }
 
-    // 2. PROCEED WITH UPLOAD
+
     uploadedStoragePath =
       `postImages/${auth.currentUser.uid}/${filenameForTicket}`;
 
@@ -1153,7 +1155,7 @@ try{
 
   const searchTokens = new Set();
 
-  // Extract whole words only
+
   const allWords = [
     ...(text.toLowerCase().match(/\b[\w]+\b/g) || []),
     ...(
@@ -1163,10 +1165,10 @@ try{
     )
   ];
 
-  // Only index the first 25 words from the post
+
   const first25Words = allWords.slice(0, 25);
 
-  // Store exact whole words only
+
   for (const word of first25Words) {
     searchTokens.add(word);
   }
@@ -1189,7 +1191,7 @@ batch.set(postRef,{
     ip: clientIP
   });
   
-  // PREVENT DUPLICATES: Wipes the input so a lagging double-click can't resend the file
+  
   postImage.value = "";
 
   batch.set(
@@ -1199,7 +1201,7 @@ batch.set(postRef,{
     }
   );
 
-  // Safely delete the captcha document inside the batch
+
   batch.delete(doc(db, "captchas", auth.currentUser.uid));
 
 
@@ -1207,7 +1209,7 @@ batch.set(postRef,{
   
   lastPostTime = now;
 
-  // prevent double submission during reload window
+
   postButton.disabled = true;
   postClickLocked = true;
   isPosting = true;
@@ -1220,7 +1222,7 @@ batch.set(postRef,{
 
   console.error("Post failed:", err);
 
-  // CLEAN UP ORPHANED IMAGE
+
   if(uploadedStoragePath){
 
     try{
@@ -1349,7 +1351,7 @@ async function loadPosts(){
     loadMoreBtn.style.display = "inline-block";
   }
 
-  // PRE-FETCH MISSING USER PROFILES CONCURRENTLY
+
   const uidsToFetch = new Set();
   for (const docSnap of snap.docs) {
     const post = docSnap.data();
@@ -1413,8 +1415,7 @@ async function loadPosts(){
 
     const safeDisplayNameJs =
       escapeJsString(displayName);
-
-    // 1. DYNAMIC PROFILE PICTURE FETCHING WITH CACHE (Batched above)
+    
     let currentProfilePic = post.authorProfilePic || ""; 
     
     if (post.authorUID && displayName !== "Anonymous" && userDocCache.has(post.authorUID)) {
@@ -1424,7 +1425,7 @@ async function loadPosts(){
 
     let safeProfilePic = "";
 
-    // 2. APPLY THE DYNAMIC PICTURE
+
     try{
       if (currentProfilePic) {
         const url = new URL(currentProfilePic);
@@ -1440,7 +1441,7 @@ async function loadPosts(){
     }catch(e){}
 
     let profilePic = "";
-    // Only render the image if it passed the protocol validation above
+
     if(safeProfilePic !== ""){
       profilePic = `
         <img
@@ -1480,7 +1481,7 @@ async function loadPosts(){
         ${(function(){
           if (post.image && /^https:\/\/firebasestorage\.googleapis\.com\//.test(post.image)) {
             let isVideo = post.mediaType === "video";
-            // Fallback for old posts without mediaType
+
             if (!post.mediaType && post.image.match(/\.(mp4|webm|ogg|mov)(\?|$)/i)) {
               isVideo = true;
             }
@@ -1544,13 +1545,13 @@ async function loadPosts(){
       const isOwner =
         currentUID === post.authorUID;
 
-    // Anonymous users CAN delete only if they are owner
+
     if (isOwner || isAdmin()) {
       const btn = document.createElement("button");
        btn.innerText = "Delete";
 
       btn.onclick = () => {
-        // extra safety check at click-time
+        
         if (!isOwner && !isAdmin()) return;
         showDeleteModal(docSnap.id);
       };
@@ -1567,24 +1568,24 @@ searchInput.addEventListener("keydown", async (e) => {
 
   if (e.key !== "Enter") return;
 
-  // reset window if 24h passed
+
   const now = Date.now();
   if (now - searchWindowStart > SEARCH_WINDOW_MS) {
     searchCount = 0;
     searchWindowStart = now;
   }
 
-  // HARD LIMIT (silent fail)
+
   if (searchCount >= MAX_SEARCHES_PER_DAY) {
     return;
   }
 
   currentSearch = searchInput.value.trim();
 
-  // increment count
+
   searchCount++;
 
-  // persist to Firestore (silent)
+
   try {
     await setDoc(doc(db, "searchCooldowns", currentUID), {
       count: searchCount,
@@ -1606,14 +1607,14 @@ searchInput.addEventListener("keydown", async (e) => {
 
 searchInput.addEventListener("search", async () => {
 
-  // reset window if needed
+
   const now = Date.now();
   if (now - searchWindowStart > SEARCH_WINDOW_MS) {
     searchCount = 0;
     searchWindowStart = now;
   }
 
-  // if clearing search, DO NOT count it
+
   if (searchInput.value.trim() !== "") return;
 
   if (searchInput.value.trim() !== "") return;
@@ -1695,7 +1696,7 @@ confirmDeleteBtn.onclick = async () => {
   }
 };
 
-// cancelDeleteBtn.onclick=()=> deleteModal.style.display="none";
+
 
 cancelDeleteBtn.onclick = () => {
   postToDelete = null;
@@ -1706,12 +1707,12 @@ imageLockOkBtn.onclick = () => {
   imageLockModal.style.display = "none";
 };
 
-// LOAD ADS
+
 async function loadAd(type, imgEl, linkEl) {
   if (!imgEl || !linkEl) return;
 
   try {
-    // 1. Get ALL active ads of this type
+
     const q = query(
       collection(db, "ads"),
       where("type", "==", type),
@@ -1720,20 +1721,20 @@ async function loadAd(type, imgEl, linkEl) {
 
     const snap = await getDocs(q);
 
-    // 2. If absolutely no ads exist → placeholder
+
     if (snap.empty) {
       imgEl.src = "/probatism.github.io/placeholder-ad.png";
       linkEl.href = "advertise.html";
       return;
     }
 
-    // 3. Build STRICT valid ad pool
+
     const validAds = [];
 
     snap.docs.forEach(docSnap => {
       const data = docSnap.data();
 
-      // Only allow ads that are truly valid
+      
       if (
         data &&
         typeof data.image === "string" &&
@@ -1750,28 +1751,28 @@ async function loadAd(type, imgEl, linkEl) {
       }
     });
 
-    // 4. If NO valid ads → placeholder
+    
     if (validAds.length === 0) {
       imgEl.src = "/probatism.github.io/placeholder-ad.png";
       linkEl.href = "advertise.html";
       return;
     }
 
-    // 5. Pick random VALID ad
+    
     const chosen = validAds[Math.floor(Math.random() * validAds.length)];
 
-    // 6. Apply ad
+    
     imgEl.src = chosen.data.image;
     linkEl.href = chosen.data.link;
 
-    // 7. If image fails → ONLY THEN fallback
+    
     imgEl.onerror = () => {
       console.log("Image failed → placeholder");
       imgEl.src = "/probatism.github.io/placeholder-ad.png";
       linkEl.href = "advertise.html";
     };
 
-    // 8. Decrement impressions securely based on auth state
+    
     try {
       const adRef = doc(db, "ads", chosen.id);
       if (auth.currentUser) {
