@@ -1202,6 +1202,8 @@ batch.set(postRef,{
   // Safely delete the captcha document inside the batch
   batch.delete(doc(db, "captchas", auth.currentUser.uid));
 
+  batch.delete(doc(db, "uploadTickets", auth.currentUser.uid));
+
   await batch.commit();
   
   lastPostTime = now;
