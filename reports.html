@@ -625,6 +625,12 @@ if(showDismissed){
                 Ban Reporter
               </button>
 
+              ${
+                contentData.ip && contentData.ip !== "unknown"
+                  ? `<button onclick="banIP('${escapeAttr(contentData.ip)}')">IP Ban Target</button>`
+                  : ""
+              }
+
               <button
                 onclick="
                   dismissReport(
@@ -819,6 +825,32 @@ window.banTargetUser = async function(uid, username){
 
   }
 
+};
+
+/* =========================
+   BAN IP
+========================= */
+window.banIP = async function(ip){
+  if(!ip || ip === "unknown"){
+    alert("No IP found for this post.");
+    return;
+  }
+  
+  if(!confirm(`Are you sure you want to permanently IP ban: ${ip}?`)){
+    return;
+  }
+
+  try {
+    await setDoc(doc(db, "bannedIPs", ip), {
+      ip: ip,
+      bannedAt: Date.now()
+    });
+
+    alert("IP successfully banned.");
+  } catch(err){
+    console.error(err);
+    alert("Ban failed. Check console for errors.");
+  }
 };
 
 </script>
