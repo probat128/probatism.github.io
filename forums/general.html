@@ -248,6 +248,13 @@ input[type="number"]::-webkit-inner-spin-button {
   >
 </div>
 
+<div id="adminMassDeleteContainer" style="display:none; justify-content:flex-end; align-items:center; gap:10px; margin-top:10px; margin-bottom:10px;">
+  <span style="font-size:12px; font-weight:bold;">Admin Mass Delete:</span>
+  <input type="number" id="massDeleteCount" min="1" max="100" placeholder="#" style="width:50px; padding:3px; background:rgb(232,224,207); color:rgb(91,46,97); border:1px solid rgb(91,46,97);">
+  <button id="massDeleteBtn" style="background:red; color:white; border:1px solid darkred; font-weight:bold;">Delete Last X Posts</button>
+</div>
+<!-- END NEW: ADMIN MASS DELETE UI -->
+
 <div id="posts">Loading...</div>
 
 <button id="loadMoreBtn">Load More</button>
@@ -500,6 +507,11 @@ const mentionLimitModal = document.getElementById("mentionLimitModal");
 const mentionLimitOkBtn = document.getElementById("mentionLimitOkBtn");
 const accountLink = document.getElementById("accountLink");
 const logoutBtn = document.getElementById("logoutBtn");
+
+const adminMassDeleteContainer = document.getElementById("adminMassDeleteContainer");
+const massDeleteCount = document.getElementById("massDeleteCount");
+const massDeleteBtn = document.getElementById("massDeleteBtn");
+
 const adminUIDs = [
   "IDlmRGgh2PaLx15krpeq5jGU6SJ3",
   "yORpmIr7jvgruQt7D8oufNi8shh2"
@@ -760,6 +772,13 @@ onAuthStateChanged(auth, async (user) => {
     logoutBtn.style.display = "none";
   }
 
+  
+  if (isAdmin()) {
+    adminMassDeleteContainer.style.display = "flex";
+  } else {
+    adminMassDeleteContainer.style.display = "none";
+  }
+  
 
   postsDiv.innerHTML = "";
   lastVisible = null;
@@ -1881,6 +1900,91 @@ reportSuccessOkBtn.onclick = () => {
 mentionLimitOkBtn.onclick = () => {
   mentionLimitModal.style.display = "none";
 };
+
+
+let isMassDeleting = false;
+
+massDeleteBtn.onclick = async () => {
+  if (!isAdmin() || isMassDeleting) return;
+
+  const val = parseInt(massDeleteCount.value);
+  if (isNaN(val) || val < 1) {
+    alert("Please enter a valid number of posts to delete (1 to 100).");
+    return;
+  }
+  
+
+  const count = Math.min(100, val);
+
+  if (!confirm(`SECURITY WARNING: Are you sure you want to permanently delete the last ${count} posts and their media?`)) {
+    return;
+  }
+
+
+  isMassDeleting = true;
+  massDeleteBtn.disabled = true;
+  massDeleteBtn.innerText = "Deleting...";
+
+  try {
+
+    const q = query(
+      collection(db, "posts"),
+      where("subforum", "==", "general"),
+      orderBy("time", "desc"),
+      limit(count)
+    );
+    
+    const snap = await getDocs(q);
+    
+    if (snap.empty) {
+      alert("No posts found to delete.");
+      return;
+    }
+
+    const batch = writeBatch(db);
+    const storagePromises = [];
+
+
+    snap.docs.forEach(docSnap => {
+      const postData = docSnap.data();
+      
+
+      if (postData.image && postData.image.includes("firebasestorage")) {
+        const imageRef = ref(storage, postData.image);
+
+        storagePromises.push(deleteObject(imageRef).catch(e => console.warn("Storage item missing/failed:", e)));
+      }
+      
+
+      batch.delete(docSnap.ref);
+    });
+
+
+    await Promise.all(storagePromises);
+    
+
+    await batch.commit();
+
+    alert(`Successfully deleted ${snap.size} posts.`);
+    
+
+    massDeleteCount.value = "";
+    postsDiv.innerHTML = "";
+    lastVisible = null;
+    searchLastVisible = null;
+    loadPosts();
+
+  } catch (err) {
+    console.error("Mass delete failed:", err);
+    alert("Mass delete failed. Check browser console.");
+  } finally {
+    // Unlock button unconditionally
+    isMassDeleting = false;
+    massDeleteBtn.disabled = false;
+    massDeleteBtn.innerText = "Delete Last X Posts";
+  }
+};
+
 
 </script>
 
