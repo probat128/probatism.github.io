@@ -931,10 +931,12 @@ postButton.onclick = async ()=>{
     return;
   }
 
-  const now=Date.now();
+  const now = Date.now();
   if(now - lastPostTime < 40000){
 
     postClickLocked = false;
+    postButton.disabled = false;
+    submissionInProgress = false;
 
     const msg = document.getElementById("cooldownMsg");
 
