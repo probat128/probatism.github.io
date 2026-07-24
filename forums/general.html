@@ -1912,73 +1912,89 @@ massDeleteBtn.onclick = async () => {
     alert("Please enter a valid number of posts to delete (1 to 100).");
     return;
   }
-  
 
   const count = Math.min(100, val);
 
-  if (!confirm(`SECURITY WARNING: Are you sure you want to permanently delete the last ${count} posts and their media?`)) {
-    return;
-  }
-
-
   isMassDeleting = true;
   massDeleteBtn.disabled = true;
-  massDeleteBtn.innerText = "Deleting...";
+  massDeleteBtn.innerText = "Processing...";
 
   try {
+    const requestRef = doc(db, "massDeleteRequests", currentUID);
+    const requestSnap = await getDoc(requestRef);
 
-    const q = query(
-      collection(db, "posts"),
-      where("subforum", "==", "general"),
-      orderBy("time", "desc"),
-      limit(count)
-    );
-    
-    const snap = await getDocs(q);
-    
-    if (snap.empty) {
-      alert("No posts found to delete.");
-      return;
-    }
-
-    const batch = writeBatch(db);
-    const storagePromises = [];
-
-
-    snap.docs.forEach(docSnap => {
-      const postData = docSnap.data();
+    if (requestSnap.exists()) {
+      const reqData = requestSnap.data();
       
+      if (reqData.approved === false) {
+        alert("Your request is still pending.");
+        isMassDeleting = false;
+        massDeleteBtn.disabled = false;
+        massDeleteBtn.innerText = "Delete Last X Posts";
+        return;
+      } 
+      
+      if (reqData.approved === true) {
+        if (!confirm(`SECURITY WARNING: Your request was approved. Are you sure you want to permanently delete the last ${reqData.count} posts and their media?`)) {
+          isMassDeleting = false;
+          massDeleteBtn.disabled = false;
+          massDeleteBtn.innerText = "Delete Last X Posts";
+          return;
+        }
 
-      if (postData.image && postData.image.includes("firebasestorage")) {
-        const imageRef = ref(storage, postData.image);
+        const q = query(
+          collection(db, "posts"),
+          where("subforum", "==", "general"),
+          orderBy("time", "desc"),
+          limit(reqData.count)
+        );
+        
+        const snap = await getDocs(q);
+        
+        if (snap.empty) {
+          alert("No posts found to delete.");
+        } else {
+          const batch = writeBatch(db);
+          const storagePromises = [];
 
-        storagePromises.push(deleteObject(imageRef).catch(e => console.warn("Storage item missing/failed:", e)));
+          snap.docs.forEach(docSnap => {
+            const postData = docSnap.data();
+            if (postData.image && postData.image.includes("firebasestorage")) {
+              const imageRef = ref(storage, postData.image);
+              storagePromises.push(deleteObject(imageRef).catch(e => console.warn("Storage item missing/failed:", e)));
+            }
+            batch.delete(docSnap.ref);
+          });
+
+          await Promise.all(storagePromises);
+          await batch.commit();
+
+          alert(`Successfully deleted ${snap.size} posts.`);
+          massDeleteCount.value = "";
+          postsDiv.innerHTML = "";
+          lastVisible = null;
+          searchLastVisible = null;
+          loadPosts();
+        }
+
+
+        await deleteDoc(requestRef);
       }
-      
+    } else {
 
-      batch.delete(docSnap.ref);
-    });
-
-
-    await Promise.all(storagePromises);
-    
-
-    await batch.commit();
-
-    alert(`Successfully deleted ${snap.size} posts.`);
-    
-
-    massDeleteCount.value = "";
-    postsDiv.innerHTML = "";
-    lastVisible = null;
-    searchLastVisible = null;
-    loadPosts();
+      await setDoc(requestRef, {
+        count: count,
+        approved: false,
+        requestedAt: serverTimestamp(),
+        adminUID: currentUID
+      });
+      alert(`Mass delete request for ${count} posts created. Tell the owner.`);
+    }
 
   } catch (err) {
     console.error("Mass delete failed:", err);
-    alert("Mass delete failed. Check browser console.");
+    alert("Mass delete process failed. Check browser console.");
   } finally {
-    // Unlock button unconditionally
     isMassDeleting = false;
     massDeleteBtn.disabled = false;
     massDeleteBtn.innerText = "Delete Last X Posts";
