@@ -916,9 +916,20 @@ postButton.onclick = async ()=>{
 
     postClickLocked = true;
 
+    // FIX: Block the "unknown" IP loophole on the client side
+    if (clientIP === "unknown") {
+      alert("Secure connection is still being established. Please wait a moment and try again.");
+      postClickLocked = false;
+      postButton.disabled = false;
+      submissionInProgress = false;
+      return;
+    }
+
     const banned = await checkBan(auth.currentUser?.uid, clientIP);
     if (banned) {
       postClickLocked = false;
+      postButton.disabled = false;
+      submissionInProgress = false;
       return;
     }
   
