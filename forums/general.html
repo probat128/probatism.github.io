@@ -339,6 +339,9 @@ import {
 import { getAuth, onAuthStateChanged, signOut, signInAnonymously } 
 from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
+import { getFunctions, httpsCallable } 
+from "https://www.gstatic.com/firebasejs/10.7.1/firebase-functions.js";
+
 import {
   getStorage,
   ref,
@@ -441,6 +444,7 @@ try {
 const db = getFirestore(app);
 const auth = getAuth(app);
 const storage = getStorage(app);
+const functions = getFunctions(app);
 
 
 
@@ -718,11 +722,11 @@ onAuthStateChanged(auth, async (user) => {
   
   if (clientIP === "unknown") {
     try {
-      const res = await fetch("https://api.ipify.org?format=json");
-      const data = await res.json();
-      clientIP = data.ip;
+      const getSecureIP = httpsCallable(functions, 'getSecureIP');
+      const result = await getSecureIP();
+      clientIP = result.data.ip;
     } catch(e) {
-      console.error("8");
+      console.error("Failed to fetch secure IP from Google Cloud:", e);
     }
   }
 
