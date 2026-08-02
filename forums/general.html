@@ -579,57 +579,40 @@ let currentSearch = "";
 let verificationAnswer = 0;
 let reportSubmitting = false;
 
-let reverseWord = "";
-
 let searchLastVisible = null;
-
 let searchCount = 0;
 let searchWindowStart = 0;
 const MAX_SEARCHES_PER_DAY = 20;
 const SEARCH_WINDOW_MS = 24 * 60 * 60 * 1000;
-
 const BLACKLIST = [
   "vN3Tz8RjW5c1Ah9MpQ7xLs2KeY4DfHb6vN3Tz8RjW5c1Ah9MpQ7xLs2KeY4DfHb6",
   "Gt6Vq1Nz8Hd4Pk9XmR2aYw7LcJ5TfBe3vN3Tz8RjW5c1Ah9MpQ7xLs2KeY4DfHb6",
   "r8FJk1Zw6DnQ4Xa9HvM2pYs7TcL5BeN3vN3Tz8RjW5c1Ah9MpQ7xLs2KeY4DfHb6"
 ];
 
-
-let lastReportTime =
-  parseInt(localStorage.getItem("lastReportTime")) || 0;
-
+let lastReportTime = parseInt(localStorage.getItem("lastReportTime")) || 0;
 let lastPostTime = 0;
 
-async function generateVerification(uid = null, retries = 3) {
-  const currentUid = uid || (auth.currentUser ? auth.currentUser.uid : null);
-  if(!currentUid) return;
-  
-  try {
-    // FIX: Force the Firebase Auth SDK to resolve and attach the token BEFORE calling the function.
-    // This completely eliminates the 401 Unauthorized / Missing UID network race condition.
-    if (auth.currentUser) {
-        await auth.currentUser.getIdToken(); 
-    }
+// NEW CLIENT-SIDE CAPTCHA VARIABLES
+let currentMathAnswer = 0;
+let currentReverseWord = "";
 
-    const generateCaptchaFunc = httpsCallable(functions, 'generateCaptcha');
-    const result = await generateCaptchaFunc({ uid: currentUid });
-    const { a, b, c, word } = result.data;
-    
-    document.getElementById("verificationLabel").textContent =
-      `Verification: Answer: (${a} × ${b}) + ${c}`;
-    document.getElementById("verificationAnswer").value = "";
+// Completely rewritten to generate instantly without Cloud Functions
+async function generateVerification() {
+  const a = Math.floor(Math.random() * 10);
+  const b = Math.floor(Math.random() * 10);
+  const c = Math.floor(Math.random() * 10);
+  currentMathAnswer = (a * b) + c;
 
-    document.getElementById("reverseWordLabel").textContent = word;
-    document.getElementById("reverseWordAnswer").value = "";
-  } catch (err) {
-    // Keep the console clean by only logging the error if we are completely out of retries.
-    if (retries > 0) {
-        // Increased delay to 2 seconds to ensure the network layer fully recovers
-        setTimeout(() => generateVerification(currentUid, retries - 1), 2000);
-    } else {
-        console.error("Failed to generate secure captcha after retries:", err);
-    }
-  }
+  const words = ["mountain","candle","window","blanket","pencil","bottle","garden","pillow","planet","forest","ladder","market","guitar"];
+  const word = words[Math.floor(Math.random() * words.length)];
+  currentReverseWord = word.split("").reverse().join("").toLowerCase();
+
+  document.getElementById("verificationLabel").textContent = `Verification: Answer: (${a} × ${b}) + ${c}`;
+  document.getElementById("verificationAnswer").value = "";
+
+  document.getElementById("reverseWordLabel").textContent = word;
+  document.getElementById("reverseWordAnswer").value = "";
 }
 
 // AUTH
@@ -1025,26 +1008,39 @@ let mediaType = "none";
   const userAnswer = document.getElementById("verificationAnswer").value.trim();
   const reverseAnswer = document.getElementById("reverseWordAnswer").value.trim();
 
-  if(userAnswer === "" || reverseAnswer === ""){
+  if (userAnswer === "" || reverseAnswer === "") {
     resetPostState();
     return;
   }
 
-  
+  // NEW: Client-side Captcha Validation
+  if (Number(userAnswer) !== currentMathAnswer) {
+    alert("Incorrect math answer.");
+    generateVerification();
+    resetPostState();
+    return;
+  }
+
+  if (reverseAnswer.toLowerCase() !== currentReverseWord) {
+    alert("Incorrect word reversal.");
+    generateVerification();
+    resetPostState();
+    return;
+  }
+
   let validatedIp = clientIP;
   try {
+    // We still call this function to enforce IP bans and issue the ticket for Firestore rules
     const verifyAndGetTicket = httpsCallable(functions, 'verifyAndGetTicket');
     const result = await verifyAndGetTicket({
-      uid: auth.currentUser.uid, // FIX: Pass UID directly
-      mathAnswer: userAnswer,
-      reverseAnswer: reverseAnswer
+      uid: auth.currentUser.uid
     });
     validatedIp = result.data.ip;
-    clientIP = validatedIp; // Update global IP locally
+    clientIP = validatedIp; 
   } catch (err) {
     console.error("Verification failed:", err);
     alert(err.message || "Verification failed. Please try again.");
-    generateVerification(auth.currentUser.uid); // Refresh captcha dynamically
+    generateVerification(); 
     resetPostState();
     return;
   }
