@@ -880,17 +880,12 @@ postButton.onclick = async ()=>{
       return;
     }
 
-    if (submissionInProgress) {
+    if (submissionInProgress || postClickLocked) {
       return;
     }
 
     submissionInProgress = true;
-
     postButton.disabled = true;
-
-    if (postClickLocked) return;
-
-
     postClickLocked = true;
 
     // FIX: Block the "unknown" IP loophole on the client side
@@ -920,13 +915,16 @@ postButton.onclick = async ()=>{
   if (!auth.currentUser || auth.currentUser.isAnonymous) {
     if (postImage.files.length > 0) {
       postClickLocked = false;
+      postButton.disabled = false;
+      submissionInProgress = false;
       return;
     }
   }
 
-
   if(isPosting || imageUploadInProgress){
     postClickLocked = false;
+    postButton.disabled = false;
+    submissionInProgress = false;
     return;
   }
 
@@ -1013,18 +1011,18 @@ let mediaType = "none";
     return;
   }
 
-  // NEW: Client-side Captcha Validation
-  if (Number(userAnswer) !== currentMathAnswer) {
-    alert("Incorrect math answer.");
+  
+  if (Number(userAnswer) !== currentMathAnswer || reverseAnswer.toLowerCase() !== currentReverseWord) {
     generateVerification();
     resetPostState();
-    return;
-  }
-
-  if (reverseAnswer.toLowerCase() !== currentReverseWord) {
-    alert("Incorrect word reversal.");
-    generateVerification();
-    resetPostState();
+    
+    const msg = document.getElementById("cooldownMsg");
+    msg.innerText = "Incorrect answer for verification.";
+    msg.style.display = "block";
+    setTimeout(()=>{
+      msg.style.display = "none";
+    }, 4000);
+    
     return;
   }
 
@@ -1096,14 +1094,13 @@ let mediaType = "none";
   const mentions = await extractMentions(text);
 
   const validMentions = mentions.filter(m => m && m.uid);
-
   if (validMentions.length > 3) {
     mentionLimitModal.style.display = "flex";
 
     isPosting = false;
     postButton.disabled = false;
     postClickLocked = false;
-
+    submissionInProgress = false;
     return;
   }
 
@@ -1112,6 +1109,7 @@ if(!auth.currentUser){
   isPosting = false;
   postButton.disabled = false;
   postClickLocked = false;
+  submissionInProgress = false;
   return;
 }
 
