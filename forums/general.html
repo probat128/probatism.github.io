@@ -600,12 +600,15 @@ let lastReportTime =
 
 let lastPostTime = 0;
 
-async function generateVerification(){
-  if(!auth.currentUser) return;
+async function generateVerification(uid, retries = 3) {
+  // Fallback to auth.currentUser.uid if it wasn't passed directly
+  const currentUid = uid || (auth.currentUser ? auth.currentUser.uid : null);
+  if(!currentUid) return;
+  
   try {
     const generateCaptchaFunc = httpsCallable(functions, 'generateCaptcha');
-    // FIX: Pass the UID directly to the payload. Captcha will now load instantly.
-    const result = await generateCaptchaFunc({ uid: auth.currentUser.uid });
+    // Pass the explicitly resolved UID to the backend
+    const result = await generateCaptchaFunc({ uid: currentUid });
     const { a, b, c, word } = result.data;
     
     document.getElementById("verificationLabel").textContent =
@@ -616,10 +619,10 @@ async function generateVerification(){
     document.getElementById("reverseWordAnswer").value = "";
   } catch (err) {
     console.error("Failed to generate secure captcha:", err);
-  
-    if (retries > 0 && err.message.includes("Must be logged in.")) {
+    // Include 'Missing UID.' and unauthenticated errors in the retry conditions
+    if (retries > 0 && (err.message.includes("Missing UID.") || err.message.includes("Must be logged in.") || err?.code === "functions/unauthenticated" || err.message.includes("unauthenticated"))) {
         console.log(`Retrying captcha generation... (${retries} attempts left)`);
-        setTimeout(() => generateVerification(retries - 1), 1000);
+        setTimeout(() => generateVerification(currentUid, retries - 1), 1000);
     }
   }
 }
@@ -644,7 +647,7 @@ onAuthStateChanged(auth, async (user) => {
  
 
   currentUID = user.uid;
-  await generateVerification();
+  await generateVerification(user.uid);
 
   try{
 
@@ -1036,7 +1039,7 @@ let mediaType = "none";
   } catch (err) {
     console.error("Verification failed:", err);
     alert(err.message || "Verification failed. Please try again.");
-    generateVerification(); // Refresh captcha dynamically
+    generateVerification(auth.currentUser.uid); // Refresh captcha dynamically
     resetPostState();
     return;
   }
