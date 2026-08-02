@@ -1026,23 +1026,9 @@ let mediaType = "none";
     return;
   }
 
-  let validatedIp = clientIP;
-  try {
-    // We still call this function to enforce IP bans and issue the ticket for Firestore rules
-    const verifyAndGetTicket = httpsCallable(functions, 'verifyAndGetTicket');
-    const result = await verifyAndGetTicket({
-      uid: auth.currentUser.uid
-    });
-    validatedIp = result.data.ip;
-    clientIP = validatedIp; 
-  } catch (err) {
-    console.error("Verification failed:", err);
-    alert(err.message || "Verification failed. Please try again.");
-    generateVerification(); 
-    resetPostState();
-    return;
-  }
 
+
+  
   isPosting = true;
   postButton.disabled = true;
   
@@ -1196,7 +1182,7 @@ batch.set(postRef,{
     time: serverTimestamp(),
     mentionedUsers: mentions,
     searchTokens:[...searchTokens],
-    ip: validatedIp
+    ip: clientIP
   });
   
   postImage.value = "";
@@ -1208,8 +1194,6 @@ batch.set(postRef,{
     }
   );
 
-  
-  batch.delete(doc(db, "postTickets", auth.currentUser.uid));
 
 
   await batch.commit();
