@@ -603,8 +603,8 @@ let lastPostTime = 0;
 async function generateVerification(){
   if(!auth.currentUser) return;
   try {
-    
-    await auth.currentUser.getIdToken(true);
+
+    await new Promise(resolve => setTimeout(resolve, 500));
     
     const generateCaptchaFunc = httpsCallable(functions, 'generateCaptcha');
     const result = await generateCaptchaFunc();
