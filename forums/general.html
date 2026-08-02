@@ -600,14 +600,12 @@ let lastReportTime =
 
 let lastPostTime = 0;
 
-async function generateVerification(retries = 2){
+async function generateVerification(){
   if(!auth.currentUser) return;
   try {
-   
-    await auth.currentUser.getIdToken();
-    
     const generateCaptchaFunc = httpsCallable(functions, 'generateCaptcha');
-    const result = await generateCaptchaFunc();
+    // FIX: Pass the UID directly to the payload. Captcha will now load instantly.
+    const result = await generateCaptchaFunc({ uid: auth.currentUser.uid });
     const { a, b, c, word } = result.data;
     
     document.getElementById("verificationLabel").textContent =
@@ -1024,11 +1022,12 @@ let mediaType = "none";
     return;
   }
 
-  // Ask the Cloud Function to verify answers and give us a secure Post Ticket
+  
   let validatedIp = clientIP;
   try {
     const verifyAndGetTicket = httpsCallable(functions, 'verifyAndGetTicket');
     const result = await verifyAndGetTicket({
+      uid: auth.currentUser.uid, // FIX: Pass UID directly
       mathAnswer: userAnswer,
       reverseAnswer: reverseAnswer
     });
@@ -1787,11 +1786,10 @@ async function loadAd(type, imgEl, linkEl) {
         adBatch.update(adRef, { impressionsLeft: increment(-1) });
         adBatch.set(cooldownRef, { lastView: serverTimestamp() }, { merge: true });
         await adBatch.commit();
-      } else {
-        await updateDoc(adRef, { impressionsLeft: increment(-1) });
       }
+    
     } catch (err) {
-      console.error("4:", err);
+      console.error("Ad update error:", err);
     }
 
   } catch (err) {
