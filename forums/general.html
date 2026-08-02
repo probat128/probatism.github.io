@@ -600,16 +600,16 @@ let lastReportTime =
 
 let lastPostTime = 0;
 
-async function generateVerification(){
+async function generateVerification(retries = 2){
   if(!auth.currentUser) return;
   try {
-
-    await new Promise(resolve => setTimeout(resolve, 500));
+   
+    await auth.currentUser.getIdToken();
     
     const generateCaptchaFunc = httpsCallable(functions, 'generateCaptcha');
     const result = await generateCaptchaFunc();
     const { a, b, c, word } = result.data;
-
+    
     document.getElementById("verificationLabel").textContent =
       `Verification: Answer: (${a} × ${b}) + ${c}`;
     document.getElementById("verificationAnswer").value = "";
@@ -618,6 +618,11 @@ async function generateVerification(){
     document.getElementById("reverseWordAnswer").value = "";
   } catch (err) {
     console.error("Failed to generate secure captcha:", err);
+  
+    if (retries > 0 && err.message.includes("Must be logged in.")) {
+        console.log(`Retrying captcha generation... (${retries} attempts left)`);
+        setTimeout(() => generateVerification(retries - 1), 1000);
+    }
   }
 }
 
