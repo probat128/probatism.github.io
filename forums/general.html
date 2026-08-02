@@ -601,49 +601,21 @@ let lastReportTime =
 let lastPostTime = 0;
 
 async function generateVerification(){
+  if(!auth.currentUser) return;
+  try {
+    const generateCaptchaFunc = httpsCallable(functions, 'generateCaptcha');
+    const result = await generateCaptchaFunc();
+    const { a, b, c, word } = result.data;
 
-  const a = Math.floor(Math.random() * 10);
-  const b = Math.floor(Math.random() * 10);
-  const c = Math.floor(Math.random() * 10);
+    document.getElementById("verificationLabel").textContent =
+      `Verification: Answer: (${a} × ${b}) + ${c}`;
+    document.getElementById("verificationAnswer").value = "";
 
-  verificationAnswer = (a * b) + c;
-
-  document.getElementById("verificationLabel").textContent =
-    `Verification: Answer: (${a} × ${b}) + ${c}`;
-
-  document.getElementById("verificationAnswer").value = "";
-
-
-  const words = [
-    "mountain","candle","window","blanket","pencil",
-    "bottle","garden","pillow","planet","forest",
-    "ladder","candle","market","guitar","window"
-  ];
-
-  reverseWord = words[Math.floor(Math.random() * words.length)];
-
-  if(auth.currentUser){
-
-    try{
-
-      await setDoc(
-        doc(db, "captchas", auth.currentUser.uid),
-        {
-          uid: auth.currentUser.uid,
-          createdAt: Date.now(),
-          mathAnswer: verificationAnswer,
-          reverseWord: reverseWord
-        }
-      );
-
-    }catch(err){
-      console.error(err);
-    }
+    document.getElementById("reverseWordLabel").textContent = word;
+    document.getElementById("reverseWordAnswer").value = "";
+  } catch (err) {
+    console.error("Failed to generate secure captcha:", err);
   }
-
-  document.getElementById("reverseWordLabel").textContent = reverseWord;
-
-  document.getElementById("reverseWordAnswer").value = "";
 }
 
 // AUTH
@@ -1031,55 +1003,33 @@ let mediaType = "none";
     submissionInProgress = false;
   };
 
-  const userAnswer = document.getElementById("verificationAnswer").value.trim();
-
-  if(userAnswer === ""){
-    resetPostState();
-    return;
-  }
-
-  if(Number(userAnswer) !== verificationAnswer){
-    generateVerification();
-    resetPostState();
-    return;
-  }
-
   if (!text && !file) {
     resetPostState();
     return;
   }
 
-  const reverseAnswer = document.getElementById("reverseWordAnswer").value.trim().toLowerCase();
+  const userAnswer = document.getElementById("verificationAnswer").value.trim();
+  const reverseAnswer = document.getElementById("reverseWordAnswer").value.trim();
 
-  if(reverseAnswer === ""){
+  if(userAnswer === "" || reverseAnswer === ""){
     resetPostState();
     return;
   }
 
-  if(reverseAnswer !== reverseWord.split("").reverse().join("")){
-    generateVerification();
-    resetPostState();
-    return;
-  }
-
-  const captchaSnap = await getDoc(doc(db, "captchas", auth.currentUser.uid));
-
-  if(!captchaSnap.exists()){
-    generateVerification();
-    resetPostState();
-    return;
-  }
-
-  const captchaData = captchaSnap.data();
-
-  if(captchaData.mathAnswer !== Number(userAnswer)){
-    generateVerification();
-    resetPostState();
-    return;
-  }
-
-  if(captchaData.reverseWord.split("").reverse().join("").toLowerCase() !== reverseAnswer){
-    generateVerification();
+  // Ask the Cloud Function to verify answers and give us a secure Post Ticket
+  let validatedIp = clientIP;
+  try {
+    const verifyAndGetTicket = httpsCallable(functions, 'verifyAndGetTicket');
+    const result = await verifyAndGetTicket({
+      mathAnswer: userAnswer,
+      reverseAnswer: reverseAnswer
+    });
+    validatedIp = result.data.ip;
+    clientIP = validatedIp; // Update global IP locally
+  } catch (err) {
+    console.error("Verification failed:", err);
+    alert(err.message || "Verification failed. Please try again.");
+    generateVerification(); // Refresh captcha dynamically
     resetPostState();
     return;
   }
@@ -1237,11 +1187,8 @@ batch.set(postRef,{
     time: serverTimestamp(),
     mentionedUsers: mentions,
     searchTokens:[...searchTokens],
-    captchaMath: Number(userAnswer),
-    captchaWord: captchaData.reverseWord,
-    ip: clientIP
+    ip: validatedIp
   });
-  
   
   postImage.value = "";
 
@@ -1252,8 +1199,8 @@ batch.set(postRef,{
     }
   );
 
-
-  batch.delete(doc(db, "captchas", auth.currentUser.uid));
+  
+  batch.delete(doc(db, "postTickets", auth.currentUser.uid));
 
 
   await batch.commit();
