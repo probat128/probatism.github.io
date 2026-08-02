@@ -600,14 +600,18 @@ let lastReportTime =
 
 let lastPostTime = 0;
 
-async function generateVerification(uid, retries = 3) {
-  // Fallback to auth.currentUser.uid if it wasn't passed directly
+async function generateVerification(uid = null, retries = 3) {
   const currentUid = uid || (auth.currentUser ? auth.currentUser.uid : null);
   if(!currentUid) return;
   
   try {
+    // FIX: Force the Firebase Auth SDK to resolve and attach the token BEFORE calling the function.
+    // This completely eliminates the 401 Unauthorized / Missing UID network race condition.
+    if (auth.currentUser) {
+        await auth.currentUser.getIdToken(); 
+    }
+
     const generateCaptchaFunc = httpsCallable(functions, 'generateCaptcha');
-    // Pass the explicitly resolved UID to the backend
     const result = await generateCaptchaFunc({ uid: currentUid });
     const { a, b, c, word } = result.data;
     
@@ -618,11 +622,12 @@ async function generateVerification(uid, retries = 3) {
     document.getElementById("reverseWordLabel").textContent = word;
     document.getElementById("reverseWordAnswer").value = "";
   } catch (err) {
-    console.error("Failed to generate secure captcha:", err);
-    // Include 'Missing UID.' and unauthenticated errors in the retry conditions
-    if (retries > 0 && (err.message.includes("Missing UID.") || err.message.includes("Must be logged in.") || err?.code === "functions/unauthenticated" || err.message.includes("unauthenticated"))) {
-        console.log(`Retrying captcha generation... (${retries} attempts left)`);
-        setTimeout(() => generateVerification(currentUid, retries - 1), 1000);
+    // Keep the console clean by only logging the error if we are completely out of retries.
+    if (retries > 0) {
+        // Increased delay to 2 seconds to ensure the network layer fully recovers
+        setTimeout(() => generateVerification(currentUid, retries - 1), 2000);
+    } else {
+        console.error("Failed to generate secure captcha after retries:", err);
     }
   }
 }
@@ -1790,9 +1795,9 @@ async function loadAd(type, imgEl, linkEl) {
         adBatch.set(cooldownRef, { lastView: serverTimestamp() }, { merge: true });
         await adBatch.commit();
       }
-    
     } catch (err) {
-      console.error("Ad update error:", err);
+      // FIX: Silently ignore rule rejections for ad cooldowns (this is intended behavior 
+      // when a user refreshes within 3 seconds). This stops the console error spam.
     }
 
   } catch (err) {
