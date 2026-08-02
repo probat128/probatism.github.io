@@ -579,39 +579,70 @@ let currentSearch = "";
 let verificationAnswer = 0;
 let reportSubmitting = false;
 
+let reverseWord = "";
+
 let searchLastVisible = null;
+
 let searchCount = 0;
 let searchWindowStart = 0;
 const MAX_SEARCHES_PER_DAY = 20;
 const SEARCH_WINDOW_MS = 24 * 60 * 60 * 1000;
+
 const BLACKLIST = [
   "vN3Tz8RjW5c1Ah9MpQ7xLs2KeY4DfHb6vN3Tz8RjW5c1Ah9MpQ7xLs2KeY4DfHb6",
   "Gt6Vq1Nz8Hd4Pk9XmR2aYw7LcJ5TfBe3vN3Tz8RjW5c1Ah9MpQ7xLs2KeY4DfHb6",
   "r8FJk1Zw6DnQ4Xa9HvM2pYs7TcL5BeN3vN3Tz8RjW5c1Ah9MpQ7xLs2KeY4DfHb6"
 ];
 
-let lastReportTime = parseInt(localStorage.getItem("lastReportTime")) || 0;
+
+let lastReportTime =
+  parseInt(localStorage.getItem("lastReportTime")) || 0;
+
 let lastPostTime = 0;
 
-// NEW CLIENT-SIDE CAPTCHA VARIABLES
-let currentMathAnswer = 0;
-let currentReverseWord = "";
+async function generateVerification(){
 
-// Completely rewritten to generate instantly without Cloud Functions
-async function generateVerification() {
   const a = Math.floor(Math.random() * 10);
   const b = Math.floor(Math.random() * 10);
   const c = Math.floor(Math.random() * 10);
-  currentMathAnswer = (a * b) + c;
 
-  const words = ["mountain","candle","window","blanket","pencil","bottle","garden","pillow","planet","forest","ladder","market","guitar"];
-  const word = words[Math.floor(Math.random() * words.length)];
-  currentReverseWord = word.split("").reverse().join("").toLowerCase();
+  verificationAnswer = (a * b) + c;
 
-  document.getElementById("verificationLabel").textContent = `Verification: Answer: (${a} × ${b}) + ${c}`;
+  document.getElementById("verificationLabel").textContent =
+    `Verification: Answer: (${a} × ${b}) + ${c}`;
+
   document.getElementById("verificationAnswer").value = "";
 
-  document.getElementById("reverseWordLabel").textContent = word;
+
+  const words = [
+    "mountain","candle","window","blanket","pencil",
+    "bottle","garden","pillow","planet","forest",
+    "ladder","candle","market","guitar","window"
+  ];
+
+  reverseWord = words[Math.floor(Math.random() * words.length)];
+
+  if(auth.currentUser){
+
+    try{
+
+      await setDoc(
+        doc(db, "captchas", auth.currentUser.uid),
+        {
+          uid: auth.currentUser.uid,
+          createdAt: Date.now(),
+          mathAnswer: verificationAnswer,
+          reverseWord: reverseWord
+        }
+      );
+
+    }catch(err){
+      console.error(err);
+    }
+  }
+
+  document.getElementById("reverseWordLabel").textContent = reverseWord;
+
   document.getElementById("reverseWordAnswer").value = "";
 }
 
@@ -635,7 +666,7 @@ onAuthStateChanged(auth, async (user) => {
  
 
   currentUID = user.uid;
-  await generateVerification(user.uid);
+  await generateVerification();
 
   try{
 
@@ -880,12 +911,17 @@ postButton.onclick = async ()=>{
       return;
     }
 
-    if (submissionInProgress || postClickLocked) {
+    if (submissionInProgress) {
       return;
     }
 
     submissionInProgress = true;
+
     postButton.disabled = true;
+
+    if (postClickLocked) return;
+
+
     postClickLocked = true;
 
     // FIX: Block the "unknown" IP loophole on the client side
@@ -915,16 +951,13 @@ postButton.onclick = async ()=>{
   if (!auth.currentUser || auth.currentUser.isAnonymous) {
     if (postImage.files.length > 0) {
       postClickLocked = false;
-      postButton.disabled = false;
-      submissionInProgress = false;
       return;
     }
   }
 
+
   if(isPosting || imageUploadInProgress){
     postClickLocked = false;
-    postButton.disabled = false;
-    submissionInProgress = false;
     return;
   }
 
@@ -998,37 +1031,59 @@ let mediaType = "none";
     submissionInProgress = false;
   };
 
+  const userAnswer = document.getElementById("verificationAnswer").value.trim();
+
+  if(userAnswer === ""){
+    resetPostState();
+    return;
+  }
+
+  if(Number(userAnswer) !== verificationAnswer){
+    generateVerification();
+    resetPostState();
+    return;
+  }
+
   if (!text && !file) {
     resetPostState();
     return;
   }
 
-  const userAnswer = document.getElementById("verificationAnswer").value.trim();
-  const reverseAnswer = document.getElementById("reverseWordAnswer").value.trim();
+  const reverseAnswer = document.getElementById("reverseWordAnswer").value.trim().toLowerCase();
 
-  if (userAnswer === "" || reverseAnswer === "") {
+  if(reverseAnswer === ""){
     resetPostState();
     return;
   }
 
-  
-  if (Number(userAnswer) !== currentMathAnswer || reverseAnswer.toLowerCase() !== currentReverseWord) {
+  if(reverseAnswer !== reverseWord.split("").reverse().join("")){
     generateVerification();
     resetPostState();
-    
-    const msg = document.getElementById("cooldownMsg");
-    msg.innerText = "Incorrect answer for verification.";
-    msg.style.display = "block";
-    setTimeout(()=>{
-      msg.style.display = "none";
-    }, 4000);
-    
     return;
   }
 
+  const captchaSnap = await getDoc(doc(db, "captchas", auth.currentUser.uid));
 
+  if(!captchaSnap.exists()){
+    generateVerification();
+    resetPostState();
+    return;
+  }
 
-  
+  const captchaData = captchaSnap.data();
+
+  if(captchaData.mathAnswer !== Number(userAnswer)){
+    generateVerification();
+    resetPostState();
+    return;
+  }
+
+  if(captchaData.reverseWord.split("").reverse().join("").toLowerCase() !== reverseAnswer){
+    generateVerification();
+    resetPostState();
+    return;
+  }
+
   isPosting = true;
   postButton.disabled = true;
   
@@ -1080,13 +1135,14 @@ let mediaType = "none";
   const mentions = await extractMentions(text);
 
   const validMentions = mentions.filter(m => m && m.uid);
+
   if (validMentions.length > 3) {
     mentionLimitModal.style.display = "flex";
 
     isPosting = false;
     postButton.disabled = false;
     postClickLocked = false;
-    submissionInProgress = false;
+
     return;
   }
 
@@ -1095,7 +1151,6 @@ if(!auth.currentUser){
   isPosting = false;
   postButton.disabled = false;
   postClickLocked = false;
-  submissionInProgress = false;
   return;
 }
 
@@ -1182,8 +1237,11 @@ batch.set(postRef,{
     time: serverTimestamp(),
     mentionedUsers: mentions,
     searchTokens:[...searchTokens],
+    captchaMath: Number(userAnswer),
+    captchaWord: captchaData.reverseWord,
     ip: clientIP
   });
+  
   
   postImage.value = "";
 
@@ -1194,6 +1252,8 @@ batch.set(postRef,{
     }
   );
 
+
+  batch.delete(doc(db, "captchas", auth.currentUser.uid));
 
 
   await batch.commit();
@@ -1772,10 +1832,11 @@ async function loadAd(type, imgEl, linkEl) {
         adBatch.update(adRef, { impressionsLeft: increment(-1) });
         adBatch.set(cooldownRef, { lastView: serverTimestamp() }, { merge: true });
         await adBatch.commit();
+      } else {
+        await updateDoc(adRef, { impressionsLeft: increment(-1) });
       }
     } catch (err) {
-      // FIX: Silently ignore rule rejections for ad cooldowns (this is intended behavior 
-      // when a user refreshes within 3 seconds). This stops the console error spam.
+      console.error("4:", err);
     }
 
   } catch (err) {
