@@ -528,13 +528,11 @@ async function checkBan(uid, ip){
   try {
     let isBanned = false;
     
-    
     if(uid){
       const banSnap = await getDoc(doc(db, "bannedUsers", uid));
       if(banSnap.exists()) isBanned = true;
     }
 
-   
     if(!isBanned && ip && ip !== "unknown"){
       const ipSnap = await getDoc(doc(db, "bannedIPs", ip));
       if(ipSnap.exists()) isBanned = true;
@@ -561,7 +559,23 @@ async function checkBan(uid, ip){
     return false;
   } catch(err){
     console.error("Ban check failed:", err);
-    return false;
+    
+    const modal = document.createElement("div");
+    modal.style.position = "fixed";
+    modal.style.top = "0"; modal.style.left = "0";
+    modal.style.width = "100%"; modal.style.height = "100%";
+    modal.style.background = "rgba(232,224,207,0.95)";
+    modal.style.display = "flex"; modal.style.justifyContent = "center";
+    modal.style.alignItems = "center"; modal.style.zIndex = "999999";
+    modal.innerHTML = `
+      <div style="background: rgb(232,224,207); border:2px solid rgb(91,46,97); padding:20px; text-align:center;">
+        <p>Security verification failed. Access restricted.</p>
+        <button id="bannedOkBtn">OK</button>
+      </div>
+    `;
+    document.body.appendChild(modal);
+    document.getElementById("bannedOkBtn").onclick = ()=>{ window.location.href = "../index.html"; };
+    return true; 
   }
 }
 
