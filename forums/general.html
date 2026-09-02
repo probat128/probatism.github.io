@@ -674,10 +674,11 @@ async function fetchSecureIP() {
           clientIP = data.ip;
           return data.ip;
         }
-  } catch (e) {
+    } catch (e) {
     console.error("Failed to fetch secure IP:", e);
   }
-  return clientIP;
+  
+  return "unknown";
 }
 
 // AUTH
