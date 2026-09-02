@@ -526,19 +526,17 @@ function isAdmin() {
 
 async function checkBan(uid, ip){
   try {
-    let isBanned = false;
-    
-    if(uid){
-      const banSnap = await getDoc(doc(db, "bannedUsers", uid));
-      if(banSnap.exists()) isBanned = true;
-    }
+        let isBanned = false;
+        
+        // Use the Cloud Function's ban check to save DB reads, only querying DB for user UID bans
+        if (ip === "banned") {
+          isBanned = true;
+        } else if (uid) {
+          const banSnap = await getDoc(doc(db, "bannedUsers", uid));
+          if (banSnap.exists()) isBanned = true;
+        }
 
-    if(!isBanned && ip && ip !== "unknown"){
-      const ipSnap = await getDoc(doc(db, "bannedIPs", ip));
-      if(ipSnap.exists()) isBanned = true;
-    }
-
-    if(isBanned){
+        if(isBanned){
       const modal = document.createElement("div");
       modal.style.position = "fixed";
       modal.style.top = "0"; modal.style.left = "0";
@@ -669,10 +667,13 @@ async function fetchSecureIP() {
       headers: { "Authorization": "Bearer " + token }
     });
     const data = await response.json();
-    if (data.ip) {
-      clientIP = data.ip;
-      return data.ip;
-    }
+        if (response.status === 403 || data.error) {
+          return "banned";
+        }
+        if (data.ip) {
+          clientIP = data.ip;
+          return data.ip;
+        }
   } catch (e) {
     console.error("Failed to fetch secure IP:", e);
   }
