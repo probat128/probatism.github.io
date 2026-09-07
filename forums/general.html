@@ -613,49 +613,24 @@ let lastReportTime =
 let lastPostTime = 0;
 
 async function generateVerification(){
+  if(!auth.currentUser) return;
+  try {
+    const generateCaptchaFn = httpsCallable(functions, 'generateCaptcha');
+    const result = await generateCaptchaFn();
+    const data = result.data;
 
-  const a = Math.floor(Math.random() * 10);
-  const b = Math.floor(Math.random() * 10);
-  const c = Math.floor(Math.random() * 10);
+    verificationAnswer = (data.a * data.b) + data.c;
+    reverseWord = data.word;
 
-  verificationAnswer = (a * b) + c;
+    document.getElementById("verificationLabel").textContent =
+      `Verification: Answer: (${data.a} × ${data.b}) + ${data.c}`;
+    document.getElementById("verificationAnswer").value = "";
 
-  document.getElementById("verificationLabel").textContent =
-    `Verification: Answer: (${a} × ${b}) + ${c}`;
-
-  document.getElementById("verificationAnswer").value = "";
-
-
-  const words = [
-    "mountain","candle","window","blanket","pencil",
-    "bottle","garden","pillow","planet","forest",
-    "ladder","candle","market","guitar","window"
-  ];
-
-  reverseWord = words[Math.floor(Math.random() * words.length)];
-
-  if(auth.currentUser){
-
-    try{
-
-      await setDoc(
-        doc(db, "captchas", auth.currentUser.uid),
-        {
-          uid: auth.currentUser.uid,
-          createdAt: Date.now(),
-          mathAnswer: verificationAnswer,
-          reverseWord: reverseWord
-        }
-      );
-
-    }catch(err){
-      console.error(err);
-    }
+    document.getElementById("reverseWordLabel").textContent = reverseWord;
+    document.getElementById("reverseWordAnswer").value = "";
+  } catch(err) {
+    console.error(err);
   }
-
-  document.getElementById("reverseWordLabel").textContent = reverseWord;
-
-  document.getElementById("reverseWordAnswer").value = "";
 }
 
 async function fetchSecureIP() {
@@ -1070,28 +1045,6 @@ let mediaType = "none";
   }
 
   if(reverseAnswer !== reverseWord.split("").reverse().join("")){
-    generateVerification();
-    resetPostState();
-    return;
-  }
-
-  const captchaSnap = await getDoc(doc(db, "captchas", auth.currentUser.uid));
-
-  if(!captchaSnap.exists()){
-    generateVerification();
-    resetPostState();
-    return;
-  }
-
-  const captchaData = captchaSnap.data();
-
-  if(captchaData.mathAnswer !== Number(userAnswer)){
-    generateVerification();
-    resetPostState();
-    return;
-  }
-
-  if(captchaData.reverseWord.split("").reverse().join("").toLowerCase() !== reverseAnswer){
     generateVerification();
     resetPostState();
     return;
