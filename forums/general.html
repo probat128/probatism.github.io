@@ -185,7 +185,7 @@ input[type="number"]::-webkit-inner-spin-button {
 <span id="verificationLabel" style="margin-left:10px;">
   Verification:
 </span>
-<img id="mathCaptchaImg" alt="Math captcha" style="vertical-align:middle; height:26px; margin-left:5px;">
+<img id="mathCaptchaImg" alt="Math captcha" style="vertical-align:middle; height:26px; margin-left:5px; filter: grayscale(100%) contrast(300%) brightness(0.2);">
 
 <input
     type="number"
@@ -205,7 +205,7 @@ input[type="number"]::-webkit-inner-spin-button {
 <span style="margin-left:15px;">
   Type this word backwards:
 </span>
-<img id="wordCaptchaImg" alt="Word captcha" style="vertical-align:middle; height:26px; margin-left:5px;">
+<img id="wordCaptchaImg" alt="Word captcha" style="vertical-align:middle; height:26px; margin-left:5px; filter: grayscale(100%) contrast(300%) brightness(0.2);">
 
 <input
   type="text"
@@ -1243,8 +1243,18 @@ batch.set(postRef,{
   postButton.disabled = false;
 
   const msg = document.getElementById("cooldownMsg");
-  msg.innerText = "Please wait a few seconds before posting again.";
-  msg.style.display = "block";
+  
+  // If Firestore rejects the write due to a failed rule (incorrect captcha)
+  if (err.code === "permission-denied" || (err.message && err.message.toLowerCase().includes("permission"))) {
+    msg.innerText = "Incorrect captcha.";
+    msg.style.display = "block";
+    
+    // Auto-refresh captcha to prevent spamming guesses against the same challenge
+    generateVerification().catch(console.error);
+  } else {
+    msg.innerText = "Please wait a few seconds before posting again.";
+    msg.style.display = "block";
+  }
 
   setTimeout(() => {
     msg.style.display = "none";
