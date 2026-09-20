@@ -185,6 +185,7 @@ input[type="number"]::-webkit-inner-spin-button {
 <span id="verificationLabel" style="margin-left:10px;">
   Verification:
 </span>
+<img id="mathCaptchaImg" alt="Math captcha" style="vertical-align:middle; height:26px; margin-left:5px;">
 
 <input
     type="number"
@@ -202,8 +203,9 @@ input[type="number"]::-webkit-inner-spin-button {
 >
 
 <span style="margin-left:15px;">
-  Type "<span id="reverseWordLabel"></span>" backwards:
+  Type this word backwards:
 </span>
+<img id="wordCaptchaImg" alt="Word captcha" style="vertical-align:middle; height:26px; margin-left:5px;">
 
 <input
   type="text"
@@ -588,10 +590,7 @@ let submissionInProgress = false;
 let postToDelete = null;
 let pendingReport = null;
 let currentSearch = "";
-let verificationAnswer = 0;
 let reportSubmitting = false;
-
-let reverseWord = "";
 
 let searchLastVisible = null;
 
@@ -619,14 +618,11 @@ async function generateVerification(){
     const result = await generateCaptchaFn();
     const data = result.data;
 
-    verificationAnswer = (data.a * data.b) + data.c;
-    reverseWord = data.word;
-
-    document.getElementById("verificationLabel").textContent =
-      `Verification: Answer: (${data.a} × ${data.b}) + ${data.c}`;
+    document.getElementById("verificationLabel").textContent = "Verification:";
+    document.getElementById("mathCaptchaImg").src = data.mathImage;
     document.getElementById("verificationAnswer").value = "";
 
-    document.getElementById("reverseWordLabel").textContent = reverseWord;
+    document.getElementById("wordCaptchaImg").src = data.wordImage;
     document.getElementById("reverseWordAnswer").value = "";
   } catch(err) {
     console.error(err);
@@ -1026,12 +1022,6 @@ let mediaType = "none";
     return;
   }
 
-  if(Number(userAnswer) !== verificationAnswer){
-    generateVerification();
-    resetPostState();
-    return;
-  }
-
   if (!text && !file) {
     resetPostState();
     return;
@@ -1040,12 +1030,6 @@ let mediaType = "none";
   const reverseAnswer = document.getElementById("reverseWordAnswer").value.trim().toLowerCase();
 
   if(reverseAnswer === ""){
-    resetPostState();
-    return;
-  }
-
-  if(reverseAnswer !== reverseWord.split("").reverse().join("")){
-    generateVerification();
     resetPostState();
     return;
   }
