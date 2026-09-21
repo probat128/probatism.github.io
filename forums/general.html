@@ -1051,19 +1051,26 @@ let mediaType = "none";
     const filenameForTicket = `${uploadId}.${extension}`;
 
 
-    try {
+        try {
       await setDoc(doc(db, "uploadTickets", auth.currentUser.uid), {
         filename: filenameForTicket,
-        timestamp: serverTimestamp()
+        timestamp: serverTimestamp(),
+        captchaMath: Number(userAnswer),
+        captchaWord: reverseAnswer
       });
     } catch(err) {
-      console.error("Upload rate limited:", err);
+      console.error("Upload ticket denied:", err);
       isPosting = false;
       postButton.disabled = false;
       submissionInProgress = false;
       postClickLocked = false;
       const msg = document.getElementById("cooldownMsg");
-      msg.innerText = "Please wait 40 seconds before uploading another file.";
+      if (err.code === "permission-denied" || (err.message && err.message.toLowerCase().includes("permission"))) {
+        msg.innerText = "Incorrect captcha.";
+        generateVerification().catch(console.error);
+      } else {
+        msg.innerText = "Please wait 40 seconds before uploading another file.";
+      }
       msg.style.display = "block";
       setTimeout(()=>{ msg.style.display = "none"; }, 4000);
       return;
