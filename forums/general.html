@@ -1936,44 +1936,44 @@ massDeleteBtn.onclick = async () => {
 
     if (requestSnap.exists()) {
       const reqData = requestSnap.data();
-      
+
       if (reqData.approved === false) {
         alert("Your request is still pending.");
         isMassDeleting = false;
         massDeleteBtn.disabled = false;
         massDeleteBtn.innerText = "Delete Last X Posts";
         return;
-      } 
-      
+      }
+
       if (reqData.approved === true) {
-        if (!confirm(`SECURITY WARNING: Your request was approved. Are you sure you want to permanently delete the last ${reqData.count} posts and their media?`)) {
+        const postIds = Array.isArray(reqData.postIds) ? reqData.postIds : [];
+
+        if (!confirm(`SECURITY WARNING: Your request was approved. Are you sure you want to permanently delete the ${postIds.length} post(s) that were captured when this request was filed? (Posts made since then are NOT touched.)`)) {
           isMassDeleting = false;
           massDeleteBtn.disabled = false;
           massDeleteBtn.innerText = "Delete Last X Posts";
           return;
         }
 
-        const q = query(
-          collection(db, "posts"),
-          where("subforum", "==", "general"),
-          orderBy("time", "desc"),
-          limit(reqData.count)
+        // Fetch the EXACT posts snapshotted when the request was filed — never a fresh
+        // "last N" query — so anything posted after filing can't get swept in.
+        const postSnaps = await Promise.all(
+          postIds.map(id => getDoc(doc(db, "posts", id)))
         );
-        
-        const snap = await getDocs(q);
-        
-        if (snap.empty) {
-          alert("No posts found to delete.");
+        const existingSnaps = postSnaps.filter(s => s.exists());
+
+        if (existingSnaps.length === 0) {
+          alert("None of the captured posts still exist.");
         } else {
           const batch = writeBatch(db);
-          const storagePromises = [];
+          const imagesToDelete = [];
 
-          snap.docs.forEach(docSnap => {
+          existingSnaps.forEach(docSnap => {
             const postData = docSnap.data();
             if (postData.image && postData.image.includes("firebasestorage")) {
               const imageRef = ref(storage, postData.image);
               if (postData.authorUID && imageRef.fullPath.startsWith(`postImages/${postData.authorUID}/`)) {
-                storagePromises.push(deleteObject(imageRef).catch(e => console.warn("Storage item missing/failed:", e)));
+                imagesToDelete.push(imageRef);
               } else {
                 console.warn("Skipped storage delete: image path did not belong to this post's author.");
               }
@@ -1981,10 +1981,18 @@ massDeleteBtn.onclick = async () => {
             batch.delete(docSnap.ref);
           });
 
-          await Promise.all(storagePromises);
+          // Commit the post deletions FIRST. If this fails, nothing happened and no
+          // images are orphaned. Storage cleanup only runs once the posts are actually
+          // gone, so a failed commit can never leave a post with a dead image link.
           await batch.commit();
 
-          alert(`Successfully deleted ${snap.size} posts.`);
+          await Promise.all(
+            imagesToDelete.map(imageRef =>
+              deleteObject(imageRef).catch(e => console.warn("Storage item missing/failed:", e))
+            )
+          );
+
+          alert(`Successfully deleted ${existingSnaps.length} posts.`);
           massDeleteCount.value = "";
           postsDiv.innerHTML = "";
           lastVisible = null;
@@ -1992,18 +2000,32 @@ massDeleteBtn.onclick = async () => {
           loadPosts();
         }
 
-
         await deleteDoc(requestRef);
       }
     } else {
+      // Snapshot exactly which posts exist right now — this list is what gets deleted
+      // later, regardless of what gets posted between filing and approval.
+      const q = query(
+        collection(db, "posts"),
+        where("subforum", "==", "general"),
+        orderBy("time", "desc"),
+        limit(count)
+      );
+      const snap = await getDocs(q);
+      const postIds = snap.docs.map(d => d.id);
 
-      await setDoc(requestRef, {
-        count: count,
-        approved: false,
-        requestedAt: serverTimestamp(),
-        adminUID: currentUID
-      });
-      alert(`Mass delete request for ${count} posts created. Tell the owner.`);
+      if (postIds.length === 0) {
+        alert("No posts found to request deletion for.");
+      } else {
+        await setDoc(requestRef, {
+          count: postIds.length,
+          postIds: postIds,
+          approved: false,
+          requestedAt: serverTimestamp(),
+          adminUID: currentUID
+        });
+        alert(`Mass delete request for ${postIds.length} posts created. Tell the other admin to approve it.`);
+      }
     }
 
   } catch (err) {
