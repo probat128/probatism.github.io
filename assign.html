@@ -1,1 +1,359 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Assign Roles</title>
+<style>
+body { font-family: Arial; background: rgb(232,224,207); color: rgb(91,46,97); padding:20px; }
+nav a { color: rgb(91,46,97); margin-right:10px; text-decoration:none; }
+button { margin-top:5px; padding:5px 10px; cursor:pointer; background: rgb(232,224,207); color: rgb(91,46,97); border: 1px solid rgb(91,46,97); }
 
+input[type="text"], select {
+  background: rgb(232,224,207);
+  color: rgb(91,46,97);
+  border: 1px solid rgb(91,46,97);
+  padding:5px;
+}
+
+.modal-bg {
+  display:none;
+  position:fixed;
+  top:0; left:0;
+  width:100%; height:100%;
+  background: rgba(232,224,207,0.8);
+  justify-content:center;
+  align-items:center;
+}
+.modal-content {
+  background:rgb(232,224,207);
+  border:2px solid rgb(91,46,97);
+  padding:20px;
+  width:280px;
+  text-align:center;
+}
+
+#resultCard {
+  display:none;
+  border:1px solid rgb(91,46,97);
+  padding:15px;
+  margin-top:15px;
+  max-width:400px;
+}
+
+#resultCard div { margin-bottom:8px; }
+
+#accessDenied {
+  display:none;
+  border:1px solid rgb(91,46,97);
+  padding:15px;
+  margin-top:15px;
+  max-width:400px;
+}
+
+#statusMsg {
+  margin-top:10px;
+  font-size:13px;
+}
+</style>
+</head>
+<body>
+
+<nav>
+<a href="../index.html">Home</a>
+<a href="../doctrine.html">Doctrine</a>
+<a href="../forums.html">Forums</a>
+<a href="../news.html">News</a>
+<a href="../quiz.html">Quiz</a>
+<a href="../signin.html" id="accountLink">Sign In / Sign Up</a>
+<button id="logoutBtn" style="display:none;">Logout</button>
+</nav>
+
+<h1>Assign Roles</h1>
+
+<div id="accessDenied">
+  <p>You don't have permission to view this page.</p>
+</div>
+
+<div id="assignPanel" style="display:none;">
+  <p>Search for a user by username to view or change their role.</p>
+
+  <input type="text" id="searchInput" placeholder="username" autocomplete="off" autocapitalize="off" spellcheck="false">
+  <button id="searchBtn">Search</button>
+
+  <div id="statusMsg"></div>
+
+  <div id="resultCard">
+    <div><b>Username:</b> <span id="resUsername"></span></div>
+    <div><b>UID:</b> <span id="resUid" style="font-size:12px;"></span></div>
+    <div><b>Current role:</b> <span id="resCurrentRole"></span></div>
+    <div>
+      <b>New role:</b>
+      <select id="roleSelect">
+        <option value="user">user</option>
+        <option value="janitor">janitor</option>
+        <option value="mod">mod</option>
+        <option value="admin">admin</option>
+      </select>
+    </div>
+    <button id="updateRoleBtn">Update Role</button>
+    <div id="resultNote" style="font-size:12px; margin-top:8px;"></div>
+  </div>
+</div>
+
+<!-- CONFIRM MODAL -->
+<div id="confirmModal" class="modal-bg">
+  <div class="modal-content">
+    <p id="confirmText">Confirm role change?</p>
+    <button id="confirmYesBtn">Confirm</button>
+    <button id="confirmNoBtn">Cancel</button>
+  </div>
+</div>
+
+<script type="module">
+import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import {
+  getFirestore,
+  doc,
+  getDoc,
+  setDoc,
+  updateDoc
+} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { getAuth, onAuthStateChanged, signOut, signInAnonymously }
+from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAZXfEl3Q68vfJtaLJqODtnQBSVEzWBmc0",
+  authDomain: "probatismm.firebaseapp.com",
+  projectId: "probatismm",
+  storageBucket: "probatismm.firebasestorage.app",
+  messagingSenderId: "746935651152",
+  appId: "1:746935651152:web:82491ddac346bc654a3a55"
+};
+
+let app;
+try {
+  app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
+} catch (e) {
+  console.error("Firebase init error:", e);
+}
+
+const db = getFirestore(app);
+const auth = getAuth(app);
+
+// The one and only hardcoded admin UID list left on any client page.
+const HARDCODED_ADMIN_UIDS = [
+  "IDlmRGgh2PaLx15krpeq5jGU6SJ3",
+  "yORpmIr7jvgruQt7D8oufNi8shh2"
+];
+
+const RANK = { user: 0, janitor: 1, mod: 2, admin: 3 };
+const VALID_ROLES = ["user", "janitor", "mod", "admin"];
+
+const accountLink = document.getElementById("accountLink");
+const logoutBtn = document.getElementById("logoutBtn");
+const accessDenied = document.getElementById("accessDenied");
+const assignPanel = document.getElementById("assignPanel");
+const searchInput = document.getElementById("searchInput");
+const searchBtn = document.getElementById("searchBtn");
+const statusMsg = document.getElementById("statusMsg");
+const resultCard = document.getElementById("resultCard");
+const resUsername = document.getElementById("resUsername");
+const resUid = document.getElementById("resUid");
+const resCurrentRole = document.getElementById("resCurrentRole");
+const roleSelect = document.getElementById("roleSelect");
+const updateRoleBtn = document.getElementById("updateRoleBtn");
+const resultNote = document.getElementById("resultNote");
+const confirmModal = document.getElementById("confirmModal");
+const confirmText = document.getElementById("confirmText");
+const confirmYesBtn = document.getElementById("confirmYesBtn");
+const confirmNoBtn = document.getElementById("confirmNoBtn");
+
+let currentUID = null;
+let isHardcoded = false;
+let currentUserRole = "user";
+let foundUID = null;
+let foundUsername = null;
+let foundRole = "user";
+
+function callerRank() {
+  return RANK[currentUserRole] ?? 0;
+}
+function canAccessPage() {
+  return isHardcoded || currentUserRole === "admin";
+}
+
+async function loadAccess() {
+  try {
+    const selfSnap = await getDoc(doc(db, "users", currentUID));
+    const selfData = selfSnap.exists() ? selfSnap.data() : {};
+    currentUserRole = selfData.role || "user";
+
+    // One-time self-heal for the two hardcoded owner accounts: write role
+    // "admin" into their own doc so general.html (and this page) can read it
+    // off Firestore. Only ever fires until it's already "admin".
+    if (isHardcoded && currentUserRole !== "admin") {
+      try {
+        await setDoc(doc(db, "users", currentUID), { role: "admin" }, { merge: true });
+        currentUserRole = "admin";
+      } catch (err) {
+        console.error("Self-heal failed:", err);
+      }
+    }
+  } catch (err) {
+    console.error(err);
+    currentUserRole = "user";
+  }
+
+  if (canAccessPage()) {
+    accessDenied.style.display = "none";
+    assignPanel.style.display = "block";
+  } else {
+    accessDenied.style.display = "block";
+    assignPanel.style.display = "none";
+  }
+}
+
+onAuthStateChanged(auth, async (user) => {
+  if (!user) {
+    try {
+      await signInAnonymously(auth);
+    } catch (err) {
+      console.error(err);
+    }
+    return;
+  }
+
+  currentUID = user.uid;
+  isHardcoded = HARDCODED_ADMIN_UIDS.includes(currentUID);
+
+  if (!user.isAnonymous) {
+    accountLink.innerText = "Profile";
+    accountLink.href = "../profile.html";
+    logoutBtn.style.display = "inline";
+  } else {
+    accountLink.innerText = "Sign In / Sign Up";
+    accountLink.href = "../signin.html";
+    logoutBtn.style.display = "none";
+  }
+
+  await loadAccess();
+});
+
+logoutBtn.onclick = () => signOut(auth);
+
+async function doSearch() {
+  if (!canAccessPage()) return;
+
+  const usernameLower = searchInput.value.trim().toLowerCase();
+  resultCard.style.display = "none";
+  statusMsg.textContent = "";
+  foundUID = null;
+
+  if (!usernameLower) return;
+
+  statusMsg.textContent = "Searching...";
+
+  try {
+    // Single read: username -> uid lookup, no collection scan.
+    const unameSnap = await getDoc(doc(db, "usernames", usernameLower));
+    if (!unameSnap.exists()) {
+      statusMsg.textContent = "No user found with that username.";
+      return;
+    }
+    const uid = unameSnap.data().uid;
+
+    // Single read: that user's doc.
+    const userSnap = await getDoc(doc(db, "users", uid));
+    if (!userSnap.exists()) {
+      statusMsg.textContent = "That user has no profile document yet — a role can't be assigned.";
+      return;
+    }
+
+    const userData = userSnap.data();
+    foundUID = uid;
+    foundUsername = userData.username || usernameLower;
+    foundRole = userData.role || "user";
+
+    resUsername.textContent = foundUsername;
+    resUid.textContent = uid;
+    resCurrentRole.textContent = foundRole;
+    roleSelect.value = foundRole;
+    resultNote.textContent = "";
+    statusMsg.textContent = "";
+    resultCard.style.display = "block";
+
+    updateResultNote();
+  } catch (err) {
+    console.error(err);
+    statusMsg.textContent = "Search failed. Check console.";
+  }
+}
+
+function updateResultNote() {
+  if (!foundUID) return;
+
+  if (foundUID === currentUID) {
+    resultNote.textContent = "You cannot change your own role here.";
+    updateRoleBtn.disabled = true;
+    return;
+  }
+
+  const targetIsHardcoded = HARDCODED_ADMIN_UIDS.includes(foundUID);
+  if (targetIsHardcoded && !isHardcoded) {
+    resultNote.textContent = "This is a hardcoded owner account — only another hardcoded owner account can change it.";
+    updateRoleBtn.disabled = true;
+    return;
+  }
+
+  if (!isHardcoded && callerRank() <= RANK[foundRole]) {
+    resultNote.textContent = "You cannot change the role of someone at or above your own level.";
+    updateRoleBtn.disabled = true;
+    return;
+  }
+
+  resultNote.textContent = "";
+  updateRoleBtn.disabled = false;
+}
+
+searchBtn.onclick = doSearch;
+searchInput.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") doSearch();
+});
+
+updateRoleBtn.onclick = () => {
+  if (!foundUID) return;
+  updateResultNote();
+  if (updateRoleBtn.disabled) return;
+
+  const newRole = roleSelect.value;
+  if (!VALID_ROLES.includes(newRole)) return;
+
+  confirmText.textContent = `Set ${foundUsername}'s role to "${newRole}"?`;
+  confirmModal.style.display = "flex";
+};
+
+confirmNoBtn.onclick = () => {
+  confirmModal.style.display = "none";
+};
+
+confirmYesBtn.onclick = async () => {
+  confirmModal.style.display = "none";
+  if (!foundUID) return;
+
+  const newRole = roleSelect.value;
+  statusMsg.textContent = "Updating...";
+
+  try {
+    await updateDoc(doc(db, "users", foundUID), { role: newRole });
+    foundRole = newRole;
+    resCurrentRole.textContent = newRole;
+    statusMsg.textContent = "Role updated.";
+    updateResultNote();
+  } catch (err) {
+    console.error(err);
+    statusMsg.textContent = "Update failed — you may not have permission to change this user's role.";
+  }
+};
+</script>
+
+</body>
+</html>
