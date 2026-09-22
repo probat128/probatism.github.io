@@ -638,7 +638,7 @@ async function fetchSecureIP() {
       headers: { "Authorization": "Bearer " + token }
     });
     const data = await response.json();
-        if (response.status === 403 || data.error) {
+        if (response.status === 403) {
           return "banned";
         }
         if (data.ip) {
