@@ -518,14 +518,30 @@ const adminMassDeleteContainer = document.getElementById("adminMassDeleteContain
 const massDeleteCount = document.getElementById("massDeleteCount");
 const massDeleteBtn = document.getElementById("massDeleteBtn");
 
-const adminUIDs = [
-  "IDlmRGgh2PaLx15krpeq5jGU6SJ3",
-  "yORpmIr7jvgruQt7D8oufNi8shh2"
-];
-function isAdmin() {
-  return currentUID && adminUIDs.includes(currentUID);
-}
+// Roles now live on each user's Firestore doc (users/{uid}.role), managed
+// from assign.html — the only place a hardcoded admin UID list still lives
+// on the client. janitor/mod get the same moderation powers as admin on
+// this page (everything except mass delete); only admin gets mass delete.
+let currentUserRole = "user";
 
+function hasModAccess() {
+  return currentUserRole === "janitor" || currentUserRole === "mod" || currentUserRole === "admin";
+}
+function isTrueAdmin() {
+  return currentUserRole === "admin";
+}
+function roleOfUID(uid) {
+  if (!uid) return "user";
+  const cached = userDocCache.get(uid);
+  return (cached && cached.role) ? cached.role : "user";
+}
+function roleTagForPost(post) {
+  const role = roleOfUID(post.authorUID);
+  if (role === "admin") return " (admin)";
+  if (role === "mod") return " (mod)";
+  if (role === "janitor") return " (janitor)";
+  return "";
+}
 async function checkBan(uid, ip){
   try {
         let isBanned = false;
@@ -753,11 +769,14 @@ onAuthStateChanged(auth, async (user) => {
         
       }
 
+      currentUserRole = (userSnap.exists() && userSnap.data().role) ? userSnap.data().role : "user";
+
     } catch(err){
 
       console.error(err);
 
       currentUser = "Anonymous";
+      currentUserRole = "user";
     }
 
     accountLink.innerText = "Profile";
@@ -775,7 +794,7 @@ onAuthStateChanged(auth, async (user) => {
   }
 
   
-  if (isAdmin()) {
+  if (isTrueAdmin()) {
     adminMassDeleteContainer.style.display = "flex";
   } else {
     adminMassDeleteContainer.style.display = "none";
@@ -1495,7 +1514,7 @@ async function loadPosts(){
       ${profilePic}
       <div>
         <b ${safeAuthorClick}>
-          ${safeDisplayNameHtml}${adminUIDs.includes(post.authorUID) ? " (admin)" : ""}
+          ${safeDisplayNameHtml}${roleTagForPost(post)}
         :</b>
 
         <div class="post-content"></div>
@@ -1569,13 +1588,13 @@ async function loadPosts(){
         currentUID === post.authorUID;
 
 
-    if (isOwner || isAdmin()) {
+    if (isOwner || hasModAccess()) {
       const btn = document.createElement("button");
        btn.innerText = "Delete";
 
       btn.onclick = () => {
         
-        if (!isOwner && !isAdmin()) return;
+        if (!isOwner && !hasModAccess()) return;
         showDeleteModal(docSnap.id);
       };
 
@@ -1916,7 +1935,7 @@ mentionLimitOkBtn.onclick = () => {
 let isMassDeleting = false;
 
 massDeleteBtn.onclick = async () => {
-  if (!isAdmin() || isMassDeleting) return;
+  if (!isTrueAdmin() || isMassDeleting) return;
 
   const val = parseInt(massDeleteCount.value);
   if (isNaN(val) || val < 1) {
