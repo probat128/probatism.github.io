@@ -1693,7 +1693,14 @@ confirmDeleteBtn.onclick = async () => {
             postData.image
           );
 
-          await deleteObject(imageRef);
+          if (
+            postData.authorUID &&
+            imageRef.fullPath.startsWith(`postImages/${postData.authorUID}/`)
+          ) {
+            await deleteObject(imageRef);
+          } else {
+            console.warn("Skipped storage delete: image path did not belong to this post's author.");
+          }
 
         }catch(err){
           console.error(
@@ -1965,7 +1972,11 @@ massDeleteBtn.onclick = async () => {
             const postData = docSnap.data();
             if (postData.image && postData.image.includes("firebasestorage")) {
               const imageRef = ref(storage, postData.image);
-              storagePromises.push(deleteObject(imageRef).catch(e => console.warn("Storage item missing/failed:", e)));
+              if (postData.authorUID && imageRef.fullPath.startsWith(`postImages/${postData.authorUID}/`)) {
+                storagePromises.push(deleteObject(imageRef).catch(e => console.warn("Storage item missing/failed:", e)));
+              } else {
+                console.warn("Skipped storage delete: image path did not belong to this post's author.");
+              }
             }
             batch.delete(docSnap.ref);
           });
