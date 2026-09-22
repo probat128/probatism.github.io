@@ -682,7 +682,7 @@ onAuthStateChanged(auth, async (user) => {
 
     if(cooldownSnap.exists()){
       lastReportTime =
-        cooldownSnap.data().lastReportAt || 0;
+        cooldownSnap.data().lastReportAt?.toMillis() || 0;
   }
 
   try {
@@ -1867,7 +1867,7 @@ confirmReportBtn.onclick = async () => {
     await setDoc(
       doc(db, "reportCooldowns", currentUID),
       {
-        lastReportAt: Date.now()
+        lastReportAt: serverTimestamp()
       }
     );
 
