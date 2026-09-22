@@ -1591,23 +1591,6 @@ searchInput.addEventListener("keydown", async (e) => {
 
   if (e.key !== "Enter") return;
 
-  const trimmedValue = searchInput.value.trim();
-
-  // Clearing the box is free — handled here since the native "search"
-  // event never fires on a type="text" input.
-  if (trimmedValue === "") {
-    currentSearch = "";
-
-    postsDiv.innerHTML = "";
-
-    lastVisible = null;
-    searchLastVisible = null;
-
-    loadMoreBtn.style.display = "inline-block";
-
-    loadPosts();
-    return;
-  }
 
   const now = Date.now();
   if (now - searchWindowStart > SEARCH_WINDOW_MS) {
@@ -1615,35 +1598,25 @@ searchInput.addEventListener("keydown", async (e) => {
     searchWindowStart = now;
   }
 
+
   if (searchCount >= MAX_SEARCHES_PER_DAY) {
-    const msg = document.getElementById("cooldownMsg");
-    msg.innerText = "Daily search limit reached. Try again tomorrow.";
-    msg.style.display = "block";
-    setTimeout(() => { msg.style.display = "none"; }, 4000);
     return;
   }
 
-  const nextCount = searchCount + 1;
-  const nextWindowStart = searchWindowStart;
+  currentSearch = searchInput.value.trim();
+
+
+  searchCount++;
+
 
   try {
     await setDoc(doc(db, "searchCooldowns", currentUID), {
-      count: nextCount,
-      windowStart: nextWindowStart
+      count: searchCount,
+      windowStart: searchWindowStart
     }, { merge: true });
   } catch (err) {
     console.error(err);
-
-    const msg = document.getElementById("cooldownMsg");
-    msg.innerText = "Couldn't record your search — please try again.";
-    msg.style.display = "block";
-    setTimeout(() => { msg.style.display = "none"; }, 4000);
-    return;
   }
-
-  searchCount = nextCount;
-  searchWindowStart = nextWindowStart;
-  currentSearch = trimmedValue;
 
   postsDiv.innerHTML = "";
 
@@ -1653,6 +1626,34 @@ searchInput.addEventListener("keydown", async (e) => {
   loadMoreBtn.style.display = "inline-block";
 
   loadPosts();
+});
+
+searchInput.addEventListener("search", async () => {
+
+
+  const now = Date.now();
+  if (now - searchWindowStart > SEARCH_WINDOW_MS) {
+    searchCount = 0;
+    searchWindowStart = now;
+  }
+
+
+  if (searchInput.value.trim() !== "") return;
+
+  if (searchInput.value.trim() !== "") return;
+
+  currentSearch = "";
+
+  postsDiv.innerHTML = "";
+
+  lastVisible = null;
+  searchLastVisible = null;
+
+  loadMoreBtn.style.display =
+    "inline-block";
+
+  loadPosts();
+
 });
 
 
