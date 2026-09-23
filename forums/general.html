@@ -1112,7 +1112,7 @@ let mediaType = "none";
 
   const validMentions = mentions.filter(m => m && m.uid);
 
-  if (validMentions.length > 3) {
+  if (mentions.length > 3) {
     mentionLimitModal.style.display = "flex";
 
     isPosting = false;
