@@ -540,6 +540,7 @@ function roleTagForPost(post) {
   if (role === "admin") return " (admin)";
   if (role === "mod") return " (mod)";
   if (role === "janitor") return " (janitor)";
+  if (role === "vip") return " (vip)";
   return "";
 }
 async function checkBan(uid, ip){
