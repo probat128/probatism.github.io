@@ -89,6 +89,7 @@ input[type="text"], select {
       <b>New role:</b>
       <select id="roleSelect">
         <option value="user">user</option>
+        <option value="vip">vip</option>
         <option value="janitor">janitor</option>
         <option value="mod">mod</option>
         <option value="admin">admin</option>
@@ -145,8 +146,8 @@ const HARDCODED_ADMIN_UIDS = [
   "yORpmIr7jvgruQt7D8oufNi8shh2"
 ];
 
-const RANK = { user: 0, janitor: 1, mod: 2, admin: 3 };
-const VALID_ROLES = ["user", "janitor", "mod", "admin"];
+const RANK = { user: 0, vip: 0, janitor: 1, mod: 2, admin: 3 };
+const VALID_ROLES = ["user", "vip", "janitor", "mod", "admin"];
 
 const accountLink = document.getElementById("accountLink");
 const logoutBtn = document.getElementById("logoutBtn");
