@@ -1,1 +1,176 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>VIP</title>
+<style>
+body { font-family: Arial; background: rgb(232,224,207); color: rgb(91,46,97); padding:20px; }
+nav a { color: rgb(91,46,97); margin-right:10px; text-decoration:none; }
+button { margin-top:5px; padding:5px 10px; cursor:pointer; background: rgb(232,224,207); color: rgb(91,46,97); border: 1px solid rgb(91,46,97); }
+button:disabled { opacity:0.5; cursor:not-allowed; }
 
+#vipCard {
+  border:1px solid rgb(91,46,97);
+  padding:20px;
+  margin-top:15px;
+  max-width:400px;
+}
+
+#vipCard ul { margin:10px 0; padding-left:20px; }
+
+#statusMsg {
+  margin-top:10px;
+  font-size:13px;
+}
+</style>
+</head>
+<body>
+
+<nav>
+<a href="index.html">Home</a>
+<a href="doctrine.html">Doctrine</a>
+<a href="forums.html">Forums</a>
+<a href="news.html">News</a>
+<a href="quiz.html">Quiz</a>
+<a href="signin.html" id="accountLink">Sign In / Sign Up</a>
+<button id="logoutBtn" style="display:none;">Logout</button>
+</nav>
+
+<h1>Get VIP</h1>
+
+<div id="vipCard">
+  <p><b>VIP membership includes:</b></p>
+  <ul>
+    <li>Have the ability to make groups</li>
+    <li>A "vip" tag on your posts</li>
+  </ul>
+
+  <p id="priceText"><b>Price:</b> £4/month</p>
+
+  <button id="buyVipBtn">Get VIP</button>
+  <div id="statusMsg"></div>
+</div>
+
+<script type="module">
+import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import {
+  getFirestore,
+  doc,
+  getDoc
+} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { getAuth, onAuthStateChanged, signOut, signInAnonymously }
+from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAZXfEl3Q68vfJtaLJqODtnQBSVEzWBmc0",
+  authDomain: "probatismm.firebaseapp.com",
+  projectId: "probatismm",
+  storageBucket: "probatismm.firebasestorage.app",
+  messagingSenderId: "746935651152",
+  appId: "1:746935651152:web:82491ddac346bc654a3a55"
+};
+
+let app;
+try {
+  app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
+} catch (e) {
+  console.error("Firebase init error:", e);
+}
+
+const db = getFirestore(app);
+const auth = getAuth(app);
+
+const accountLink = document.getElementById("accountLink");
+const logoutBtn = document.getElementById("logoutBtn");
+const buyVipBtn = document.getElementById("buyVipBtn");
+const statusMsg = document.getElementById("statusMsg");
+
+let currentUID = null;
+let currentUserRole = "user";
+let isSignedIn = false;
+
+// ============================================================
+// PAYMENT INTEGRATION GOES HERE.
+//
+// This is the ONLY function you need to replace once your payment
+// processor (Stripe, PayPal, etc.) is ready. Right now it just shows
+// an alert instead of charging anyone.
+//
+// IMPORTANT: this page can NOT set its own "role" to "vip" directly —
+// Firestore's security rules deliberately block a user from changing
+// their own role (see the "users/{userId}" rules in firestore.rules),
+// so nobody can grant themselves VIP by editing client-side code.
+// When you wire up real payments, the flow should be:
+//   1. This button sends the user to your payment processor
+//      (e.g. redirect to a Stripe Checkout URL).
+//   2. Your payment processor calls a Cloud Function (webhook) once
+//      the payment succeeds.
+//   3. That Cloud Function — running with the Admin SDK, which is
+//      allowed to bypass these security rules — sets the role, using
+//      the same call assign.html uses:
+//        db.collection("users").doc(uid).update({ role: "vip" });
+//
+// Until real payments exist, grant/remove VIP manually for
+// testing from assign.html, which now has "vip" as an assignable role.
+// ============================================================
+async function purchaseVIP() {
+  alert("VIP purchases aren't set up yet — check back soon!");
+}
+
+function renderStatus() {
+  if (!isSignedIn) {
+    statusMsg.innerHTML = 'You need to <a href="signin.html">sign in</a> before purchasing VIP.';
+    buyVipBtn.disabled = true;
+    return;
+  }
+
+  if (currentUserRole === "vip") {
+    statusMsg.textContent = "You already have VIP — thanks for the support!";
+    buyVipBtn.disabled = true;
+    return;
+  }
+
+  statusMsg.textContent = "";
+  buyVipBtn.disabled = false;
+}
+
+onAuthStateChanged(auth, async (user) => {
+  if (!user) {
+    try {
+      await signInAnonymously(auth);
+    } catch (err) {
+      console.error(err);
+    }
+    return;
+  }
+
+  currentUID = user.uid;
+  isSignedIn = !user.isAnonymous;
+
+  if (isSignedIn) {
+    accountLink.innerText = "Profile";
+    accountLink.href = "profile.html";
+    logoutBtn.style.display = "inline";
+
+    try {
+      const userSnap = await getDoc(doc(db, "users", currentUID));
+      currentUserRole = (userSnap.exists() && userSnap.data().role) ? userSnap.data().role : "user";
+    } catch (err) {
+      console.error(err);
+      currentUserRole = "user";
+    }
+  } else {
+    accountLink.innerText = "Sign In / Sign Up";
+    accountLink.href = "signin.html";
+    logoutBtn.style.display = "none";
+    currentUserRole = "user";
+  }
+
+  renderStatus();
+});
+
+logoutBtn.onclick = () => signOut(auth);
+buyVipBtn.onclick = purchaseVIP;
+</script>
+
+</body>
+</html>
