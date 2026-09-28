@@ -1,0 +1,824 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Edit Group</title>
+<style>
+body { font-family: Arial; background: rgb(232,224,207); color: rgb(91,46,97); padding:20px; line-height:1.4; }
+nav a { color: rgb(91,46,97); margin-right:10px; text-decoration:none; }
+button { padding:5px 10px; cursor:pointer; background: rgb(232,224,207); color: rgb(91,46,97); border: 1px solid rgb(91,46,97); margin-top:5px; }
+button:disabled { opacity:0.5; cursor:default; }
+input[type="text"], input[type="password"], input[type="number"], textarea, select {
+  background: rgb(232,224,207); color: rgb(91,46,97); border:1px solid rgb(91,46,97); padding:5px; box-sizing:border-box;
+}
+textarea { width:100%; max-width:500px; height:90px; }
+.tabs { display:flex; gap:10px; margin:15px 0; border-bottom:1px solid rgb(91,46,97); padding-bottom:8px; }
+.tabBtn { padding:6px 14px; border:1px solid rgb(91,46,97); cursor:pointer; }
+.tabBtn.active { background: rgb(91,46,97); color: rgb(232,224,207); }
+.tabPanel { display:none; }
+.tabPanel.active { display:block; }
+.section { border:1px solid rgb(91,46,97); padding:15px; margin-bottom:20px; max-width:600px; }
+.section h3 { margin-top:0; }
+.field { margin-bottom:14px; }
+.field label { display:block; font-weight:bold; margin-bottom:4px; }
+.hint { font-size:12px; color: rgb(149,118,141); margin-top:3px; }
+.dangerBtn { background: rgb(150,0,0); color:white; border:1px solid darkred; }
+.rankRow, .channelRow, .banRow, .logRow {
+  border:1px solid rgb(91,46,97); padding:8px; margin-bottom:8px;
+}
+.rankHeader { display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; }
+.permGrid { display:grid; grid-template-columns: repeat(auto-fill, minmax(220px,1fr)); gap:4px; margin-top:8px; }
+.permGrid label { font-weight:normal; font-size:13px; }
+.inlineForm { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-top:10px; }
+#statusMsg { display:none; padding:8px; border:1px solid rgb(91,46,97); margin:10px 0; max-width:600px; }
+.modal-bg { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background: rgba(232,224,207,0.9); justify-content:center; align-items:center; z-index:9999; }
+.modal-content { background:rgb(232,224,207); border:2px solid rgb(91,46,97); padding:20px; width:320px; text-align:center; }
+.noAccess { color: rgb(149,118,141); }
+.logTime { font-size:11px; opacity:0.7; }
+</style>
+</head>
+<body>
+ 
+<nav>
+<a href="index.html">Home</a>
+<a href="doctrine.html">Doctrine</a>
+<a href="forums.html">Forums</a>
+<a href="news.html">News</a>
+<a href="quiz.html">Quiz</a>
+<a href="groups.html">Groups</a>
+<a href="signin.html" id="accountLink">Sign In / Sign Up</a>
+<button id="logoutBtn" style="display:none;">Logout</button>
+</nav>
+ 
+<h1 id="pageTitle">Edit Group</h1>
+<p id="statusMsg"></p>
+<div id="noAccessMsg" class="noAccess" style="display:none;">You do not have permission to manage this group.</div>
+ 
+<div id="editWrap" style="display:none;">
+ 
+  <div class="tabs">
+    <div class="tabBtn active" data-tab="general" id="tabBtnGeneral">General</div>
+    <div class="tabBtn" data-tab="ranks" id="tabBtnRanks">Ranks</div>
+    <div class="tabBtn" data-tab="channels" id="tabBtnChannels">Channels</div>
+    <div class="tabBtn" data-tab="log" id="tabBtnLog">Log</div>
+  </div>
+ 
+  <!-- ===================== GENERAL ===================== -->
+  <div class="tabPanel active" id="panelGeneral">
+ 
+    <div class="section">
+      <h3>Group Title</h3>
+      <div class="field">
+        <input type="text" id="titleInput" maxlength="50" style="width:100%; max-width:400px;">
+        <button id="saveTitleBtn">Save Title</button>
+        <div class="hint" id="titleCooldownHint"></div>
+      </div>
+    </div>
+ 
+    <div class="section">
+      <h3>Group Description</h3>
+      <div class="field">
+        <textarea id="descInput" maxlength="1200"></textarea>
+        <button id="saveDescBtn">Save Description</button>
+      </div>
+    </div>
+ 
+    <div class="section">
+      <h3>Group Image</h3>
+      <div class="field">
+        <input type="file" id="imageInput" accept="image/jpeg,image/png,image/webp">
+        <div class="hint">Must be exactly 512x512 pixels.</div>
+        <button id="saveImageBtn">Save Image</button>
+        <div class="hint" id="imageCooldownHint"></div>
+      </div>
+    </div>
+ 
+    <div class="section">
+      <h3>Group Banner</h3>
+      <div class="field">
+        <input type="file" id="bannerInput" accept="image/jpeg,image/png,image/webp">
+        <div class="hint">Must be exactly 1500x400 pixels.</div>
+        <button id="saveBannerBtn">Save Banner</button>
+      </div>
+    </div>
+ 
+    <div class="section">
+      <h3>Transfer Ownership</h3>
+      <div class="field">
+        <label>New Owner's Username</label>
+        <input type="text" id="transferUsername">
+      </div>
+      <div class="field">
+        <label>Your Current Password</label>
+        <input type="password" id="transferPassword">
+      </div>
+      <button id="transferBtn">Transfer Ownership</button>
+    </div>
+ 
+    <div class="section">
+      <h3>Delete Group</h3>
+      <p>This permanently deletes the group, its members, ranks, channels, board posts, and logs.</p>
+      <div class="field">
+        <label>Your Current Password</label>
+        <input type="password" id="deletePassword">
+      </div>
+      <button id="deleteGroupBtn" class="dangerBtn">Delete Group</button>
+    </div>
+ 
+  </div>
+ 
+  <!-- ===================== RANKS ===================== -->
+  <div class="tabPanel" id="panelRanks">
+ 
+    <div class="section" id="createRankSection">
+      <h3>Create Rank</h3>
+      <div class="inlineForm">
+        <input type="text" id="newRankName" maxlength="20" placeholder="Rank name">
+        <button id="createRankBtn">Create Rank</button>
+      </div>
+    </div>
+ 
+    <div class="section">
+      <h3>Ranks</h3>
+      <div id="ranksList"></div>
+    </div>
+ 
+    <div class="section" id="changeMemberRankSection">
+      <h3>Change a Member's Rank</h3>
+      <div class="inlineForm">
+        <input type="text" id="memberRankUsername" placeholder="Username">
+        <select id="memberRankSelect"></select>
+        <button id="changeMemberRankBtn">Apply</button>
+      </div>
+    </div>
+ 
+    <div class="section" id="banSection">
+      <h3>Ban a Member</h3>
+      <div class="inlineForm">
+        <input type="text" id="banUsername" placeholder="Username">
+        <button id="banBtn">Ban</button>
+      </div>
+    </div>
+ 
+    <div class="section">
+      <h3>Blacklist</h3>
+      <div id="banList"></div>
+      <button id="loadMoreBansBtn" style="display:none;">Load More</button>
+    </div>
+ 
+  </div>
+ 
+  <!-- ===================== CHANNELS ===================== -->
+  <div class="tabPanel" id="panelChannels">
+    <div class="section">
+      <h3>Create Channel</h3>
+      <div class="inlineForm">
+        <input type="text" id="newChannelName" maxlength="30" placeholder="Channel name">
+        <button id="createChannelBtn">Create Channel</button>
+      </div>
+    </div>
+    <div class="section">
+      <h3>Channels</h3>
+      <div id="channelsList"></div>
+    </div>
+  </div>
+ 
+  <!-- ===================== LOG ===================== -->
+  <div class="tabPanel" id="panelLog">
+    <div class="section">
+      <h3>Activity Log</h3>
+      <div id="logList"></div>
+      <button id="loadMoreLogBtn" style="display:none;">Load More</button>
+    </div>
+  </div>
+ 
+</div>
+ 
+<!-- CONFIRM MODAL -->
+<div class="modal-bg" id="confirmModal">
+  <div class="modal-content">
+    <p id="confirmModalText"></p>
+    <button id="confirmModalYes">Yes</button>
+    <button id="confirmModalNo">No</button>
+  </div>
+</div>
+ 
+<script type="module">
+import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import {
+  getFirestore, doc, getDoc, collection, query, orderBy, limit, startAfter, getDocs, where
+} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { getAuth, onAuthStateChanged, signOut, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-functions.js";
+ 
+const firebaseConfig = {
+  apiKey: "AIzaSyAZXfEl3Q68vfJtaLJqODtnQBSVEzWBmc0",
+  authDomain: "probatismm.firebaseapp.com",
+  projectId: "probatismm",
+  storageBucket: "probatismm.firebasestorage.app",
+  messagingSenderId: "746935651152",
+  appId: "1:746935651152:web:82491ddac346bc654a3a55"
+};
+ 
+let app;
+try { app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0]; }
+catch(e){ console.error("Firebase init error:", e); }
+ 
+const db = getFirestore(app);
+const auth = getAuth(app);
+const functions = getFunctions(app);
+ 
+function escapeHtml(text){
+  return String(text || "")
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+}
+ 
+const params = new URLSearchParams(window.location.search);
+const groupId = params.get("id");
+ 
+const accountLink = document.getElementById("accountLink");
+const logoutBtn = document.getElementById("logoutBtn");
+const statusMsg = document.getElementById("statusMsg");
+ 
+function showStatus(msg, isError){
+  statusMsg.innerText = msg;
+  statusMsg.style.display = msg ? "block" : "none";
+  statusMsg.style.color = isError ? "rgb(150,0,0)" : "rgb(91,46,97)";
+}
+function showConfirm(text, onYes){
+  document.getElementById("confirmModalText").innerText = text;
+  const modal = document.getElementById("confirmModal");
+  modal.style.display = "flex";
+  const yesBtn = document.getElementById("confirmModalYes");
+  const noBtn = document.getElementById("confirmModalNo");
+  const cleanup = () => { modal.style.display = "none"; yesBtn.onclick = null; noBtn.onclick = null; };
+  yesBtn.onclick = () => { cleanup(); onYes(); };
+  noBtn.onclick = cleanup;
+}
+function fileToBase64(file){
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result.split(",")[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+function readImageDimensions(file){
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => { URL.revokeObjectURL(url); resolve({ width: img.naturalWidth, height: img.naturalHeight }); };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("bad image")); };
+    img.src = url;
+  });
+}
+ 
+if (!groupId) {
+  document.getElementById("pageTitle").innerText = "Group not found";
+  showStatus("No group ID was given.", true);
+}
+ 
+let currentUID = null;
+let groupData = null;
+let isOwnerOfGroup = false;
+let myRank = null;
+let ranks = []; // sorted by level ascending
+ 
+function hasPerm(key){
+  if (isOwnerOfGroup) return true;
+  return !!(myRank && myRank.permissions && myRank.permissions[key]);
+}
+ 
+async function init(){
+  const groupSnap = await getDoc(doc(db, "groups", groupId));
+  if (!groupSnap.exists()) {
+    document.getElementById("pageTitle").innerText = "Group not found";
+    return;
+  }
+  groupData = groupSnap.data();
+  document.getElementById("pageTitle").innerText = "Edit Group: " + groupData.title;
+ 
+  isOwnerOfGroup = !!(currentUID && groupData.ownerUID === currentUID);
+ 
+  const ranksSnap = await getDocs(collection(db, "groups", groupId, "ranks"));
+  ranks = [];
+  ranksSnap.forEach(d => ranks.push({ id: d.id, ...d.data() }));
+  ranks.sort((a,b) => a.level - b.level);
+ 
+  myRank = null;
+  if (currentUID && !isOwnerOfGroup) {
+    const mSnap = await getDoc(doc(db, "groups", groupId, "members", currentUID));
+    if (mSnap.exists()) {
+      myRank = ranks.find(r => r.id === mSnap.data().rankId) || null;
+    }
+  }
+ 
+  const canAccess = isOwnerOfGroup || hasPerm("viewLogs") || hasPerm("promoteDemote") || hasPerm("banUnban");
+  if (!canAccess) {
+    document.getElementById("noAccessMsg").style.display = "block";
+    document.getElementById("editWrap").style.display = "none";
+    return;
+  }
+ 
+  document.getElementById("editWrap").style.display = "block";
+ 
+  // Tab visibility: owner sees everything; permission-holders only see Ranks + Log.
+  document.getElementById("tabBtnGeneral").style.display = isOwnerOfGroup ? "block" : "none";
+  document.getElementById("tabBtnChannels").style.display = isOwnerOfGroup ? "block" : "none";
+  if (!isOwnerOfGroup) switchTab("ranks");
+ 
+  // Ranks-tab sub-section gating
+  document.getElementById("createRankSection").style.display = isOwnerOfGroup ? "block" : "none";
+  document.getElementById("changeMemberRankSection").style.display = (isOwnerOfGroup || hasPerm("promoteDemote")) ? "block" : "none";
+  document.getElementById("banSection").style.display = (isOwnerOfGroup || hasPerm("banUnban")) ? "block" : "none";
+ 
+  if (isOwnerOfGroup) populateGeneralTab();
+  renderRanksList();
+  populateMemberRankSelect();
+  if (isOwnerOfGroup) loadChannelsTab();
+  if (isOwnerOfGroup || hasPerm("viewLogs")) loadLog(true);
+  loadBans(true);
+}
+ 
+// ============ TABS ============
+document.querySelectorAll(".tabBtn").forEach(btn => {
+  btn.addEventListener("click", () => switchTab(btn.dataset.tab));
+});
+function switchTab(tab){
+  document.querySelectorAll(".tabBtn").forEach(b => b.classList.toggle("active", b.dataset.tab === tab));
+  document.querySelectorAll(".tabPanel").forEach(p => p.classList.remove("active"));
+  document.getElementById("panel" + tab.charAt(0).toUpperCase() + tab.slice(1)).classList.add("active");
+}
+ 
+// ============ GENERAL TAB ============
+function populateGeneralTab(){
+  document.getElementById("titleInput").value = groupData.title || "";
+  document.getElementById("descInput").value = groupData.description || "";
+ 
+  const titleHint = document.getElementById("titleCooldownHint");
+  if (groupData.titleLastChangedAt) {
+    const last = groupData.titleLastChangedAt.toMillis ? groupData.titleLastChangedAt.toMillis() : 0;
+    const nextAllowed = last + 30*24*60*60*1000;
+    if (Date.now() < nextAllowed) {
+      titleHint.innerText = "Next title change allowed on " + new Date(nextAllowed).toLocaleDateString();
+    } else {
+      titleHint.innerText = "";
+    }
+  }
+ 
+  const imgHint = document.getElementById("imageCooldownHint");
+  if (groupData.imageLastChangedAt) {
+    const last = groupData.imageLastChangedAt.toMillis ? groupData.imageLastChangedAt.toMillis() : 0;
+    const nextAllowed = last + 60*1000;
+    if (Date.now() < nextAllowed) {
+      imgHint.innerText = "Please wait a moment before changing the image again.";
+    } else {
+      imgHint.innerText = "";
+    }
+  }
+}
+ 
+const TITLE_REGEX = /^[A-Za-z\x20-\x2F\x3A-\x40\x5B-\x60\x7B-\x7E]{1,50}$/;
+ 
+document.getElementById("saveTitleBtn").onclick = async () => {
+  const title = document.getElementById("titleInput").value.trim();
+  if (!TITLE_REGEX.test(title)) { showStatus("Title may only contain letters and symbols, up to 50 characters.", true); return; }
+  const btn = document.getElementById("saveTitleBtn");
+  btn.disabled = true;
+  try {
+    const fn = httpsCallable(functions, "changeGroupTitle");
+    await fn({ groupId, title });
+    showStatus("Title updated.", false);
+    groupData.title = title;
+    groupData.titleLastChangedAt = { toMillis: () => Date.now() };
+    populateGeneralTab();
+  } catch(err) {
+    console.error(err);
+    showStatus(err.message || "Failed to update title.", true);
+  } finally { btn.disabled = false; }
+};
+ 
+document.getElementById("saveDescBtn").onclick = async () => {
+  const description = document.getElementById("descInput").value.trim();
+  const btn = document.getElementById("saveDescBtn");
+  btn.disabled = true;
+  try {
+    const fn = httpsCallable(functions, "changeGroupDescription");
+    await fn({ groupId, description });
+    showStatus("Description updated.", false);
+  } catch(err) {
+    console.error(err);
+    showStatus(err.message || "Failed to update description.", true);
+  } finally { btn.disabled = false; }
+};
+ 
+document.getElementById("saveImageBtn").onclick = async () => {
+  const file = document.getElementById("imageInput").files[0];
+  if (!file) { showStatus("Choose an image file first.", true); return; }
+  if (file.size > 2*1024*1024) { showStatus("Image must be 2MB or smaller.", true); return; }
+  try {
+    const dims = await readImageDimensions(file);
+    if (dims.width !== 512 || dims.height !== 512) {
+      showStatus(`Image must be exactly 512x512 pixels (yours is ${dims.width}x${dims.height}).`, true);
+      return;
+    }
+  } catch(e) { showStatus("Could not read that image file.", true); return; }
+ 
+  const btn = document.getElementById("saveImageBtn");
+  btn.disabled = true;
+  try {
+    const imageBase64 = await fileToBase64(file);
+    const fn = httpsCallable(functions, "changeGroupImage");
+    await fn({ groupId, imageBase64 });
+    showStatus("Image updated.", false);
+    document.getElementById("imageInput").value = "";
+  } catch(err) {
+    console.error(err);
+    showStatus(err.message || "Failed to update image.", true);
+  } finally { btn.disabled = false; }
+};
+ 
+document.getElementById("saveBannerBtn").onclick = async () => {
+  const file = document.getElementById("bannerInput").files[0];
+  if (!file) { showStatus("Choose a banner file first.", true); return; }
+  if (file.size > 3*1024*1024) { showStatus("Banner must be 3MB or smaller.", true); return; }
+  try {
+    const dims = await readImageDimensions(file);
+    if (dims.width !== 1500 || dims.height !== 400) {
+      showStatus(`Banner must be exactly 1500x400 pixels (yours is ${dims.width}x${dims.height}).`, true);
+      return;
+    }
+  } catch(e) { showStatus("Could not read that banner file.", true); return; }
+ 
+  const btn = document.getElementById("saveBannerBtn");
+  btn.disabled = true;
+  try {
+    const bannerBase64 = await fileToBase64(file);
+    const fn = httpsCallable(functions, "changeGroupBanner");
+    await fn({ groupId, bannerBase64 });
+    showStatus("Banner updated.", false);
+    document.getElementById("bannerInput").value = "";
+  } catch(err) {
+    console.error(err);
+    showStatus(err.message || "Failed to update banner.", true);
+  } finally { btn.disabled = false; }
+};
+ 
+document.getElementById("transferBtn").onclick = () => {
+  const newOwnerUsername = document.getElementById("transferUsername").value.trim();
+  const password = document.getElementById("transferPassword").value;
+  if (!newOwnerUsername || !password) { showStatus("Enter a username and your password.", true); return; }
+  showConfirm(`Transfer ownership to "${newOwnerUsername}"? This cannot be undone by you alone.`, async () => {
+    const btn = document.getElementById("transferBtn");
+    btn.disabled = true;
+    try {
+      const fn = httpsCallable(functions, "transferGroupOwnership");
+      await fn({ groupId, newOwnerUsername, password });
+      showStatus("Ownership transferred. Reloading...", false);
+      setTimeout(() => window.location.reload(), 1200);
+    } catch(err) {
+      console.error(err);
+      showStatus(err.message || "Failed to transfer ownership.", true);
+    } finally {
+      btn.disabled = false;
+      document.getElementById("transferPassword").value = "";
+    }
+  });
+};
+ 
+document.getElementById("deleteGroupBtn").onclick = () => {
+  const password = document.getElementById("deletePassword").value;
+  if (!password) { showStatus("Enter your password.", true); return; }
+  showConfirm("Delete this group permanently? This cannot be undone.", async () => {
+    const btn = document.getElementById("deleteGroupBtn");
+    btn.disabled = true;
+    try {
+      const fn = httpsCallable(functions, "deleteGroup");
+      await fn({ groupId, password });
+      showStatus("Group deleted. Redirecting...", false);
+      setTimeout(() => window.location.href = "groups.html", 1200);
+    } catch(err) {
+      console.error(err);
+      showStatus(err.message || "Failed to delete group.", true);
+      btn.disabled = false;
+    } finally {
+      document.getElementById("deletePassword").value = "";
+    }
+  });
+};
+ 
+// ============ RANKS TAB ============
+const PERMISSION_KEYS = [
+  ["viewLogs", "View Logs"],
+  ["promoteDemote", "Promote/Demote Lower Ranks"],
+  ["announcements", "Make Announcements"],
+  ["postBoard", "Post on Board"],
+  ["banUnban", "Ban/Unban Members"],
+  ["deleteBoardPosts", "Delete Board Posts"]
+];
+ 
+function renderRanksList(){
+  const listEl = document.getElementById("ranksList");
+  listEl.innerHTML = "";
+  ranks.forEach(r => {
+    const perms = r.permissions || {};
+    const permGridHtml = PERMISSION_KEYS.map(([key,label]) => `
+      <label>
+        <input type="checkbox" data-rank="${r.id}" data-perm="${key}" ${perms[key] ? "checked" : ""}
+          ${(isOwnerOfGroup && !r.isOwnerRank) ? "" : "disabled"}>
+        ${escapeHtml(label)}
+      </label>
+    `).join("");
+ 
+    listEl.insertAdjacentHTML("beforeend", `
+      <div class="rankRow" data-rankid="${r.id}">
+        <div class="rankHeader">
+          <b>${escapeHtml(r.name)}</b> ${r.isOwnerRank ? "(Owner rank)" : ""}
+          ${isOwnerOfGroup && !r.isOwnerRank ? `
+            <span>
+              <input type="text" class="renameInput" data-rankid="${r.id}" maxlength="20" placeholder="New name" style="width:120px;">
+              <button class="renameRankBtn" data-rankid="${r.id}">Rename</button>
+              <button class="deleteRankBtn" data-rankid="${r.id}">Delete</button>
+            </span>
+          ` : ""}
+        </div>
+        <div class="permGrid">${permGridHtml}</div>
+        ${(isOwnerOfGroup && !r.isOwnerRank) ? `<button class="savePermsBtn" data-rankid="${r.id}">Save Permissions</button>` : ""}
+      </div>
+    `);
+  });
+ 
+  listEl.querySelectorAll(".renameRankBtn").forEach(btn => {
+    btn.onclick = async () => {
+      const rankId = btn.dataset.rankid;
+      const input = listEl.querySelector(`.renameInput[data-rankid="${rankId}"]`);
+      const name = input.value.trim();
+      if (!name) return;
+      try {
+        const fn = httpsCallable(functions, "renameRank");
+        await fn({ groupId, rankId, name });
+        showStatus("Rank renamed.", false);
+        await init();
+      } catch(err) { console.error(err); showStatus(err.message || "Failed to rename rank.", true); }
+    };
+  });
+ 
+  listEl.querySelectorAll(".deleteRankBtn").forEach(btn => {
+    btn.onclick = () => {
+      const rankId = btn.dataset.rankid;
+      showConfirm("Delete this rank? Members holding it will be moved to the lowest-level rank.", async () => {
+        try {
+          const fn = httpsCallable(functions, "deleteRank");
+          await fn({ groupId, rankId });
+          showStatus("Rank deleted.", false);
+          await init();
+        } catch(err) { console.error(err); showStatus(err.message || "Failed to delete rank.", true); }
+      });
+    };
+  });
+ 
+  listEl.querySelectorAll(".savePermsBtn").forEach(btn => {
+    btn.onclick = async () => {
+      const rankId = btn.dataset.rankid;
+      const permissions = {};
+      PERMISSION_KEYS.forEach(([key]) => {
+        const cb = listEl.querySelector(`input[data-rank="${rankId}"][data-perm="${key}"]`);
+        permissions[key] = !!(cb && cb.checked);
+      });
+      try {
+        const fn = httpsCallable(functions, "setRankPermissions");
+        await fn({ groupId, rankId, permissions });
+        showStatus("Permissions saved.", false);
+        await init();
+      } catch(err) { console.error(err); showStatus(err.message || "Failed to save permissions.", true); }
+    };
+  });
+}
+ 
+function populateMemberRankSelect(){
+  const sel = document.getElementById("memberRankSelect");
+  sel.innerHTML = "";
+  ranks.filter(r => !r.isOwnerRank).forEach(r => {
+    const opt = document.createElement("option");
+    opt.value = r.id;
+    opt.innerText = r.name;
+    sel.appendChild(opt);
+  });
+}
+ 
+document.getElementById("createRankBtn").onclick = async () => {
+  const name = document.getElementById("newRankName").value.trim();
+  if (!name) return;
+  const btn = document.getElementById("createRankBtn");
+  btn.disabled = true;
+  try {
+    const fn = httpsCallable(functions, "createRank");
+    await fn({ groupId, name });
+    document.getElementById("newRankName").value = "";
+    showStatus("Rank created.", false);
+    await init();
+  } catch(err) {
+    console.error(err);
+    showStatus(err.message || "Failed to create rank.", true);
+  } finally { btn.disabled = false; }
+};
+ 
+document.getElementById("changeMemberRankBtn").onclick = async () => {
+  const targetUsername = document.getElementById("memberRankUsername").value.trim();
+  const newRankId = document.getElementById("memberRankSelect").value;
+  if (!targetUsername || !newRankId) return;
+  const btn = document.getElementById("changeMemberRankBtn");
+  btn.disabled = true;
+  try {
+    const fn = httpsCallable(functions, "changeMemberRank");
+    await fn({ groupId, targetUsername, newRankId });
+    showStatus("Member rank updated.", false);
+    document.getElementById("memberRankUsername").value = "";
+  } catch(err) {
+    console.error(err);
+    showStatus(err.message || "Failed to change member rank.", true);
+  } finally { btn.disabled = false; }
+};
+ 
+document.getElementById("banBtn").onclick = () => {
+  const targetUsername = document.getElementById("banUsername").value.trim();
+  if (!targetUsername) return;
+  showConfirm(`Ban "${targetUsername}" from this group?`, async () => {
+    try {
+      const fn = httpsCallable(functions, "banMember");
+      await fn({ groupId, targetUsername });
+      showStatus("Member banned.", false);
+      document.getElementById("banUsername").value = "";
+      loadBans(true);
+    } catch(err) {
+      console.error(err);
+      showStatus(err.message || "Failed to ban member.", true);
+    }
+  });
+};
+ 
+// ============ BLACKLIST (paginated) ============
+let banLastVisible = null;
+async function loadBans(reset){
+  if (reset) { banLastVisible = null; document.getElementById("banList").innerHTML = ""; }
+  let constraints = [orderBy("bannedAt", "desc"), limit(10)];
+  if (banLastVisible) constraints.splice(1, 0, startAfter(banLastVisible));
+  try {
+    const snap = await getDocs(query(collection(db, "groups", groupId, "bans"), ...constraints));
+    document.getElementById("loadMoreBansBtn").style.display = snap.docs.length === 10 ? "inline-block" : "none";
+    if (snap.docs.length > 0) banLastVisible = snap.docs[snap.docs.length - 1];
+    const canUnban = isOwnerOfGroup || hasPerm("banUnban");
+    snap.forEach(d => {
+      const b = d.data();
+      document.getElementById("banList").insertAdjacentHTML("beforeend", `
+        <div class="banRow">
+          ${escapeHtml(b.username)}
+          ${canUnban ? `<button class="unbanBtn" data-username="${escapeHtml(b.username)}">Unban</button>` : ""}
+        </div>
+      `);
+    });
+    document.querySelectorAll(".unbanBtn").forEach(btn => {
+      btn.onclick = async () => {
+        try {
+          const fn = httpsCallable(functions, "unbanMember");
+          await fn({ groupId, targetUsername: btn.dataset.username });
+          loadBans(true);
+        } catch(err) { console.error(err); showStatus(err.message || "Failed to unban member.", true); }
+      };
+    });
+  } catch(e) {
+    // Read denied for users without banUnban/owner access — expected, not an error to surface.
+  }
+}
+document.getElementById("loadMoreBansBtn").onclick = () => loadBans(false);
+ 
+// ============ CHANNELS TAB ============
+async function loadChannelsTab(){
+  const snap = await getDocs(query(collection(db, "groups", groupId, "channels"), orderBy("order", "asc")));
+  const listEl = document.getElementById("channelsList");
+  listEl.innerHTML = "";
+  snap.forEach(d => {
+    const c = d.data();
+    listEl.insertAdjacentHTML("beforeend", `
+      <div class="channelRow" data-channelid="${d.id}">
+        <b>${escapeHtml(c.name)}</b>
+        <div class="inlineForm">
+          <input type="text" class="renameChannelInput" maxlength="30" placeholder="New name">
+          <button class="renameChannelBtn" data-channelid="${d.id}">Rename</button>
+          <button class="deleteChannelBtn" data-channelid="${d.id}">Delete</button>
+        </div>
+        <div class="inlineForm">
+          <label>Cooldown (seconds):</label>
+          <input type="number" class="cooldownInput" min="0" max="86400" value="${c.cooldownSeconds || 0}" style="width:80px;">
+          <button class="saveCooldownBtn" data-channelid="${d.id}">Save</button>
+        </div>
+      </div>
+    `);
+  });
+ 
+  listEl.querySelectorAll(".renameChannelBtn").forEach(btn => {
+    btn.onclick = async () => {
+      const row = btn.closest(".channelRow");
+      const name = row.querySelector(".renameChannelInput").value.trim();
+      if (!name) return;
+      try {
+        const fn = httpsCallable(functions, "renameChannel");
+        await fn({ groupId, channelId: btn.dataset.channelid, name });
+        showStatus("Channel renamed.", false);
+        loadChannelsTab();
+      } catch(err) { console.error(err); showStatus(err.message || "Failed to rename channel.", true); }
+    };
+  });
+ 
+  listEl.querySelectorAll(".deleteChannelBtn").forEach(btn => {
+    btn.onclick = () => {
+      showConfirm("Delete this channel?", async () => {
+        try {
+          const fn = httpsCallable(functions, "deleteChannel");
+          await fn({ groupId, channelId: btn.dataset.channelid });
+          showStatus("Channel deleted.", false);
+          loadChannelsTab();
+        } catch(err) { console.error(err); showStatus(err.message || "Failed to delete channel.", true); }
+      });
+    };
+  });
+ 
+  listEl.querySelectorAll(".saveCooldownBtn").forEach(btn => {
+    btn.onclick = async () => {
+      const row = btn.closest(".channelRow");
+      const cooldownSeconds = Number(row.querySelector(".cooldownInput").value);
+      try {
+        const fn = httpsCallable(functions, "setChannelCooldown");
+        await fn({ groupId, channelId: btn.dataset.channelid, cooldownSeconds });
+        showStatus("Cooldown saved.", false);
+      } catch(err) { console.error(err); showStatus(err.message || "Failed to save cooldown.", true); }
+    };
+  });
+}
+ 
+document.getElementById("createChannelBtn").onclick = async () => {
+  const name = document.getElementById("newChannelName").value.trim();
+  if (!name) return;
+  try {
+    const fn = httpsCallable(functions, "createChannel");
+    await fn({ groupId, name });
+    document.getElementById("newChannelName").value = "";
+    showStatus("Channel created.", false);
+    loadChannelsTab();
+  } catch(err) { console.error(err); showStatus(err.message || "Failed to create channel.", true); }
+};
+ 
+// ============ LOG TAB (paginated) ============
+let logLastVisible = null;
+async function loadLog(reset){
+  if (reset) { logLastVisible = null; document.getElementById("logList").innerHTML = ""; }
+  let constraints = [where("groupId", "==", groupId), orderBy("createdAt", "desc"), limit(20)];
+  if (logLastVisible) constraints.splice(2, 0, startAfter(logLastVisible));
+  try {
+    const snap = await getDocs(query(collection(db, "groupLogs"), ...constraints));
+    document.getElementById("loadMoreLogBtn").style.display = snap.docs.length === 20 ? "inline-block" : "none";
+    if (snap.docs.length > 0) logLastVisible = snap.docs[snap.docs.length - 1];
+    snap.forEach(d => {
+      const l = d.data();
+      const ms = l.createdAt && l.createdAt.toMillis ? l.createdAt.toMillis() : Date.now();
+      document.getElementById("logList").insertAdjacentHTML("beforeend", `
+        <div class="logRow">
+          <div>${escapeHtml(l.details || l.action)}</div>
+          <div class="logTime">${escapeHtml(l.actorUsername || "Unknown")} &middot; ${new Date(ms).toLocaleString()}</div>
+        </div>
+      `);
+    });
+  } catch(e) {
+    // Read denied for users without viewLogs/owner access — expected, not an error to surface.
+  }
+}
+document.getElementById("loadMoreLogBtn").onclick = () => loadLog(false);
+ 
+// ============ AUTH ============
+onAuthStateChanged(auth, async (user) => {
+  if (!user || user.isAnonymous) {
+    if (!user) { try { await signInAnonymously(auth); } catch(e) { console.error(e); } return; }
+    document.getElementById("noAccessMsg").innerText = "You must be signed in to manage a group.";
+    document.getElementById("noAccessMsg").style.display = "block";
+    accountLink.innerText = "Sign In / Sign Up";
+    accountLink.href = "signin.html";
+    logoutBtn.style.display = "none";
+    return;
+  }
+ 
+  currentUID = user.uid;
+  accountLink.innerText = "Profile";
+  accountLink.href = "profile.html";
+  logoutBtn.style.display = "inline";
+ 
+  if (groupId) await init();
+});
+ 
+logoutBtn.onclick = async () => {
+  await signOut(auth);
+  window.location.href = "index.html";
+};
+</script>
+ 
+</body>
+</html>
