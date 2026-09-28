@@ -1,1 +1,704 @@
-
+<!DOCTYPE html>
+<html>
+<head>
+<title>Group</title>
+<style>
+body { font-family: Arial; background: rgb(232,224,207); color: rgb(91,46,97); padding:0 0 30px 0; line-height:1.4; }
+nav { padding:20px 20px 0 20px; }
+nav a { color: rgb(91,46,97); margin-right:10px; text-decoration:none; }
+.wrap { padding: 0 20px; }
+button { padding:5px 10px; cursor:pointer; background: rgb(232,224,207); color: rgb(91,46,97); border: 1px solid rgb(91,46,97); }
+button:disabled { opacity:0.5; cursor:default; }
+textarea { width:100%; background: rgb(232,224,207); color: rgb(91,46,97); border:1px solid rgb(91,46,97); padding:5px; box-sizing:border-box; }
+ 
+#banner { width:100%; height:200px; object-fit:cover; border-bottom:1px solid rgb(91,46,97); background: rgb(91,46,97); display:block; }
+ 
+.headerRow { display:flex; align-items:center; gap:15px; margin-top:15px; flex-wrap:wrap; }
+#groupImg { width:96px; height:96px; object-fit:cover; border:1px solid rgb(91,46,97); background: rgb(91,46,97); }
+#groupTitle { margin:0; }
+.editGroupBtn { margin-left:auto; }
+ 
+#description { margin-top:15px; white-space:pre-wrap; word-break:break-word; }
+ 
+#announcementBox {
+  margin-top:15px; border:1px solid rgb(91,46,97); padding:10px; background: rgba(91,46,97,0.05);
+}
+#announcementBox h4 { margin:0 0 5px 0; }
+#announcementText { white-space:pre-wrap; word-break:break-word; }
+.noAnnouncement { color: rgb(149,118,141); font-style:italic; }
+ 
+.membershipRow { margin-top:15px; }
+#leaveNote { font-size:12px; color: rgb(149,118,141); }
+ 
+.membersHeader { display:flex; justify-content:space-between; align-items:center; margin-top:25px; flex-wrap:wrap; gap:10px; }
+select { background: rgb(232,224,207); color: rgb(91,46,97); border:1px solid rgb(91,46,97); padding:4px; }
+.membersRow { display:flex; gap:15px; margin-top:10px; align-items:flex-start; }
+.memberItem { text-align:center; width:70px; }
+.memberPic { width:56px; height:56px; object-fit:cover; border:1px solid rgb(91,46,97); background: rgb(91,46,97); cursor:pointer; }
+.memberName { font-size:11px; word-break:break-word; margin-top:3px; cursor:pointer; }
+.pagerRow { margin-top:10px; display:flex; gap:10px; align-items:center; }
+.noMembers { color: rgb(149,118,141); font-size:13px; }
+ 
+#boardSection { margin-top:30px; }
+.channelTabs { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px; }
+.channelTab { padding:5px 10px; border:1px solid rgb(91,46,97); cursor:pointer; }
+.channelTab.active { background: rgb(91,46,97); color: rgb(232,224,207); }
+ 
+.postBox { border:1px solid rgb(91,46,97); padding:8px; margin:8px 0; display:flex; gap:10px; align-items:flex-start; position:relative; }
+.avatar { width:32px; height:32px; object-fit:cover; border:1px solid rgb(91,46,97); background: rgb(91,46,97); flex-shrink:0; cursor:pointer; }
+.contentWrap { flex:1; min-width:0; }
+.postContent { white-space:pre-wrap; word-break:break-word; }
+.postImg { max-width:256px; max-height:256px; margin-top:5px; cursor:pointer; border:1px solid rgb(91,46,97); }
+.postTime { font-size:11px; opacity:0.7; margin-top:3px; }
+.postActions { margin-top:4px; }
+.reply-action-btn { cursor:pointer; font-size:11px; margin-right:10px; color: rgb(91,46,97); font-weight:bold; text-decoration:none; }
+.reply-action-btn:hover { text-decoration:underline; }
+.quote-snippet { border-left:3px solid rgb(91,46,97); padding-left:8px; margin-bottom:5px; font-size:12px; opacity:0.85; background: rgba(91,46,97,0.05); padding-top:4px; padding-bottom:4px; }
+.replying-to-ui {
+  display:none; background: rgb(232,224,207); border:1px solid rgb(91,46,97); padding:5px 10px;
+  margin-bottom:5px; font-size:12px; justify-content:space-between; align-items:center; font-weight:bold;
+}
+.replying-to-ui .cancel-reply { cursor:pointer; font-weight:bold; padding:0 5px; }
+.noPosts { text-align:center; margin-top:10px; color: rgb(149,118,141); font-size:14px; }
+#loadMorePosts { width:100%; margin-top:10px; }
+ 
+.modal-bg { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background: rgba(232,224,207,0.85); justify-content:center; align-items:center; z-index:9999; }
+.modal-content { background:rgb(232,224,207); border:2px solid rgb(91,46,97); padding:20px; width:280px; text-align:center; }
+.imgOverlay { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); justify-content:center; align-items:center; z-index:10000; }
+.imgOverlay img { max-width:90%; max-height:90%; }
+#statusMsg { display:none; padding:8px; border:1px solid rgb(91,46,97); margin-top:10px; max-width:500px; }
+</style>
+</head>
+<body>
+ 
+<nav>
+<a href="index.html">Home</a>
+<a href="doctrine.html">Doctrine</a>
+<a href="forums.html">Forums</a>
+<a href="news.html">News</a>
+<a href="quiz.html">Quiz</a>
+<a href="groups.html">Groups</a>
+<a href="signin.html" id="accountLink">Sign In / Sign Up</a>
+<button id="logoutBtn" style="display:none;">Logout</button>
+</nav>
+ 
+<img id="banner">
+ 
+<div class="wrap">
+ 
+  <div class="headerRow">
+    <img id="groupImg">
+    <h1 id="groupTitle">Loading...</h1>
+    <button id="editGroupBtn" class="editGroupBtn" style="display:none;">Edit Group</button>
+  </div>
+ 
+  <div id="description"></div>
+ 
+  <div id="announcementBox">
+    <h4>Announcement <button id="editAnnouncementBtn" style="display:none; font-size:11px; padding:2px 6px;">Edit</button></h4>
+    <div id="announcementText" class="noAnnouncement">No announcement.</div>
+    <div id="announcementEditWrap" style="display:none; margin-top:8px;">
+      <textarea id="announcementInput" maxlength="1200" style="height:70px;"></textarea>
+      <br>
+      <button id="saveAnnouncementBtn">Save</button>
+      <button id="cancelAnnouncementBtn">Cancel</button>
+    </div>
+  </div>
+ 
+  <div class="membershipRow">
+    <button id="joinBtn" style="display:none;">Join Group</button>
+    <button id="leaveBtn" style="display:none;">Leave Group</button>
+    <span id="leaveNote" style="display:none;">You must transfer ownership before you can leave this group.</span>
+  </div>
+ 
+  <p id="statusMsg"></p>
+ 
+  <div class="membersHeader">
+    <h3 style="margin:0;">Members</h3>
+    <div>
+      View rank:
+      <select id="rankFilter"><option value="">All</option></select>
+    </div>
+  </div>
+  <div class="membersRow" id="membersRow"></div>
+  <div class="noMembers" id="noMembersMsg" style="display:none;">No members in this view.</div>
+  <div class="pagerRow">
+    <button id="prevMembersBtn" disabled>&larr; Previous</button>
+    <button id="nextMembersBtn" disabled>Next &rarr;</button>
+  </div>
+ 
+  <div id="boardSection">
+    <h3>Board</h3>
+    <div class="channelTabs" id="channelTabs"></div>
+ 
+    <div id="composeWrap" style="display:none;">
+      <div id="replyingToBanner" class="replying-to-ui">
+        <span id="replyingToText"></span>
+        <span class="cancel-reply" onclick="cancelReplyTo()">x</span>
+      </div>
+      <textarea id="postText" maxlength="16000" style="height:70px;"></textarea><br>
+      <input type="file" id="postImage" accept="image/jpeg,image/png,image/webp,image/gif">
+      <button id="sendPostBtn">Post</button>
+      <p id="boardCooldownMsg" style="font-size:12px; display:none;"></p>
+    </div>
+    <div id="cannotPostMsg" class="noPosts" style="display:none;">You do not have permission to post in this channel.</div>
+ 
+    <div id="noPostsMsg" class="noPosts" style="display:none;">No posts yet in this channel.</div>
+    <div id="boardPosts"></div>
+    <button id="loadMorePosts" style="display:none;">Load More</button>
+  </div>
+ 
+</div>
+ 
+<!-- IMAGE OVERLAY -->
+<div class="imgOverlay" id="imgOverlay"><img id="fullImg"></div>
+ 
+<!-- CONFIRM MODAL (generic) -->
+<div class="modal-bg" id="confirmModal">
+  <div class="modal-content">
+    <p id="confirmModalText"></p>
+    <button id="confirmModalYes">Yes</button>
+    <button id="confirmModalNo">No</button>
+  </div>
+</div>
+ 
+<!-- SIGN IN REQUIRED MODAL -->
+<div class="modal-bg" id="signinRequiredModal">
+  <div class="modal-content">
+    <p>You must be signed in to do that.</p>
+    <button id="signinRequiredOk">OK</button>
+  </div>
+</div>
+ 
+<script type="module">
+import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import {
+  getFirestore, doc, getDoc, collection, query, where, orderBy, limit, startAfter, getDocs
+} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { getAuth, onAuthStateChanged, signOut, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-functions.js";
+ 
+const firebaseConfig = {
+  apiKey: "AIzaSyAZXfEl3Q68vfJtaLJqODtnQBSVEzWBmc0",
+  authDomain: "probatismm.firebaseapp.com",
+  projectId: "probatismm",
+  storageBucket: "probatismm.firebasestorage.app",
+  messagingSenderId: "746935651152",
+  appId: "1:746935651152:web:82491ddac346bc654a3a55"
+};
+ 
+let app;
+try { app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0]; }
+catch(e){ console.error("Firebase init error:", e); }
+ 
+const db = getFirestore(app);
+const auth = getAuth(app);
+const functions = getFunctions(app);
+ 
+function escapeHtml(text){
+  return String(text || "")
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+}
+function escapeJsString(text){
+  return String(text || "").replace(/\\/g, "\\\\").replace(/'/g, "\\'").replace(/"/g, '\\"').replace(/\r/g, "").replace(/\n/g, "");
+}
+ 
+const params = new URLSearchParams(window.location.search);
+const groupId = params.get("id");
+ 
+const accountLink = document.getElementById("accountLink");
+const logoutBtn = document.getElementById("logoutBtn");
+const statusMsg = document.getElementById("statusMsg");
+ 
+function showStatus(msg, isError){
+  statusMsg.innerText = msg;
+  statusMsg.style.display = msg ? "block" : "none";
+  statusMsg.style.color = isError ? "rgb(150,0,0)" : "rgb(91,46,97)";
+}
+ 
+if (!groupId) {
+  document.getElementById("groupTitle").innerText = "Group not found";
+  showStatus("No group ID was given.", true);
+}
+ 
+let currentUID = null;
+let isAnon = true;
+let groupData = null;
+let myMember = null;
+let myRank = null;
+let isOwnerOfGroup = false;
+let ranksById = {};
+let channels = [];
+let selectedChannelId = null;
+ 
+function hasPerm(key){
+  if (isOwnerOfGroup) return true;
+  return !!(myRank && myRank.permissions && myRank.permissions[key]);
+}
+ 
+// ============ LOAD GROUP ============
+async function loadGroup(){
+  const snap = await getDoc(doc(db, "groups", groupId));
+  if (!snap.exists()) {
+    document.getElementById("groupTitle").innerText = "Group not found";
+    return;
+  }
+  groupData = snap.data();
+  renderGroupHeader();
+  await loadRanks();
+  await refreshMembership();
+  renderAnnouncement();
+  renderMembershipButtons();
+  loadMembers(true);
+  await loadChannels();
+}
+ 
+function renderGroupHeader(){
+  document.getElementById("banner").src = groupData.bannerURL || "";
+  document.getElementById("groupImg").src = groupData.imageURL || "";
+  document.getElementById("groupTitle").innerText = groupData.title;
+  document.getElementById("description").innerText = groupData.description || "";
+  document.title = groupData.title + " - Group";
+}
+ 
+function renderAnnouncement(){
+  const textEl = document.getElementById("announcementText");
+  if (groupData.announcement) {
+    textEl.className = "";
+    textEl.innerText = groupData.announcement;
+  } else {
+    textEl.className = "noAnnouncement";
+    textEl.innerText = "No announcement.";
+  }
+  document.getElementById("editAnnouncementBtn").style.display = (!isAnon && hasPerm("announcements")) ? "inline" : "none";
+}
+ 
+async function loadRanks(){
+  const snap = await getDocs(collection(db, "groups", groupId, "ranks"));
+  ranksById = {};
+  const rankFilter = document.getElementById("rankFilter");
+  rankFilter.innerHTML = '<option value="">All</option>';
+  const ranks = [];
+  snap.forEach(d => { ranksById[d.id] = d.data(); ranks.push({ id: d.id, ...d.data() }); });
+  ranks.sort((a,b) => a.level - b.level);
+  for (const r of ranks) {
+    const opt = document.createElement("option");
+    opt.value = r.id;
+    opt.innerText = r.name;
+    rankFilter.appendChild(opt);
+  }
+}
+ 
+async function refreshMembership(){
+  isOwnerOfGroup = !!(currentUID && groupData.ownerUID === currentUID);
+  myMember = null;
+  myRank = null;
+  if (currentUID) {
+    const mSnap = await getDoc(doc(db, "groups", groupId, "members", currentUID));
+    if (mSnap.exists()) {
+      myMember = mSnap.data();
+      myRank = ranksById[myMember.rankId] || null;
+    }
+  }
+  const canEditGroup = isOwnerOfGroup || hasPerm("viewLogs") || hasPerm("promoteDemote") || hasPerm("banUnban");
+  document.getElementById("editGroupBtn").style.display = canEditGroup ? "inline-block" : "none";
+}
+ 
+function renderMembershipButtons(){
+  const joinBtn = document.getElementById("joinBtn");
+  const leaveBtn = document.getElementById("leaveBtn");
+  const leaveNote = document.getElementById("leaveNote");
+ 
+  if (isAnon) {
+    joinBtn.style.display = "inline-block";
+    leaveBtn.style.display = "none";
+    leaveNote.style.display = "none";
+    return;
+  }
+ 
+  if (isOwnerOfGroup) {
+    joinBtn.style.display = "none";
+    leaveBtn.style.display = "none";
+    leaveNote.style.display = "inline";
+  } else if (myMember) {
+    joinBtn.style.display = "none";
+    leaveBtn.style.display = "inline-block";
+    leaveNote.style.display = "none";
+  } else {
+    joinBtn.style.display = "inline-block";
+    leaveBtn.style.display = "none";
+    leaveNote.style.display = "none";
+  }
+}
+ 
+document.getElementById("joinBtn").onclick = async () => {
+  if (isAnon) { document.getElementById("signinRequiredModal").style.display = "flex"; return; }
+  const btn = document.getElementById("joinBtn");
+  btn.disabled = true;
+  try {
+    const joinFn = httpsCallable(functions, "joinGroup");
+    await joinFn({ groupId });
+    await refreshMembership();
+    renderMembershipButtons();
+    renderAnnouncement();
+    loadMembers(true);
+  } catch(err) {
+    console.error(err);
+    showStatus(err.message || "Failed to join group.", true);
+  } finally {
+    btn.disabled = false;
+  }
+};
+ 
+document.getElementById("leaveBtn").onclick = () => {
+  showConfirm("Are you sure you want to leave this group?", async () => {
+    try {
+      const leaveFn = httpsCallable(functions, "leaveGroup");
+      await leaveFn({ groupId });
+      await refreshMembership();
+      renderMembershipButtons();
+      renderAnnouncement();
+      loadMembers(true);
+    } catch(err) {
+      console.error(err);
+      showStatus(err.message || "Failed to leave group.", true);
+    }
+  });
+};
+ 
+document.getElementById("editGroupBtn").onclick = () => {
+  window.location.href = "editgroup.html?id=" + encodeURIComponent(groupId);
+};
+ 
+// ============ ANNOUNCEMENT EDIT ============
+document.getElementById("editAnnouncementBtn").onclick = () => {
+  document.getElementById("announcementInput").value = groupData.announcement || "";
+  document.getElementById("announcementEditWrap").style.display = "block";
+};
+document.getElementById("cancelAnnouncementBtn").onclick = () => {
+  document.getElementById("announcementEditWrap").style.display = "none";
+};
+document.getElementById("saveAnnouncementBtn").onclick = async () => {
+  const text = document.getElementById("announcementInput").value.trim();
+  const btn = document.getElementById("saveAnnouncementBtn");
+  btn.disabled = true;
+  try {
+    const fn = httpsCallable(functions, "makeAnnouncement");
+    await fn({ groupId, text });
+    groupData.announcement = text;
+    renderAnnouncement();
+    document.getElementById("announcementEditWrap").style.display = "none";
+  } catch(err) {
+    console.error(err);
+    showStatus(err.message || "Failed to update announcement.", true);
+  } finally {
+    btn.disabled = false;
+  }
+};
+ 
+// ============ MEMBERS (paginated 10 at a time, newest first) ============
+let memberCursors = [null]; // cursor stack; memberCursors[i] = cursor used to fetch page i
+let memberPageIndex = 0;
+let memberHasNext = false;
+ 
+document.getElementById("rankFilter").onchange = () => loadMembers(true);
+ 
+async function loadMembers(reset){
+  if (reset) {
+    memberCursors = [null];
+    memberPageIndex = 0;
+  }
+  const rankId = document.getElementById("rankFilter").value;
+  const cursor = memberCursors[memberPageIndex];
+ 
+  let constraints = [orderBy("joinedAt", "desc"), limit(10)];
+  if (rankId) constraints = [where("rankId", "==", rankId), orderBy("joinedAt", "desc"), limit(10)];
+  if (cursor) constraints.splice(constraints.length - 1, 0, startAfter(cursor));
+ 
+  const q = query(collection(db, "groups", groupId, "members"), ...constraints);
+  const snap = await getDocs(q);
+ 
+  const row = document.getElementById("membersRow");
+  row.innerHTML = "";
+  document.getElementById("noMembersMsg").style.display = snap.empty ? "block" : "none";
+ 
+  snap.forEach(d => {
+    const m = d.data();
+    const pic = m.profilePic
+      ? `<img class="memberPic" src="${escapeHtml(m.profilePic)}" onclick="goProfile('${escapeHtml(escapeJsString(m.username))}')">`
+      : `<div class="memberPic" onclick="goProfile('${escapeHtml(escapeJsString(m.username))}')"></div>`;
+    row.insertAdjacentHTML("beforeend", `
+      <div class="memberItem">
+        ${pic}
+        <div class="memberName" onclick="goProfile('${escapeHtml(escapeJsString(m.username))}')">${escapeHtml(m.username)}</div>
+      </div>
+    `);
+  });
+ 
+  memberHasNext = snap.docs.length === 10;
+  if (memberHasNext && memberCursors.length === memberPageIndex + 1) {
+    memberCursors.push(snap.docs[snap.docs.length - 1]);
+  }
+ 
+  document.getElementById("prevMembersBtn").disabled = memberPageIndex === 0;
+  document.getElementById("nextMembersBtn").disabled = !memberHasNext;
+}
+ 
+document.getElementById("prevMembersBtn").onclick = () => {
+  if (memberPageIndex > 0) { memberPageIndex--; loadMembers(false); }
+};
+document.getElementById("nextMembersBtn").onclick = () => {
+  if (memberHasNext) { memberPageIndex++; loadMembers(false); }
+};
+ 
+window.goProfile = function(username){
+  if (!username) return;
+  window.location.href = "user.html?user=" + encodeURIComponent(username);
+};
+ 
+// ============ CHANNELS + BOARD ============
+async function loadChannels(){
+  const snap = await getDocs(query(collection(db, "groups", groupId, "channels"), orderBy("order", "asc")));
+  channels = [];
+  snap.forEach(d => channels.push({ id: d.id, ...d.data() }));
+ 
+  const tabsEl = document.getElementById("channelTabs");
+  tabsEl.innerHTML = "";
+  channels.forEach(c => {
+    const tab = document.createElement("div");
+    tab.className = "channelTab" + (c.id === selectedChannelId ? " active" : "");
+    tab.innerText = c.name;
+    tab.onclick = () => selectChannel(c.id);
+    tabsEl.appendChild(tab);
+  });
+ 
+  if (!selectedChannelId && channels.length > 0) {
+    selectChannel(channels[0].id);
+  }
+}
+ 
+function selectChannel(channelId){
+  selectedChannelId = channelId;
+  document.querySelectorAll(".channelTab").forEach((el, i) => {
+    el.classList.toggle("active", channels[i] && channels[i].id === channelId);
+  });
+  cancelReplyTo();
+  updateComposeVisibility();
+  loadPosts(true);
+}
+ 
+function updateComposeVisibility(){
+  const canPost = !isAnon && hasPerm("postBoard");
+  document.getElementById("composeWrap").style.display = canPost ? "block" : "none";
+  document.getElementById("cannotPostMsg").style.display = (!isAnon && !canPost) ? "block" : "none";
+}
+ 
+let postsLastVisible = null;
+let replyingToId = null, replyingToUser = null, replyingToSnippet = null;
+ 
+window.setReplyTo = function(id, user, snippet){
+  replyingToId = id;
+  replyingToUser = user;
+  replyingToSnippet = snippet;
+  const banner = document.getElementById("replyingToBanner");
+  document.getElementById("replyingToText").innerText = "Replying to " + user;
+  banner.style.display = "flex";
+  const textarea = document.getElementById("postText");
+  if (user && user !== "Anonymous") {
+    const prefix = "@" + user + " ";
+    if (!textarea.value.startsWith(prefix)) textarea.value = prefix + textarea.value;
+  }
+  textarea.focus();
+};
+ 
+window.cancelReplyTo = function(){
+  replyingToId = null; replyingToUser = null; replyingToSnippet = null;
+  document.getElementById("replyingToBanner").style.display = "none";
+};
+ 
+async function loadPosts(reset){
+  if (reset) { postsLastVisible = null; document.getElementById("boardPosts").innerHTML = ""; }
+  if (!selectedChannelId) return;
+ 
+  let constraints = [
+    where("groupId", "==", groupId),
+    where("channelId", "==", selectedChannelId),
+    orderBy("time", "desc"),
+    limit(10)
+  ];
+  if (postsLastVisible) constraints.splice(3, 0, startAfter(postsLastVisible));
+ 
+  const q = query(collection(db, "groupBoardPosts"), ...constraints);
+  const snap = await getDocs(q);
+ 
+  document.getElementById("noPostsMsg").style.display = (reset && snap.empty) ? "block" : "none";
+  document.getElementById("loadMorePosts").style.display = snap.docs.length === 10 ? "inline-block" : "none";
+ 
+  if (snap.docs.length > 0) postsLastVisible = snap.docs[snap.docs.length - 1];
+ 
+  const canDelete = !isAnon && hasPerm("deleteBoardPosts");
+ 
+  snap.forEach(d => {
+    const p = d.data();
+    const ms = p.time && p.time.toMillis ? p.time.toMillis() : Date.now();
+    const date = new Date(ms).toLocaleString();
+    const isMine = currentUID && p.authorUID === currentUID;
+    const pic = p.authorProfilePic
+      ? `<img class="avatar" src="${escapeHtml(p.authorProfilePic)}" onclick="goProfile('${escapeHtml(escapeJsString(p.author))}')">`
+      : `<div class="avatar" onclick="goProfile('${escapeHtml(escapeJsString(p.author))}')"></div>`;
+    const quote = p.parentPostId
+      ? `<div class="quote-snippet"><b>${escapeHtml(p.parentPostUser || "Unknown")}</b>: ${escapeHtml(p.parentPostSnippet || "")}</div>`
+      : "";
+    const img = p.image
+      ? `<img class="postImg" src="${escapeHtml(p.image)}" onclick="document.getElementById('fullImg').src=this.src; document.getElementById('imgOverlay').style.display='flex';">`
+      : "";
+    const snippetForReply = (p.content || "").slice(0, 80).replace(/\s+/g, " ");
+ 
+    document.getElementById("boardPosts").insertAdjacentHTML("beforeend", `
+      <div class="postBox">
+        ${pic}
+        <div class="contentWrap">
+          <b style="cursor:pointer;" onclick="goProfile('${escapeHtml(escapeJsString(p.author))}')">${escapeHtml(p.author)}</b>
+          ${quote}
+          <div class="postContent">${escapeHtml(p.content || "")}</div>
+          ${img}
+          <div class="postTime">${date}</div>
+          <div class="postActions">
+            <span class="reply-action-btn" onclick="setReplyTo('${escapeHtml(escapeJsString(d.id))}','${escapeHtml(escapeJsString(p.author))}','${escapeHtml(escapeJsString(snippetForReply))}')">Reply</span>
+            ${(isMine || canDelete) ? `<span class="reply-action-btn" onclick="deleteBoardPost('${escapeHtml(escapeJsString(d.id))}')">Delete</span>` : ""}
+          </div>
+        </div>
+      </div>
+    `);
+  });
+}
+ 
+window.deleteBoardPost = function(postId){
+  showConfirm("Delete this post?", async () => {
+    try {
+      const fn = httpsCallable(functions, "deleteBoardPost");
+      await fn({ groupId, postId });
+      loadPosts(true);
+    } catch(err) {
+      console.error(err);
+      showStatus(err.message || "Failed to delete post.", true);
+    }
+  });
+};
+ 
+document.getElementById("loadMorePosts").onclick = () => loadPosts(false);
+ 
+function fileToBase64(file){
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result.split(",")[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+ 
+let boardSubmitting = false;
+document.getElementById("sendPostBtn").onclick = async () => {
+  if (boardSubmitting) return;
+  const textEl = document.getElementById("postText");
+  const fileInput = document.getElementById("postImage");
+  const text = textEl.value.trim();
+  const file = fileInput.files[0];
+ 
+  if (!text && !file) return;
+  if (file && file.size > 8 * 1024 * 1024) {
+    document.getElementById("boardCooldownMsg").innerText = "Image must be 8MB or smaller.";
+    document.getElementById("boardCooldownMsg").style.display = "block";
+    return;
+  }
+ 
+  boardSubmitting = true;
+  const btn = document.getElementById("sendPostBtn");
+  btn.disabled = true;
+ 
+  try {
+    const payload = { groupId, channelId: selectedChannelId, content: text };
+    if (replyingToId) {
+      payload.parentPostId = replyingToId;
+      payload.parentPostUser = replyingToUser;
+      payload.parentPostSnippet = replyingToSnippet;
+    }
+    if (file) payload.imageBase64 = await fileToBase64(file);
+ 
+    const fn = httpsCallable(functions, "postToBoard");
+    await fn(payload);
+ 
+    textEl.value = "";
+    fileInput.value = "";
+    cancelReplyTo();
+    document.getElementById("boardCooldownMsg").style.display = "none";
+    loadPosts(true);
+  } catch(err) {
+    console.error(err);
+    document.getElementById("boardCooldownMsg").innerText = err.message || "Failed to post.";
+    document.getElementById("boardCooldownMsg").style.display = "block";
+  } finally {
+    boardSubmitting = false;
+    btn.disabled = false;
+  }
+};
+ 
+// ============ SHARED MODALS ============
+function showConfirm(text, onYes){
+  document.getElementById("confirmModalText").innerText = text;
+  const modal = document.getElementById("confirmModal");
+  modal.style.display = "flex";
+  const yesBtn = document.getElementById("confirmModalYes");
+  const noBtn = document.getElementById("confirmModalNo");
+  const cleanup = () => { modal.style.display = "none"; yesBtn.onclick = null; noBtn.onclick = null; };
+  yesBtn.onclick = () => { cleanup(); onYes(); };
+  noBtn.onclick = cleanup;
+}
+document.getElementById("signinRequiredOk").onclick = () => {
+  document.getElementById("signinRequiredModal").style.display = "none";
+};
+document.getElementById("imgOverlay").onclick = () => {
+  document.getElementById("imgOverlay").style.display = "none";
+};
+ 
+// ============ AUTH ============
+onAuthStateChanged(auth, async (user) => {
+  if (!user) {
+    try { await signInAnonymously(auth); } catch(e) { console.error(e); }
+    return;
+  }
+ 
+  isAnon = user.isAnonymous;
+  currentUID = isAnon ? null : user.uid;
+ 
+  if (isAnon) {
+    accountLink.innerText = "Sign In / Sign Up";
+    accountLink.href = "signin.html";
+    logoutBtn.style.display = "none";
+  } else {
+    accountLink.innerText = "Profile";
+    accountLink.href = "profile.html";
+    logoutBtn.style.display = "inline";
+  }
+ 
+  if (groupId) {
+    if (!groupData) {
+      await loadGroup();
+    } else {
+      await refreshMembership();
+      renderAnnouncement();
+      renderMembershipButtons();
+    }
+    updateComposeVisibility();
+  }
+});
+ 
+logoutBtn.onclick = async () => {
+  await signOut(auth);
+  window.location.href = "index.html";
+};
+</script>
+ 
+</body>
+</html>
