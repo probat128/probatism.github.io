@@ -1,1 +1,316 @@
-
+<!DOCTYPE html>
+<html>
+<head>
+<title>Create Group</title>
+<style>
+body { font-family: Arial; background: rgb(232,224,207); color: rgb(91,46,97); padding:20px; }
+nav a { color: rgb(91,46,97); margin-right:10px; text-decoration:none; }
+button { margin-top:5px; padding:5px 10px; cursor:pointer; background: rgb(232,224,207); color: rgb(91,46,97); border: 1px solid rgb(91,46,97); }
+button:disabled { opacity:0.5; cursor:default; }
+textarea, input[type="text"] {
+  width:100%; max-width:500px; background: rgb(232,224,207); color: rgb(91,46,97);
+  border:1px solid rgb(91,46,97); padding:5px; box-sizing:border-box;
+}
+textarea { height:120px; }
+.field { margin-bottom:18px; max-width:500px; }
+.field label { display:block; font-weight:bold; margin-bottom:4px; }
+.hint { font-size:12px; color: rgb(149,118,141); margin-top:3px; }
+.charCount { font-size:12px; color: rgb(149,118,141); text-align:right; }
+#statusMsg { display:none; padding:8px; border:1px solid rgb(91,46,97); margin-top:10px; max-width:500px; }
+#statusMsg.error { background: rgba(150,0,0,0.08); }
+#statusMsg.info { background: rgba(91,46,97,0.08); }
+.preview-box {
+  width:120px; height:120px; border:1px solid rgb(91,46,97);
+  background: rgb(91,46,97); display:flex; align-items:center; justify-content:center;
+  color: rgb(232,224,207); font-size:11px; text-align:center; object-fit:cover; margin-top:6px;
+}
+.preview-banner {
+  width:100%; max-width:500px; height:auto; aspect-ratio: 1500 / 400; border:1px solid rgb(91,46,97);
+  background: rgb(91,46,97); display:flex; align-items:center; justify-content:center;
+  color: rgb(232,224,207); font-size:11px; text-align:center; object-fit:cover; margin-top:6px;
+}
+.gate-box { max-width:500px; border:1px solid rgb(91,46,97); padding:15px; }
+</style>
+</head>
+<body>
+ 
+<nav>
+<a href="index.html">Home</a>
+<a href="doctrine.html">Doctrine</a>
+<a href="forums.html">Forums</a>
+<a href="news.html">News</a>
+<a href="quiz.html">Quiz</a>
+<a href="groups.html">Groups</a>
+<a href="signin.html" id="accountLink">Sign In / Sign Up</a>
+<button id="logoutBtn" style="display:none;">Logout</button>
+</nav>
+ 
+<h1>Create Group</h1>
+ 
+<div id="gateMsg" class="gate-box" style="display:none;">
+  <p>You need VIP rank or higher to create a group.</p>
+  <button onclick="location.href='getvip.html'">Get VIP</button>
+</div>
+ 
+<div id="formWrap" style="display:none;">
+ 
+  <div class="field">
+    <label for="titleInput">Group Title</label>
+    <input type="text" id="titleInput" maxlength="50" placeholder="Group title">
+    <div class="charCount"><span id="titleCount">0</span>/50</div>
+    <div class="hint">Letters and symbols only (no numbers). Required.</div>
+  </div>
+ 
+  <div class="field">
+    <label for="descInput">Group Description</label>
+    <textarea id="descInput" maxlength="1200" placeholder="Describe your group"></textarea>
+    <div class="charCount"><span id="descCount">0</span>/1200</div>
+    <div class="hint">Required.</div>
+  </div>
+ 
+  <div class="field">
+    <label for="imageInput">Group Image (optional)</label>
+    <input type="file" id="imageInput" accept="image/jpeg,image/png,image/webp">
+    <div class="hint">Must be exactly 512 &times; 512 pixels. If left blank, a default purple image is used.</div>
+    <img id="imagePreview" class="preview-box" style="display:none;">
+    <div id="imageNoPreview" class="preview-box">No image selected</div>
+  </div>
+ 
+  <div class="field">
+    <label for="bannerInput">Group Banner (optional)</label>
+    <input type="file" id="bannerInput" accept="image/jpeg,image/png,image/webp">
+    <div class="hint">Must be exactly 1500 &times; 400 pixels. If left blank, a default purple banner is used.</div>
+    <img id="bannerPreview" class="preview-banner" style="display:none;">
+    <div id="bannerNoPreview" class="preview-banner">No banner selected</div>
+  </div>
+ 
+  <button id="createBtn">Create Group</button>
+ 
+  <p id="statusMsg"></p>
+ 
+</div>
+ 
+<script type="module">
+import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { getAuth, onAuthStateChanged, signOut, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-functions.js";
+ 
+const firebaseConfig = {
+  apiKey: "AIzaSyAZXfEl3Q68vfJtaLJqODtnQBSVEzWBmc0",
+  authDomain: "probatismm.firebaseapp.com",
+  projectId: "probatismm",
+  storageBucket: "probatismm.firebasestorage.app",
+  messagingSenderId: "746935651152",
+  appId: "1:746935651152:web:82491ddac346bc654a3a55"
+};
+ 
+let app;
+try { app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0]; }
+catch(e){ console.error("Firebase init error:", e); }
+ 
+const db = getFirestore(app);
+const auth = getAuth(app);
+const functions = getFunctions(app);
+ 
+const accountLink = document.getElementById("accountLink");
+const logoutBtn = document.getElementById("logoutBtn");
+const gateMsg = document.getElementById("gateMsg");
+const formWrap = document.getElementById("formWrap");
+const titleInput = document.getElementById("titleInput");
+const descInput = document.getElementById("descInput");
+const imageInput = document.getElementById("imageInput");
+const bannerInput = document.getElementById("bannerInput");
+const createBtn = document.getElementById("createBtn");
+const statusMsg = document.getElementById("statusMsg");
+ 
+// Title may contain only letters (a-z, A-Z) and ASCII symbol/punctuation
+// characters. This mirrors the exact same check the backend enforces —
+// the client-side check below is for usability only; the Cloud Function
+// re-validates from scratch and is the actual source of truth.
+const TITLE_REGEX = /^[A-Za-z\x20-\x2F\x3A-\x40\x5B-\x60\x7B-\x7E]{1,50}$/;
+ 
+let submitting = false;
+let selectedImageFile = null;
+let selectedBannerFile = null;
+ 
+function showStatus(msg, type){
+  statusMsg.innerText = msg;
+  statusMsg.className = type;
+  statusMsg.style.display = msg ? "block" : "none";
+}
+ 
+function fileToBase64(file){
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result.split(",")[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+ 
+function readImageDimensions(file){
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => { URL.revokeObjectURL(url); resolve({ width: img.naturalWidth, height: img.naturalHeight }); };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("Could not read image.")); };
+    img.src = url;
+  });
+}
+ 
+titleInput.addEventListener("input", () => {
+  document.getElementById("titleCount").innerText = titleInput.value.length;
+});
+descInput.addEventListener("input", () => {
+  document.getElementById("descCount").innerText = descInput.value.length;
+});
+ 
+imageInput.addEventListener("change", async () => {
+  showStatus("", "");
+  const file = imageInput.files[0];
+  if (!file) {
+    selectedImageFile = null;
+    document.getElementById("imagePreview").style.display = "none";
+    document.getElementById("imageNoPreview").style.display = "flex";
+    return;
+  }
+  // Client-side size guard only — real limit is enforced server-side.
+  if (file.size > 2 * 1024 * 1024) {
+    showStatus("Image file is too large (max 2MB).", "error");
+    imageInput.value = "";
+    return;
+  }
+  try {
+    const dims = await readImageDimensions(file);
+    if (dims.width !== 512 || dims.height !== 512) {
+      showStatus(`Image must be exactly 512x512 pixels (yours is ${dims.width}x${dims.height}).`, "error");
+      imageInput.value = "";
+      selectedImageFile = null;
+      return;
+    }
+    selectedImageFile = file;
+    document.getElementById("imagePreview").src = URL.createObjectURL(file);
+    document.getElementById("imagePreview").style.display = "block";
+    document.getElementById("imageNoPreview").style.display = "none";
+  } catch(e) {
+    showStatus("Could not read that image file.", "error");
+    imageInput.value = "";
+  }
+});
+ 
+bannerInput.addEventListener("change", async () => {
+  showStatus("", "");
+  const file = bannerInput.files[0];
+  if (!file) {
+    selectedBannerFile = null;
+    document.getElementById("bannerPreview").style.display = "none";
+    document.getElementById("bannerNoPreview").style.display = "flex";
+    return;
+  }
+  if (file.size > 3 * 1024 * 1024) {
+    showStatus("Banner file is too large (max 3MB).", "error");
+    bannerInput.value = "";
+    return;
+  }
+  try {
+    const dims = await readImageDimensions(file);
+    if (dims.width !== 1500 || dims.height !== 400) {
+      showStatus(`Banner must be exactly 1500x400 pixels (yours is ${dims.width}x${dims.height}).`, "error");
+      bannerInput.value = "";
+      selectedBannerFile = null;
+      return;
+    }
+    selectedBannerFile = file;
+    document.getElementById("bannerPreview").src = URL.createObjectURL(file);
+    document.getElementById("bannerPreview").style.display = "block";
+    document.getElementById("bannerNoPreview").style.display = "none";
+  } catch(e) {
+    showStatus("Could not read that banner file.", "error");
+    bannerInput.value = "";
+  }
+});
+ 
+createBtn.onclick = async () => {
+  if (submitting) return;
+  showStatus("", "");
+ 
+  const title = titleInput.value.trim();
+  const description = descInput.value.trim();
+ 
+  if (!title) { showStatus("Group title is required.", "error"); return; }
+  if (!TITLE_REGEX.test(title)) { showStatus("Title may only contain letters and symbols (no numbers), up to 50 characters.", "error"); return; }
+  if (!description) { showStatus("Group description is required.", "error"); return; }
+  if (description.length > 1200) { showStatus("Description must be 1200 characters or fewer.", "error"); return; }
+ 
+  submitting = true;
+  createBtn.disabled = true;
+  showStatus("Creating group...", "info");
+ 
+  try {
+    const payload = { title, description };
+    if (selectedImageFile) payload.imageBase64 = await fileToBase64(selectedImageFile);
+    if (selectedBannerFile) payload.bannerBase64 = await fileToBase64(selectedBannerFile);
+ 
+    const createGroupFn = httpsCallable(functions, "createGroup");
+    const result = await createGroupFn(payload);
+    const groupId = result.data.groupId;
+ 
+    showStatus("Group created! Redirecting...", "info");
+    window.location.href = "group.html?id=" + encodeURIComponent(groupId);
+ 
+  } catch(err) {
+    console.error(err);
+    showStatus(err.message || "Failed to create group.", "error");
+    submitting = false;
+    createBtn.disabled = false;
+  }
+};
+ 
+onAuthStateChanged(auth, async (user) => {
+  if (!user) {
+    try { await signInAnonymously(auth); } catch(e) { console.error(e); }
+    return;
+  }
+ 
+  if (user.isAnonymous) {
+    accountLink.innerText = "Sign In / Sign Up";
+    accountLink.href = "signin.html";
+    logoutBtn.style.display = "none";
+    gateMsg.style.display = "block";
+    formWrap.style.display = "none";
+    return;
+  }
+ 
+  accountLink.innerText = "Profile";
+  accountLink.href = "profile.html";
+  logoutBtn.style.display = "inline";
+ 
+  // This is a UX convenience only. The Cloud Function independently
+  // re-checks the caller's role in Firestore before creating anything,
+  // so a manipulated client cannot bypass this gate.
+  try {
+    const userSnap = await getDoc(doc(db, "users", user.uid));
+    const role = (userSnap.exists() && userSnap.data().role) ? userSnap.data().role : "user";
+    if (["vip","janitor","mod","admin"].includes(role)) {
+      gateMsg.style.display = "none";
+      formWrap.style.display = "block";
+    } else {
+      gateMsg.style.display = "block";
+      formWrap.style.display = "none";
+    }
+  } catch(e) {
+    console.error(e);
+    gateMsg.style.display = "block";
+    formWrap.style.display = "none";
+  }
+});
+ 
+logoutBtn.onclick = async () => {
+  await signOut(auth);
+  window.location.href = "index.html";
+};
+</script>
+ 
+</body>
+</html>
