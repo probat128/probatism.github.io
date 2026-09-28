@@ -1,1 +1,251 @@
-
+<!DOCTYPE html>
+<html>
+<head>
+<title>Groups</title>
+<style>
+body { font-family: Arial; background: rgb(232,224,207); color: rgb(91,46,97); padding:20px; }
+nav a { color: rgb(91,46,97); margin-right:10px; text-decoration:none; }
+button { margin-top:5px; padding:5px 10px; cursor:pointer; background: rgb(232,224,207); color: rgb(91,46,97); border: 1px solid rgb(91,46,97); }
+select {
+  background: rgb(232,224,207); color: rgb(91,46,97); border:1px solid rgb(91,46,97); padding:4px;
+}
+.topBar { display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px; }
+.createBtn { font-weight:bold; padding:8px 16px; }
+.sectionHeading { margin-top:25px; margin-bottom:8px; }
+.groupGrid { display:flex; flex-wrap:wrap; gap:12px; }
+.groupCard {
+  border:1px solid rgb(91,46,97); width:220px; padding:10px; cursor:pointer;
+  display:flex; flex-direction:column; gap:6px;
+}
+.groupCard:hover { background: rgba(91,46,97,0.06); }
+.groupImg { width:100%; height:110px; object-fit:cover; border:1px solid rgb(91,46,97); background: rgb(91,46,97); }
+.groupTitle { font-weight:bold; word-break:break-word; }
+.groupMeta { font-size:12px; color: rgb(149,118,141); }
+.groupDesc { font-size:12px; max-height:48px; overflow:hidden; word-break:break-word; }
+#loadMoreBtn { display:block; margin-top:15px; }
+.noGroups { color: rgb(149,118,141); font-size:14px; margin-top:10px; }
+</style>
+</head>
+<body>
+ 
+<nav>
+<a href="index.html">Home</a>
+<a href="doctrine.html">Doctrine</a>
+<a href="forums.html">Forums</a>
+<a href="news.html">News</a>
+<a href="quiz.html">Quiz</a>
+<a href="groups.html">Groups</a>
+<a href="signin.html" id="accountLink">Sign In / Sign Up</a>
+<button id="logoutBtn" style="display:none;">Logout</button>
+</nav>
+ 
+<div class="topBar">
+  <h1 style="margin:0;">Groups</h1>
+  <button class="createBtn" id="createGroupBtn">+ Create Group</button>
+</div>
+ 
+<div id="myGroupsSection" style="display:none;">
+  <h3 class="sectionHeading">Your Groups</h3>
+  <div class="groupGrid" id="myGroupsGrid"></div>
+</div>
+ 
+<div style="display:flex; justify-content:space-between; align-items:center; margin-top:25px;">
+  <h3 style="margin:0;">All Groups</h3>
+  <div>
+    Sort by:
+    <select id="sortSelect">
+      <option value="members">Most Members</option>
+      <option value="newest">Newest</option>
+      <option value="oldest">Oldest</option>
+    </select>
+  </div>
+</div>
+ 
+<div class="groupGrid" id="groupGrid" style="margin-top:10px;"></div>
+<div class="noGroups" id="noGroupsMsg" style="display:none;">No groups yet.</div>
+ 
+<button id="loadMoreBtn" style="display:none;">Load More</button>
+ 
+<script type="module">
+import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import {
+  getFirestore, collection, query, orderBy, limit, startAfter, getDocs, where, doc, getDoc
+} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { getAuth, onAuthStateChanged, signOut, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+ 
+const firebaseConfig = {
+  apiKey: "AIzaSyAZXfEl3Q68vfJtaLJqODtnQBSVEzWBmc0",
+  authDomain: "probatismm.firebaseapp.com",
+  projectId: "probatismm",
+  storageBucket: "probatismm.firebasestorage.app",
+  messagingSenderId: "746935651152",
+  appId: "1:746935651152:web:82491ddac346bc654a3a55"
+};
+ 
+let app;
+try { app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0]; }
+catch(e){ console.error("Firebase init error:", e); }
+ 
+const db = getFirestore(app);
+const auth = getAuth(app);
+ 
+const accountLink = document.getElementById("accountLink");
+const logoutBtn = document.getElementById("logoutBtn");
+const groupGrid = document.getElementById("groupGrid");
+const myGroupsSection = document.getElementById("myGroupsSection");
+const myGroupsGrid = document.getElementById("myGroupsGrid");
+const loadMoreBtn = document.getElementById("loadMoreBtn");
+const sortSelect = document.getElementById("sortSelect");
+const noGroupsMsg = document.getElementById("noGroupsMsg");
+ 
+let currentUID = null;
+let currentRole = "user";
+let lastVisible = null;
+let currentSort = "members";
+const PAGE_SIZE = 12;
+ 
+function escapeHtml(text){
+  return String(text || "")
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+}
+ 
+function groupCardHtml(id, data){
+  const img = data.imageURL
+    ? `<img class="groupImg" src="${escapeHtml(data.imageURL)}">`
+    : `<div class="groupImg"></div>`;
+  return `
+    <div class="groupCard" onclick="location.href='group.html?id=${encodeURIComponent(id)}'">
+      ${img}
+      <div class="groupTitle">${escapeHtml(data.title)}</div>
+      <div class="groupMeta">${data.memberCount || 0} member(s)</div>
+      <div class="groupDesc">${escapeHtml((data.description || "").slice(0,100))}</div>
+    </div>
+  `;
+}
+ 
+function sortField(){
+  if (currentSort === "members") return { field: "memberCount", dir: "desc" };
+  if (currentSort === "newest") return { field: "createdAt", dir: "desc" };
+  return { field: "createdAt", dir: "asc" };
+}
+ 
+async function loadGroups(reset){
+  if (reset) {
+    lastVisible = null;
+    groupGrid.innerHTML = "";
+  }
+ 
+  const { field, dir } = sortField();
+ 
+  let q = query(collection(db, "groups"), orderBy(field, dir), limit(PAGE_SIZE));
+  if (lastVisible) {
+    q = query(collection(db, "groups"), orderBy(field, dir), startAfter(lastVisible), limit(PAGE_SIZE));
+  }
+ 
+  const snap = await getDocs(q);
+ 
+  if (snap.empty && reset) {
+    noGroupsMsg.style.display = "block";
+    loadMoreBtn.style.display = "none";
+    return;
+  }
+  noGroupsMsg.style.display = "none";
+ 
+  if (snap.docs.length > 0) {
+    lastVisible = snap.docs[snap.docs.length - 1];
+  }
+ 
+  loadMoreBtn.style.display = snap.docs.length < PAGE_SIZE ? "none" : "inline-block";
+ 
+  for (const docSnap of snap.docs) {
+    groupGrid.insertAdjacentHTML("beforeend", groupCardHtml(docSnap.id, docSnap.data()));
+  }
+}
+ 
+async function loadMyGroups(){
+  if (!currentUID) {
+    myGroupsSection.style.display = "none";
+    return;
+  }
+  try {
+    const q = query(collection(db, "userGroupMemberships"), where("uid", "==", currentUID), limit(50));
+    const snap = await getDocs(q);
+    if (snap.empty) {
+      myGroupsSection.style.display = "none";
+      return;
+    }
+    myGroupsGrid.innerHTML = "";
+    // Small, bounded fan-out: a user typically belongs to a handful of
+    // groups, so fetching each group doc here stays cheap.
+    const groupDocs = await Promise.all(
+      snap.docs.map(m => getDoc(doc(db, "groups", m.data().groupId)))
+    );
+    let any = false;
+    for (const gSnap of groupDocs) {
+      if (gSnap.exists()) {
+        any = true;
+        myGroupsGrid.insertAdjacentHTML("beforeend", groupCardHtml(gSnap.id, gSnap.data()));
+      }
+    }
+    myGroupsSection.style.display = any ? "block" : "none";
+  } catch(e) {
+    console.error(e);
+    myGroupsSection.style.display = "none";
+  }
+}
+ 
+sortSelect.onchange = () => {
+  currentSort = sortSelect.value;
+  loadGroups(true);
+};
+ 
+loadMoreBtn.onclick = () => loadGroups(false);
+ 
+document.getElementById("createGroupBtn").onclick = () => {
+  if (["vip","janitor","mod","admin"].includes(currentRole)) {
+    window.location.href = "creategroup.html";
+  } else {
+    window.location.href = "getvip.html";
+  }
+};
+ 
+onAuthStateChanged(auth, async (user) => {
+  if (!user) {
+    try { await signInAnonymously(auth); } catch(e) { console.error(e); }
+    loadGroups(true);
+    return;
+  }
+ 
+  if (user.isAnonymous) {
+    currentUID = null;
+    currentRole = "user";
+    accountLink.innerText = "Sign In / Sign Up";
+    accountLink.href = "signin.html";
+    logoutBtn.style.display = "none";
+  } else {
+    currentUID = user.uid;
+    accountLink.innerText = "Profile";
+    accountLink.href = "profile.html";
+    logoutBtn.style.display = "inline";
+    try {
+      const userSnap = await getDoc(doc(db, "users", user.uid));
+      currentRole = (userSnap.exists() && userSnap.data().role) ? userSnap.data().role : "user";
+    } catch(e) {
+      console.error(e);
+      currentRole = "user";
+    }
+  }
+ 
+  loadMyGroups();
+  loadGroups(true);
+});
+ 
+logoutBtn.onclick = async () => {
+  await signOut(auth);
+  window.location.href = "index.html";
+};
+</script>
+ 
+</body>
+</html>
