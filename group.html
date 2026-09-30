@@ -11,7 +11,7 @@ button { padding:5px 10px; cursor:pointer; background: rgb(232,224,207); color: 
 button:disabled { opacity:0.5; cursor:default; }
 textarea { width:100%; background: rgb(232,224,207); color: rgb(91,46,97); border:1px solid rgb(91,46,97); padding:5px; box-sizing:border-box; }
  
-#banner { width:100%; height:200px; object-fit:cover; border-bottom:1px solid rgb(91,46,97); background: rgb(91,46,97); display:block; }
+#banner { width:100%; height:200px; object-fit:cover; border-bottom:1px solid rgb(91,46,97); background: rgb(91,46,97); display:block; margin-top:10px; }
  
 .headerRow { display:flex; align-items:center; gap:15px; margin-top:15px; flex-wrap:wrap; }
 #groupImg { width:96px; height:96px; object-fit:cover; border:1px solid rgb(91,46,97); background: rgb(91,46,97); }
@@ -44,14 +44,15 @@ select { background: rgb(232,224,207); color: rgb(91,46,97); border:1px solid rg
 .channelTab { padding:5px 10px; border:1px solid rgb(91,46,97); cursor:pointer; }
 .channelTab.active { background: rgb(91,46,97); color: rgb(232,224,207); }
  
-.postBox { border:1px solid rgb(91,46,97); padding:8px; margin:8px 0; display:flex; gap:10px; align-items:flex-start; position:relative; }
-.avatar { width:32px; height:32px; object-fit:cover; border:1px solid rgb(91,46,97); background: rgb(91,46,97); flex-shrink:0; cursor:pointer; }
+.replyBox { word-break:break-word; overflow-wrap:break-word; border:1px solid rgb(91,46,97); padding:8px; margin:8px 0; display:flex; gap:10px; align-items:flex-start; position:relative; }
+.avatar { width:32px; height:32px; object-fit:cover; border:1px solid rgb(91,46,97); flex-shrink:0; cursor:pointer; }
 .contentWrap { flex:1; min-width:0; }
-.postContent { white-space:pre-wrap; word-break:break-word; }
-.postImg { max-width:256px; max-height:256px; margin-top:5px; cursor:pointer; border:1px solid rgb(91,46,97); }
-.postTime { font-size:11px; opacity:0.7; margin-top:3px; }
-.postActions { margin-top:4px; }
-.reply-action-btn { cursor:pointer; font-size:11px; margin-right:10px; color: rgb(91,46,97); font-weight:bold; text-decoration:none; }
+.reply-content { white-space:pre-wrap; }
+.time { font-size:11px; opacity:0.7; margin-top:3px; }
+.readMore { cursor:pointer; font-size:12px; text-decoration:underline; }
+.imgThumb { max-width:256px; max-height:256px; cursor:pointer; border:1px solid rgb(91,46,97); margin-top:5px; }
+.deleteBtn { font-size:12px; padding:3px 6px; margin-top:5px; }
+.reply-action-btn { cursor:pointer; font-size:11px; margin-left:8px; color:rgb(91,46,97); text-decoration:none; font-weight:bold; }
 .reply-action-btn:hover { text-decoration:underline; }
 .quote-snippet { border-left:3px solid rgb(91,46,97); padding-left:8px; margin-bottom:5px; font-size:12px; opacity:0.85; background: rgba(91,46,97,0.05); padding-top:4px; padding-bottom:4px; }
 .replying-to-ui {
@@ -138,8 +139,10 @@ select { background: rgb(232,224,207); color: rgb(91,46,97); border:1px solid rg
       </div>
       <textarea id="postText" maxlength="16000" style="height:70px;"></textarea><br>
       <input type="file" id="postImage" accept="image/jpeg,image/png,image/webp,image/gif">
-      <button id="sendPostBtn">Post</button>
-      <p id="boardCooldownMsg" style="font-size:12px; display:none;"></p>
+      <span style="margin-left:10px;">Type this word backwards:</span>
+      <img id="wordCaptchaImg" alt="Word captcha" style="vertical-align:middle; height:26px; margin-left:5px; filter: grayscale(100%) contrast(300%) brightness(0.2);">
+      <input type="text" id="reverseWordAnswer" autocomplete="off" name="reverseWordAnswer" spellcheck="false" autocapitalize="off" style="width:120px; margin-left:5px; background:rgb(232,224,207); color:rgb(91,46,97); border:1px solid rgb(91,46,97);">
+      <button id="sendPostBtn">Post</button>      <p id="boardCooldownMsg" style="font-size:12px; display:none;"></p>
     </div>
     <div id="cannotPostMsg" class="noPosts" style="display:none;">You do not have permission to post in this channel.</div>
  
@@ -173,7 +176,7 @@ select { background: rgb(232,224,207); color: rgb(91,46,97); border:1px solid rg
 <script type="module">
 import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import {
-  getFirestore, doc, getDoc, collection, query, where, orderBy, limit, startAfter, getDocs
+  getFirestore, doc, getDoc, collection, query, where, orderBy, limit, startAfter, getDocs, documentId
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { getAuth, onAuthStateChanged, signOut, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-functions.js";
@@ -203,6 +206,63 @@ function escapeHtml(text){
 function escapeJsString(text){
   return String(text || "").replace(/\\/g, "\\\\").replace(/'/g, "\\'").replace(/"/g, '\\"').replace(/\r/g, "").replace(/\n/g, "");
 }
+
+// ============ LIVE PROFILE PICTURES ============
+// Member docs and board posts store a copy of the picture from when they were created.
+// Always show the CURRENT picture from users/{uid}. Batched (30 per query), cached for 20s.
+const EMPTY_PIC = "data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==";
+const LIVE_USER_TTL_MS = 20 * 1000;
+const liveUserCache = new Map(); // uid -> { pic: string|null (null = user doc missing), at: ms }
+
+async function fetchLiveUsers(uids){
+  const now = Date.now();
+  const need = [...new Set((uids || []).filter(Boolean))].filter(uid => {
+    const c = liveUserCache.get(uid);
+    return !c || now - c.at > LIVE_USER_TTL_MS;
+  });
+  for (let i = 0; i < need.length; i += 30) {
+    const chunk = need.slice(i, i + 30);
+    try {
+      const snap = await getDocs(query(collection(db, "users"), where(documentId(), "in", chunk)));
+      const found = new Set();
+      snap.forEach(s => { liveUserCache.set(s.id, { pic: s.data().profilePic || "", at: Date.now() }); found.add(s.id); });
+      chunk.forEach(uid => { if (!found.has(uid)) liveUserCache.set(uid, { pic: null, at: Date.now() }); });
+    } catch(e) { console.error("Live avatar lookup failed:", e); }
+  }
+}
+function livePic(uid, storedPic){
+  const c = liveUserCache.get(uid);
+  const pic = (c && c.pic !== null) ? c.pic : (storedPic || "");
+  return /^(https:\/\/|data:image\/)/i.test(pic) ? pic : "";
+}
+// Updates pictures that are ALREADY on screen (used when the tab is focused again).
+let lastAvatarRefresh = 0;
+async function refreshRenderedAvatars(){
+  const els = [...document.querySelectorAll("img[data-uid]")];
+  if (!els.length) return;
+  await fetchLiveUsers(els.map(e => e.dataset.uid));
+  els.forEach(el => {
+    const c = liveUserCache.get(el.dataset.uid);
+    if (!c || c.pic === null) return;
+    const url = livePic(el.dataset.uid, "");
+    if (el.classList.contains("memberPic")) {
+      const want = url || EMPTY_PIC;
+      if (el.getAttribute("src") !== want) el.src = want;
+    } else if (url) {
+      if (el.getAttribute("src") !== url) el.src = url;
+      el.style.display = "";
+    } else {
+      el.removeAttribute("src");
+      el.style.display = "none";
+    }
+  });
+}
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible" && Date.now() - lastAvatarRefresh > 30000) {
+    lastAvatarRefresh = Date.now();
+    refreshRenderedAvatars();
+  }
+});
  
 const params = new URLSearchParams(window.location.search);
 const groupId = params.get("id");
@@ -228,7 +288,8 @@ let groupData = null;
 let myMember = null;
 let myRank = null;
 let isOwnerOfGroup = false;
-let ranksById = {};
+let myPendingRequest = false;
+let captchaRequested = false;let ranksById = {};
 let channels = [];
 let selectedChannelId = null;
  
@@ -294,14 +355,20 @@ async function refreshMembership(){
   isOwnerOfGroup = !!(currentUID && groupData.ownerUID === currentUID);
   myMember = null;
   myRank = null;
+  myPendingRequest = false;
   if (currentUID) {
     const mSnap = await getDoc(doc(db, "groups", groupId, "members", currentUID));
     if (mSnap.exists()) {
       myMember = mSnap.data();
       myRank = ranksById[myMember.rankId] || null;
+    } else if (!isOwnerOfGroup && groupData.joinRequestsEnabled === true) {
+      try {
+        const rSnap = await getDoc(doc(db, "groups", groupId, "joinRequests", currentUID));
+        myPendingRequest = rSnap.exists();
+      } catch(e) { myPendingRequest = false; }
     }
   }
-  const canEditGroup = isOwnerOfGroup || hasPerm("viewLogs") || hasPerm("promoteDemote") || hasPerm("banUnban");
+  const canEditGroup = isOwnerOfGroup || hasPerm("viewLogs") || hasPerm("promoteDemote") || hasPerm("banUnban") || hasPerm("manageJoinRequests");
   document.getElementById("editGroupBtn").style.display = canEditGroup ? "inline-block" : "none";
 }
  
@@ -326,6 +393,7 @@ function renderMembershipButtons(){
     leaveBtn.style.display = "inline-block";
     leaveNote.style.display = "none";
   } else {
+    joinBtn.innerText = myPendingRequest ? "Cancel Join Request" : (groupData.joinRequestsEnabled === true ? "Request to Join" : "Join Group");
     joinBtn.style.display = "inline-block";
     leaveBtn.style.display = "none";
     leaveNote.style.display = "none";
@@ -337,8 +405,17 @@ document.getElementById("joinBtn").onclick = async () => {
   const btn = document.getElementById("joinBtn");
   btn.disabled = true;
   try {
-    const joinFn = httpsCallable(functions, "joinGroup");
-    await joinFn({ groupId });
+    if (myPendingRequest) {
+      await httpsCallable(functions, "cancelJoinRequest")({ groupId });
+      showStatus("Join request cancelled.", false);
+    } else {
+      const res = await httpsCallable(functions, "joinGroup")({ groupId });
+      if (res.data && res.data.status === "pending") {
+        showStatus("Your join request has been sent. You will become a member once it is accepted.", false);
+      } else {
+        showStatus("", false);
+      }
+    }
     await refreshMembership();
     renderMembershipButtons();
     renderAnnouncement();
@@ -423,15 +500,16 @@ async function loadMembers(reset){
   row.innerHTML = "";
   document.getElementById("noMembersMsg").style.display = snap.empty ? "block" : "none";
  
+  await fetchLiveUsers(snap.docs.map(d => d.id));
+
   snap.forEach(d => {
     const m = d.data();
-    const pic = m.profilePic
-      ? `<img class="memberPic" src="${escapeHtml(m.profilePic)}" onclick="goProfile('${escapeHtml(escapeJsString(m.username))}')">`
-      : `<div class="memberPic" onclick="goProfile('${escapeHtml(escapeJsString(m.username))}')"></div>`;
+    const pic = livePic(d.id, m.profilePic) || EMPTY_PIC;
+    const go = `goProfile('${escapeHtml(escapeJsString(m.username))}')`;
     row.insertAdjacentHTML("beforeend", `
       <div class="memberItem">
-        ${pic}
-        <div class="memberName" onclick="goProfile('${escapeHtml(escapeJsString(m.username))}')">${escapeHtml(m.username)}</div>
+        <img class="memberPic" data-uid="${escapeHtml(d.id)}" src="${escapeHtml(pic)}" onclick="${go}">
+        <div class="memberName" onclick="${go}">${escapeHtml(m.username)}</div>
       </div>
     `);
   });
@@ -491,6 +569,7 @@ function selectChannel(channelId){
 function updateComposeVisibility(){
   const canPost = !isAnon && hasPerm("postBoard");
   document.getElementById("composeWrap").style.display = canPost ? "block" : "none";
+  if (canPost && !captchaRequested) { captchaRequested = true; generateVerification(); }
   document.getElementById("cannotPostMsg").style.display = (!isAnon && !canPost) ? "block" : "none";
 }
  
@@ -520,7 +599,7 @@ window.cancelReplyTo = function(){
 async function loadPosts(reset){
   if (reset) { postsLastVisible = null; document.getElementById("boardPosts").innerHTML = ""; }
   if (!selectedChannelId) return;
- 
+
   let constraints = [
     where("groupId", "==", groupId),
     where("channelId", "==", selectedChannelId),
@@ -528,46 +607,62 @@ async function loadPosts(reset){
     limit(10)
   ];
   if (postsLastVisible) constraints.splice(3, 0, startAfter(postsLastVisible));
- 
+
   const q = query(collection(db, "groupBoardPosts"), ...constraints);
   const snap = await getDocs(q);
- 
+
   document.getElementById("noPostsMsg").style.display = (reset && snap.empty) ? "block" : "none";
   document.getElementById("loadMorePosts").style.display = snap.docs.length === 10 ? "inline-block" : "none";
- 
+
   if (snap.docs.length > 0) postsLastVisible = snap.docs[snap.docs.length - 1];
- 
+
+  await fetchLiveUsers(snap.docs.map(d => d.data().authorUID));
+
   const canDelete = !isAnon && hasPerm("deleteBoardPosts");
- 
+  const container = document.getElementById("boardPosts");
+
   snap.forEach(d => {
     const p = d.data();
     const ms = p.time && p.time.toMillis ? p.time.toMillis() : Date.now();
     const date = new Date(ms).toLocaleString();
     const isMine = currentUID && p.authorUID === currentUID;
-    const pic = p.authorProfilePic
-      ? `<img class="avatar" src="${escapeHtml(p.authorProfilePic)}" onclick="goProfile('${escapeHtml(escapeJsString(p.author))}')">`
-      : `<div class="avatar" onclick="goProfile('${escapeHtml(escapeJsString(p.author))}')"></div>`;
+    const content = p.content || "";
+    const authorJs = escapeHtml(escapeJsString(p.author));
+    const idJs = escapeHtml(escapeJsString(d.id));
+    const snippetForReply = escapeHtml(escapeJsString(content.slice(0, 80).replace(/\s+/g, " ")));
+
+    const avatarUrl = livePic(p.authorUID, p.authorProfilePic);
+    const avatarHtml = `<img class="avatar" data-uid="${escapeHtml(p.authorUID || "")}" ${avatarUrl ? `src="${escapeHtml(avatarUrl)}"` : `style="display:none;"`} onclick="goProfile('${authorJs}')">`;
+
     const quote = p.parentPostId
       ? `<div class="quote-snippet"><b>${escapeHtml(p.parentPostUser || "Unknown")}</b>: ${escapeHtml(p.parentPostSnippet || "")}</div>`
       : "";
+
     const img = p.image
-      ? `<img class="postImg" src="${escapeHtml(p.image)}" onclick="document.getElementById('fullImg').src=this.src; document.getElementById('imgOverlay').style.display='flex';">`
+      ? `<br><img class="imgThumb" src="${escapeHtml(p.image)}" onclick="document.getElementById('fullImg').src=this.src; document.getElementById('imgOverlay').style.display='flex';">`
       : "";
-    const snippetForReply = (p.content || "").slice(0, 80).replace(/\s+/g, " ");
- 
-    document.getElementById("boardPosts").insertAdjacentHTML("beforeend", `
-      <div class="postBox">
-        ${pic}
+
+    let contentHtml;
+    if (content.length <= 400) {
+      contentHtml = escapeHtml(content);
+    } else {
+      const rid = "rm_" + d.id;
+      contentHtml = `<span id="t_${rid}">${escapeHtml(content.slice(0, 400))}... <span class="readMore" onclick="document.getElementById('full_${rid}').style.display='inline'; document.getElementById('t_${rid}').style.display='none';">read more</span></span><span id="full_${rid}" style="display:none">${escapeHtml(content)}</span>`;
+    }
+
+    container.insertAdjacentHTML("beforeend", `
+      <div class="replyBox">
+        ${avatarHtml}
         <div class="contentWrap">
-          <b style="cursor:pointer;" onclick="goProfile('${escapeHtml(escapeJsString(p.author))}')">${escapeHtml(p.author)}</b>
           ${quote}
-          <div class="postContent">${escapeHtml(p.content || "")}</div>
+          <b onclick="goProfile('${authorJs}')" style="cursor:pointer">${escapeHtml(p.author)}</b><br>
+          <div class="reply-content">${contentHtml}</div>
           ${img}
-          <div class="postTime">${date}</div>
-          <div class="postActions">
-            <span class="reply-action-btn" onclick="setReplyTo('${escapeHtml(escapeJsString(d.id))}','${escapeHtml(escapeJsString(p.author))}','${escapeHtml(escapeJsString(snippetForReply))}')">Reply</span>
-            ${(isMine || canDelete) ? `<span class="reply-action-btn" onclick="deleteBoardPost('${escapeHtml(escapeJsString(d.id))}')">Delete</span>` : ""}
+          <div style="display:flex; align-items:baseline;">
+            <div class="time">${date}</div>
+            <span class="reply-action-btn" onclick="setReplyTo('${idJs}','${authorJs}','${snippetForReply}')">[Reply]</span>
           </div>
+          ${(isMine || canDelete) ? `<button class="deleteBtn" onclick="deleteBoardPost('${idJs}')">Delete</button>` : ""}
         </div>
       </div>
     `);
@@ -598,49 +693,69 @@ function fileToBase64(file){
   });
 }
  
+async function generateVerification(){
+  if (isAnon) return;
+  try {
+    const fn = httpsCallable(functions, "generateGroupWordCaptcha");
+    const result = await fn();
+    document.getElementById("wordCaptchaImg").src = result.data.wordImage;
+    document.getElementById("reverseWordAnswer").value = "";
+  } catch(err) {
+    console.error(err);
+  }
+}
+
 let boardSubmitting = false;
 document.getElementById("sendPostBtn").onclick = async () => {
   if (boardSubmitting) return;
   const textEl = document.getElementById("postText");
   const fileInput = document.getElementById("postImage");
+  const msgEl = document.getElementById("boardCooldownMsg");
   const text = textEl.value.trim();
   const file = fileInput.files[0];
- 
+  const captchaWord = document.getElementById("reverseWordAnswer").value.trim().toLowerCase();
+
   if (!text && !file) return;
   if (file && file.size > 8 * 1024 * 1024) {
-    document.getElementById("boardCooldownMsg").innerText = "Image must be 8MB or smaller.";
-    document.getElementById("boardCooldownMsg").style.display = "block";
+    msgEl.innerText = "Image must be 8MB or smaller.";
+    msgEl.style.display = "block";
     return;
   }
- 
+  if (!captchaWord) {
+    msgEl.innerText = "Please type the verification word backwards.";
+    msgEl.style.display = "block";
+    return;
+  }
+
   boardSubmitting = true;
   const btn = document.getElementById("sendPostBtn");
   btn.disabled = true;
- 
+
   try {
-    const payload = { groupId, channelId: selectedChannelId, content: text };
+    const payload = { groupId, channelId: selectedChannelId, content: text, captchaWord };
     if (replyingToId) {
       payload.parentPostId = replyingToId;
       payload.parentPostUser = replyingToUser;
       payload.parentPostSnippet = replyingToSnippet;
     }
     if (file) payload.imageBase64 = await fileToBase64(file);
- 
+
     const fn = httpsCallable(functions, "postToBoard");
     await fn(payload);
- 
+
     textEl.value = "";
     fileInput.value = "";
     cancelReplyTo();
-    document.getElementById("boardCooldownMsg").style.display = "none";
+    msgEl.style.display = "none";
     loadPosts(true);
   } catch(err) {
     console.error(err);
-    document.getElementById("boardCooldownMsg").innerText = err.message || "Failed to post.";
-    document.getElementById("boardCooldownMsg").style.display = "block";
+    msgEl.innerText = err.message || "Failed to post.";
+    msgEl.style.display = "block";
   } finally {
     boardSubmitting = false;
     btn.disabled = false;
+    generateVerification(); // the server uses up every challenge, pass or fail
   }
 };
  
