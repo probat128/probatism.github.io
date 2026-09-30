@@ -102,6 +102,15 @@ textarea { width:100%; max-width:500px; height:90px; }
     </div>
  
     <div class="section">
+      <h3>Join Requests</h3>
+      <div class="field">
+        <label style="font-weight:normal;"><input type="checkbox" id="joinRequestsToggle"> Require approval to join this group</label>
+        <div class="hint">When on, people who click join create a request. It appears in the Ranks tab and must be accepted before they become a member.</div>
+        <button id="saveJoinRequestsBtn">Save</button>
+      </div>
+    </div>
+
+    <div class="section">
       <h3>Transfer Ownership</h3>
       <div class="field">
         <label>New Owner's Username</label>
@@ -151,6 +160,13 @@ textarea { width:100%; max-width:500px; height:90px; }
       </div>
     </div>
  
+    <div class="section" id="joinRequestsSection" style="display:none;">
+      <h3>Join Requests</h3>
+      <div id="joinRequestsList"></div>
+      <div class="hint" id="noJoinRequestsMsg" style="display:none;">No pending join requests.</div>
+      <button id="loadMoreJoinRequestsBtn" style="display:none;">Load More</button>
+    </div>
+
     <div class="section" id="banSection">
       <h3>Ban a Member</h3>
       <div class="inlineForm">
@@ -313,7 +329,7 @@ async function init(){
     }
   }
  
-  const canAccess = isOwnerOfGroup || hasPerm("viewLogs") || hasPerm("promoteDemote") || hasPerm("banUnban");
+  const canAccess = isOwnerOfGroup || hasPerm("viewLogs") || hasPerm("promoteDemote") || hasPerm("banUnban") || hasPerm("manageJoinRequests");
   if (!canAccess) {
     document.getElementById("noAccessMsg").style.display = "block";
     document.getElementById("editWrap").style.display = "none";
@@ -331,6 +347,7 @@ async function init(){
   document.getElementById("createRankSection").style.display = isOwnerOfGroup ? "block" : "none";
   document.getElementById("changeMemberRankSection").style.display = (isOwnerOfGroup || hasPerm("promoteDemote")) ? "block" : "none";
   document.getElementById("banSection").style.display = (isOwnerOfGroup || hasPerm("banUnban")) ? "block" : "none";
+  document.getElementById("joinRequestsSection").style.display = (isOwnerOfGroup || hasPerm("manageJoinRequests")) ? "block" : "none";
  
   if (isOwnerOfGroup) populateGeneralTab();
   renderRanksList();
@@ -338,6 +355,7 @@ async function init(){
   if (isOwnerOfGroup) loadChannelsTab();
   if (isOwnerOfGroup || hasPerm("viewLogs")) loadLog(true);
   loadBans(true);
+  if (isOwnerOfGroup || hasPerm("manageJoinRequests")) loadJoinRequests(true);
 }
  
 // ============ TABS ============
@@ -354,6 +372,7 @@ function switchTab(tab){
 function populateGeneralTab(){
   document.getElementById("titleInput").value = groupData.title || "";
   document.getElementById("descInput").value = groupData.description || "";
+  document.getElementById("joinRequestsToggle").checked = groupData.joinRequestsEnabled === true;
  
   const titleHint = document.getElementById("titleCooldownHint");
   if (groupData.titleLastChangedAt) {
@@ -463,6 +482,21 @@ document.getElementById("saveBannerBtn").onclick = async () => {
     showStatus(err.message || "Failed to update banner.", true);
   } finally { btn.disabled = false; }
 };
+
+document.getElementById("saveJoinRequestsBtn").onclick = async () => {
+  const enabled = document.getElementById("joinRequestsToggle").checked;
+  const btn = document.getElementById("saveJoinRequestsBtn");
+  btn.disabled = true;
+  try {
+    const fn = httpsCallable(functions, "setJoinRequestsEnabled");
+    await fn({ groupId, enabled });
+    groupData.joinRequestsEnabled = enabled;
+    showStatus(enabled ? "Join requests enabled." : "Join requests disabled.", false);
+  } catch(err) {
+    console.error(err);
+    showStatus(err.message || "Failed to update join requests.", true);
+  } finally { btn.disabled = false; }
+};
  
 document.getElementById("transferBtn").onclick = () => {
   const newOwnerUsername = document.getElementById("transferUsername").value.trim();
@@ -514,17 +548,18 @@ const PERMISSION_KEYS = [
   ["announcements", "Make Announcements"],
   ["postBoard", "Post on Board"],
   ["banUnban", "Ban/Unban Members"],
-  ["deleteBoardPosts", "Delete Board Posts"]
+  ["deleteBoardPosts", "Delete Board Posts"],
+  ["manageJoinRequests", "Accept and deny join requests"]
 ];
  
 function renderRanksList(){
   const listEl = document.getElementById("ranksList");
   listEl.innerHTML = "";
-  ranks.forEach(r => {
+  ranks.forEach((r, idx) => {
     const perms = r.permissions || {};
     const permGridHtml = PERMISSION_KEYS.map(([key,label]) => `
       <label>
-        <input type="checkbox" data-rank="${r.id}" data-perm="${key}" ${perms[key] ? "checked" : ""}
+        <input type="checkbox" data-rank="${r.id}" data-perm="${key}" ${(perms[key] || r.isOwnerRank) ? "checked" : ""}
           ${(isOwnerOfGroup && !r.isOwnerRank) ? "" : "disabled"}>
         ${escapeHtml(label)}
       </label>
@@ -534,11 +569,15 @@ function renderRanksList(){
       <div class="rankRow" data-rankid="${r.id}">
         <div class="rankHeader">
           <b>${escapeHtml(r.name)}</b> ${r.isOwnerRank ? "(Owner rank)" : ""}
-          ${isOwnerOfGroup && !r.isOwnerRank ? `
+          ${isOwnerOfGroup ? `
             <span>
+              ${!r.isOwnerRank ? `
+                <button class="moveRankBtn" data-rankid="${r.id}" data-dir="up" title="Move up" ${idx <= 1 ? "disabled" : ""}>&#9650;</button>
+                <button class="moveRankBtn" data-rankid="${r.id}" data-dir="down" title="Move down" ${idx >= ranks.length - 1 ? "disabled" : ""}>&#9660;</button>
+              ` : ""}
               <input type="text" class="renameInput" data-rankid="${r.id}" maxlength="20" placeholder="New name" style="width:120px;">
               <button class="renameRankBtn" data-rankid="${r.id}">Rename</button>
-              <button class="deleteRankBtn" data-rankid="${r.id}">Delete</button>
+              ${!r.isOwnerRank ? `<button class="deleteRankBtn" data-rankid="${r.id}">Delete</button>` : ""}
             </span>
           ` : ""}
         </div>
@@ -560,6 +599,21 @@ function renderRanksList(){
         showStatus("Rank renamed.", false);
         await init();
       } catch(err) { console.error(err); showStatus(err.message || "Failed to rename rank.", true); }
+    };
+  });
+
+  listEl.querySelectorAll(".moveRankBtn").forEach(btn => {
+    btn.onclick = async () => {
+      btn.disabled = true;
+      try {
+        const fn = httpsCallable(functions, "moveRank");
+        await fn({ groupId, rankId: btn.dataset.rankid, direction: btn.dataset.dir });
+        await init();
+      } catch(err) {
+        console.error(err);
+        showStatus(err.message || "Failed to move rank.", true);
+        btn.disabled = false;
+      }
     };
   });
  
@@ -691,6 +745,53 @@ async function loadBans(reset){
   }
 }
 document.getElementById("loadMoreBansBtn").onclick = () => loadBans(false);
+
+// ============ JOIN REQUESTS (paginated) ============
+let joinReqLastVisible = null;
+async function loadJoinRequests(reset){
+  const listEl = document.getElementById("joinRequestsList");
+  if (reset) { joinReqLastVisible = null; listEl.innerHTML = ""; }
+  let constraints = [orderBy("requestedAt", "desc"), limit(10)];
+  if (joinReqLastVisible) constraints.splice(1, 0, startAfter(joinReqLastVisible));
+  try {
+    const snap = await getDocs(query(collection(db, "groups", groupId, "joinRequests"), ...constraints));
+    document.getElementById("loadMoreJoinRequestsBtn").style.display = snap.docs.length === 10 ? "inline-block" : "none";
+    document.getElementById("noJoinRequestsMsg").style.display = (reset && snap.empty) ? "block" : "none";
+    if (snap.docs.length > 0) joinReqLastVisible = snap.docs[snap.docs.length - 1];
+    snap.forEach(d => {
+      const r = d.data();
+      const ms = r.requestedAt && r.requestedAt.toMillis ? r.requestedAt.toMillis() : Date.now();
+      listEl.insertAdjacentHTML("beforeend", `
+        <div class="banRow">
+          <b>${escapeHtml(r.username)}</b> <span class="logTime">${new Date(ms).toLocaleString()}</span>
+          <div>
+            <button class="acceptReqBtn" data-requestid="${escapeHtml(d.id)}">Accept</button>
+            <button class="denyReqBtn" data-requestid="${escapeHtml(d.id)}">Deny</button>
+          </div>
+        </div>
+      `);
+    });
+  } catch(e) {
+    console.warn("Join requests could not be loaded:", e);
+  }
+}
+document.getElementById("loadMoreJoinRequestsBtn").onclick = () => loadJoinRequests(false);
+document.getElementById("joinRequestsList").addEventListener("click", async (e) => {
+  const btn = e.target.closest("button[data-requestid]");
+  if (!btn) return;
+  const accept = btn.classList.contains("acceptReqBtn");
+  btn.parentElement.querySelectorAll("button").forEach(b => b.disabled = true);
+  try {
+    const fn = httpsCallable(functions, "respondToJoinRequest");
+    await fn({ groupId, requestId: btn.dataset.requestid, accept });
+    showStatus(accept ? "Join request accepted." : "Join request denied.", false);
+  } catch(err) {
+    console.error(err);
+    showStatus(err.message || "Failed to respond to join request.", true);
+  }
+  loadJoinRequests(true);
+  if (isOwnerOfGroup || hasPerm("viewLogs")) loadLog(true);
+});
  
 // ============ CHANNELS TAB ============
 async function loadChannelsTab(){
@@ -789,7 +890,8 @@ async function loadLog(reset){
       `);
     });
   } catch(e) {
-    // Read denied for users without viewLogs/owner access — expected, not an error to surface.
+        // Read denied for users without viewLogs/owner access is expected. A missing-index error is not: open the browser console and click the link to create it.
+    console.warn("Log load failed:", e);
   }
 }
 document.getElementById("loadMoreLogBtn").onclick = () => loadLog(false);
